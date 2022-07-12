@@ -10,9 +10,7 @@ using MLJLinearModels
 using MLJModels
 using EvoTrees
 
-
-include("helper_fns.jl")
-
+include("testutils.jl")
 
 @testset "Categorical target TMLE built from configuration file" begin
     queries = TargetedEstimation.parse_queries(iate_queryfile)

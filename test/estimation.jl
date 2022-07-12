@@ -11,7 +11,7 @@ using TMLE
 using JLD2
 using MLJBase
 
-include("helper_fns.jl")
+include("testutils.jl")
 
 function test_base_serialization(tmle_reports, n_expected; phenotype_id=1)
     tmle_report = tmle_reports["$(phenotype_id)_1"]

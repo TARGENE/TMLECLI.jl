@@ -9,7 +9,7 @@ using Serialization
 using TMLE
 using MLJLinearModels
 
-include("helper_fns.jl")
+include("testutils.jl")
 
 @testset "Test parse_queries" begin
     queries = TargetedEstimation.parse_queries(iate_queryfile)

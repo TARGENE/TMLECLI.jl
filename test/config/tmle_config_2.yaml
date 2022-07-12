@@ -6,6 +6,7 @@ Q_continuous:
   # Description of the resampling strategy
   resampling:
     type: CV
+    # The number of folds is determined based on the data
     adaptive: true
   # List all models and hyperparameters
   models: 
