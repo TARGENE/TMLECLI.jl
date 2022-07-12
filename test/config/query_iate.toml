@@ -1,0 +1,17 @@
+threshold = 0.9
+
+[SNPS]
+RSID_10 = "chr1"
+RSID_100 = "chr1"
+
+[QUERY_1]
+RSID_10 = "GG -> AG"
+RSID_100 = "GG -> AG"
+
+[QUERY_2]
+RSID_10 = "GG -> AG"
+RSID_100 = "GG -> AA"
+
+[QUERY_3]
+RSID_10 = "TT -> AG"
+RSID_100 = "GG -> AA"

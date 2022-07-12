@@ -1,6 +1,4 @@
-using TargetedEstimation
-using Test
-
-@testset "TargetedEstimation.jl" begin
-    # Write your tests here.
-end
+include("estimation.jl")
+include("estimators.jl")
+include("utils.jl")
+include("models.jl")
