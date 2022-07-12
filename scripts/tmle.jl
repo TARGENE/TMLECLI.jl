@@ -1,22 +1,19 @@
 using ArgParse
-using TMLEEpistasis
+using TargetedEstimation
 
 
 function parse_commandline()
     s = ArgParseSettings(
-        description = "This program computes estimates of Genetic Epistatis from the UK-Biobank using TMLE."*
-                      "Here is a list of the arguments that should be provided, you can also have a look at the "*
-                      "test/data and test/config folders to see some examples.",
+        description = "Targeted Learning estimation",
         commands_are_required = false,
         version = "0.2",
         add_version = true)
 
-
     @add_arg_table s begin
-        "genotypes"
-            help = "Path to genotypes .csv file"
+        "treatment"
+            help = "Path to treatment .csv file"
             required = true
-        "phenotypes"
+        "targets"
             help = "A file (.csv format). The first row contains the column names with `eid` the sample ID"*
                    " and the rest of the columns are phenotypes of interest."
             required = true
@@ -58,6 +55,6 @@ end
 
 parsed_args = parse_commandline()
 
-UKBBVariantRun(parsed_args)
+tmle_run(parsed_args)
 
 
