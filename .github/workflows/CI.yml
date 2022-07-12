@@ -1,10 +1,7 @@
 name: CI
 on:
-  push:
-    branches:
-      - main
-    tags: '*'
-  pull_request:
+  - push
+  - pull_request
 concurrency:
   # Skip intermediate builds: always.
   # Cancel intermediate builds: only if it is a pull request build.
@@ -19,8 +16,7 @@ jobs:
       matrix:
         version:
           - '1.6'
-          - '1.7'
-          - 'nightly'
+          - '1'
         os:
           - ubuntu-latest
         arch:
@@ -28,6 +24,22 @@ jobs:
           - x86
     steps:
       - uses: actions/checkout@v2
+      - name: Install curl
+        run: sudo apt-get update && apt-get install -y libcurl4-openssl-dev
+      - name: Setup R
+        uses: r-lib/actions/setup-r@v1
+        with:
+          r-version: ${{ matrix.R }}
+      - name: Install R dependencies
+        run: |
+          install.packages("devtools", repos="http://cran.us.r-project.org")
+          require(devtools)
+          install_version("hal9001", version = "0.4.1", repos = "http://cran.us.r-project.org")
+        shell: Rscript {0}
+      - name: Set R_HOME
+        run: echo "R_HOME=$(R RHOME)" >> $GITHUB_ENV
+      - name: Set LD_LIBRARY
+        run: echo "LD_LIBRARY_PATH=$R_HOME/lib" >> $GITHUB_ENV
       - uses: julia-actions/setup-julia@v1
         with:
           version: ${{ matrix.version }}
