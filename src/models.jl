@@ -80,3 +80,45 @@ MLJBase.target_scitype(model::InteractionLMRegressor) = AbstractVector{<:MLJBase
 MLJBase.target_scitype(model::InteractionLMClassifier) = AbstractVector{<:Finite}
 
 MLJBase.input_scitype(model::InteractionLM) = Table
+
+
+function build_formula_hal(X, column_pattern)
+    formula = "~h(.)"
+    for name in Tables.columnnames(X)
+        if occursin(column_pattern, string(name))
+            formula *= " + h($name, .)"
+        end
+    end
+    return formula
+end
+
+struct SNPInteractionHALClassifier <: MLJBase.Probabilistic
+    column_pattern
+    hal::HALClassifier
+end
+
+SNPInteractionHALClassifier(;column_pattern="^rs[0-9]+", kwargs...) =
+    SNPInteractionHALClassifier(Regex(column_pattern), HALClassifier(;kwargs...))
+
+struct SNPInteractionHALRegressor <: MLJBase.Deterministic
+    column_pattern
+    hal::HALRegressor
+end
+
+SNPInteractionHALRegressor(;column_pattern="^rs[0-9]+", kwargs...) =
+    SNPInteractionHALRegressor(Regex(column_pattern), HALRegressor(;kwargs...))
+
+SNPInteractionHAL = Union{SNPInteractionHALRegressor,SNPInteractionHALClassifier}
+
+MLJBase.target_scitype(model::SNPInteractionHALRegressor) = AbstractVector{<:MLJBase.Continuous}
+MLJBase.target_scitype(model::SNPInteractionHALClassifier) = AbstractVector{<:Finite}
+MLJBase.input_scitype(model::SNPInteractionHAL) = Table
+
+function MLJBase.fit(model::SNPInteractionHAL, verbosity::Int, X, y)
+    formula_hal = build_formula_hal(X, model.column_pattern)
+    model.hal.formula = formula_hal
+    return MLJBase.fit(model.hal, verbosity, X, y)
+end
+
+MLJBase.predict(model::SNPInteractionHAL, fitresult, X) =
+    MLJBase.predict(model.hal, fitresult, X)

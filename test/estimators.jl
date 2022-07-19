@@ -32,10 +32,10 @@ include("testutils.jl")
     @test tmle_bin.Q̅.InteractionLMClassifier_1 isa TargetedEstimation.InteractionLMClassifier
     @test tmle_bin.Q̅.InteractionLMClassifier_1.interaction_transformer.column_pattern == r"^RS_"
     ## Checking Qstack HAL model
-    @test tmle_bin.Q̅.HALClassifier_1.lambda == 10
-    @test tmle_bin.Q̅.HALClassifier_1.smoothness_orders == 1
-    @test tmle_bin.Q̅.HALClassifier_1.cv_select == false
-    @test tmle_bin.Q̅.HALClassifier_1.num_knots == [10, 5]
+    @test tmle_bin.Q̅.SNPInteractionHALClassifier_1.hal.lambda == 10
+    @test tmle_bin.Q̅.SNPInteractionHALClassifier_1.hal.smoothness_orders == 1
+    @test tmle_bin.Q̅.SNPInteractionHALClassifier_1.hal.cv_select == false
+    @test tmle_bin.Q̅.SNPInteractionHALClassifier_1.hal.num_knots == [10, 5]
 
     # Test binary target TMLE Qstack
     tmle_cont = TargetedEstimation.tmle_from_yaml(tmle_configfile, queries, Real)
@@ -54,10 +54,10 @@ include("testutils.jl")
     ## Checking Qstack Interaction Linear model
     @test tmle_cont.Q̅.InteractionLMRegressor_1.interaction_transformer.column_pattern == r"^RS_"
     ## Checking Qstack HAL model
-    @test tmle_cont.Q̅.HALRegressor_1.lambda == 10
-    @test tmle_cont.Q̅.HALRegressor_1.smoothness_orders == 1
-    @test tmle_cont.Q̅.HALRegressor_1.cv_select == false
-    @test tmle_cont.Q̅.HALRegressor_1.num_knots == [10, 5]
+    @test tmle_cont.Q̅.SNPInteractionHALRegressor_1.hal.lambda == 10
+    @test tmle_cont.Q̅.SNPInteractionHALRegressor_1.hal.smoothness_orders == 1
+    @test tmle_cont.Q̅.SNPInteractionHALRegressor_1.hal.cv_select == false
+    @test tmle_cont.Q̅.SNPInteractionHALRegressor_1.hal.num_knots == [10, 5]
     
     # Both TMLE have the same G Stack
     expected_queries = [
