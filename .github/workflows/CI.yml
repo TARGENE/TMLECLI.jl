@@ -30,7 +30,7 @@ jobs:
           r-version: ${{ matrix.R }}
       - name: Install R dependencies
         run: |
-          install.packages("devtools", repos="http://cran.us.r-project.org")
+          install.packages("devtools", repos="http://cran.us.r-project.org", dependecies=TRUE)
           require(devtools)
           install_version("hal9001", version = "0.4.1", repos = "http://cran.us.r-project.org")
         shell: Rscript {0}
