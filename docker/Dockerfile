@@ -25,7 +25,7 @@ RUN apt-get install -y libssl-dev \
                 libfreetype6-dev \
                 libpng-dev \
                 libtiff5-dev \
-                libjpeg-de
+                libjpeg-dev
 
 RUN R -e "install.packages('devtools', repos='http://cran.us.r-project.org', dependecies=TRUE); \
          require(devtools);\
