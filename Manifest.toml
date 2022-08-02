@@ -543,9 +543,9 @@ version = "0.3.3"
 
 [[deps.MLJLinearModels]]
 deps = ["DocStringExtensions", "IterativeSolvers", "LinearAlgebra", "LinearMaps", "MLJModelInterface", "Optim", "Parameters"]
-git-tree-sha1 = "2b1382afa4d7e711363e0960248e74baa9b86d4e"
+git-tree-sha1 = "dfbf4a5a8454034d21b6cfd9fd5a7960c8f7fb88"
 uuid = "6ee0df7b-362f-4a72-a706-9e79364fb692"
-version = "0.6.3"
+version = "0.5.7"
 
 [[deps.MLJModelInterface]]
 deps = ["Random", "ScientificTypesBase", "StatisticalTraits"]
