@@ -13,8 +13,8 @@ julia --project --startup-file=no scripts/tmle.jl --help
 Here is a description of the arguments:
 
 - `treatments`, `targets`, `confounders`: Those are CSV files containing the data. An extra "SAMPLE_ID" column is required to identify each row. Note that all treatments variables should be interpretable as categorical variables.
-- `parameters-file`: The parameters configuration file described in the [Parameters configuration file section](##parameters-configuration-file).
-- `estimator-file`: The estimator configuration file described in the [Estimator configuration file section](##estimator-configuration-file).
+- `parameters-file`: The parameters configuration file described in the [Parameters configuration file section](#parameters-configuration-file).
+- `estimator-file`: The estimator configuration file described in the [Estimator configuration file section](#estimator-configuration-file).
 - `out`: Output path for the `.hdf5` file.
 - `--covariates`: Currently unused because the TMLE package cannot yet make use of it (see [this issue](https://github.com/olivierlabayle/TMLE.jl/issues/59)).
 - `--target-type`: The script can only process one target type at a time which can be either `Bool` or `Real`.
@@ -30,7 +30,7 @@ The `Parameters` section lists all parameters of interest. Each parameter has a 
 
 ## Estimator configuration file
 
-The estimator configuration file describes the TMLE specification for the estimation of the parameters defined in the [Parameters configuration file](##parameters-configuration-file). Examples of such configuration files can be found in either `test/config/tmle_config.yaml` or `test/config/tmle_config_2.yaml`
+The estimator configuration file describes the TMLE specification for the estimation of the parameters defined in the [Parameters configuration file](#parameters-configuration-file). Examples of such configuration files can be found in either `test/config/tmle_config.yaml` or `test/config/tmle_config_2.yaml`
 
 This configuration contains 4 sections:
 
