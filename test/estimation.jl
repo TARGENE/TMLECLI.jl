@@ -5,8 +5,6 @@ using CSV
 using DataFrames
 using TargetedEstimation
 using CategoricalArrays
-using TOML
-using Serialization
 using TMLE
 using JLD2
 using MLJBase
@@ -35,7 +33,7 @@ function test_base_serialization(tmle_reports, n_expected; phenotype_id=1)
 end
 
 @testset "Test actualqueries" begin
-    genotypes = DataFrame(
+    treatments = DataFrame(
         rs1 = ["AC", "CC", "AC", "CC", missing],
         rs2 = ["CG", "CG", "GG", "GG", "GG"]
     )
@@ -49,18 +47,18 @@ end
         control=(rs1 = "CC", rs2 = "CC"),
         name="QUERY_2")
     ]
-    @test TargetedEstimation.genotypes_combinations(queries[1]) ==
+    @test TargetedEstimation.treatments_combinations(queries[1]) ==
         DataFrame(
             rs1 = ["CC", "AC", "CC", "AC"],
             rs2 = ["GG", "GG", "CG", "CG"]
         )
-    @test TargetedEstimation.genotypes_combinations(queries[2]) ==
+    @test TargetedEstimation.treatments_combinations(queries[2]) ==
         DataFrame(
             rs1 = ["CC", "AC", "CC", "AC"],
             rs2 = ["CC", "CC", "CG", "CG"]
         )
 
-    actual_queries = TargetedEstimation.actualqueries(genotypes, queries)
+    actual_queries = TargetedEstimation.actualqueries(treatments, queries)
     @test actual_queries == queries[1:1]
 end
 
@@ -72,41 +70,41 @@ end
     confounders.sex = [0, 1, 1, 1, 0, 0 , 0, 1, 1, 0]
     confounders.SAMPLE_ID = base_sample_ids
 
-    genotypes = DataFrame(
+    treatments = DataFrame(
         SAMPLE_ID = base_sample_ids, 
         RSID_1    = ["AC", "AC", "AC", "AC", "AC", "CC", "CC", "CC", "CC", "CC"],
         RSID_2    = ["AG", "AA", "AA", "AA", "AA", "AG", "AG", "AA", "AA", "AA"]
         )
 
     queries = [TMLE.Query(case=(RSID_2="AA", RSID_1="CC"), control=(RSID_2="AG", RSID_1="AC"))]
-    phenotypes = DataFrame(
+    targets = DataFrame(
         SAMPLE_ID = base_sample_ids,
         Y1 = rand(n),
         Y2 = rand(n)
     )
-    T, W, y, sample_ids = TargetedEstimation.preprocess(genotypes, confounders, phenotypes, Real, queries)
+    T, W, y, sample_ids = TargetedEstimation.preprocess(treatments, confounders, targets, Real, queries)
     
     # Check the order of columns has been reversed
-    @test T == genotypes[!, [:RSID_2, :RSID_1]]
+    @test T == treatments[!, [:RSID_2, :RSID_1]]
     @test W == confounders[!, Not("SAMPLE_ID")]
     @test all(eltype(W[!, col]) === Float64 for col in names(W))
-    @test y == phenotypes[!, Not("SAMPLE_ID")]
+    @test y == targets[!, Not("SAMPLE_ID")]
     @test sample_ids == 
             Dict(
                 "Y1" => string.(base_sample_ids),
                 "Y2" => string.(base_sample_ids),
             )
     # Checking joining on sample_ids
-    genotypes = DataFrame(
+    treatments = DataFrame(
         SAMPLE_ID = base_sample_ids, 
         RSID_1    = ["AC", "AC", missing, "AC", "AC", "CC", "CC", "CC", "CC", "CC"],
         RSID_2    = ["AG", "AG", "AA", "AA", "AA", "AG", "AG", "AA", "AA", "AA"]
         )
-    phenotypes = DataFrame(
+    targets = DataFrame(
         SAMPLE_ID = base_sample_ids,
         Y1 = [0, 1, 0, 1, 0, 1, 0, 0, 1, missing],
     )
-    T, W, y, sample_ids = TargetedEstimation.preprocess(genotypes, confounders, phenotypes, Bool, queries)
+    T, W, y, sample_ids = TargetedEstimation.preprocess(treatments, confounders, targets, Bool, queries)
 
     @test size(T) == (9, 2)
     # For y the missing value hasn't been dropped yet, it will be dropped during TMLE
@@ -119,15 +117,13 @@ end
 @testset "Test tmle_run with continuous target" begin
     # Only one continuous phenotype / machines not saved / no adaptive cv
     parsed_args = Dict(
-        "genotypes" => genotypesfile,
-        "phenotypes" => continuous_phenotypefile,
+        "treatments" => treatmentsfile,
+        "targets" => continuous_phenotypefile,
         "confounders" => confoundersfile,
-        "queries" => iate_queryfile,
-        "estimator" => tmle_configfile,
+        "parameters-file" => joinpath("config", "iate_parameters_only_cont_1.yaml"),
+        "estimator-file" => tmle_configfile,
         "out" => "RSID_10_RSID_100.hdf5",
-        "phenotypes-list" => phenotypelist_file,
         "verbosity" => 0,
-        "adaptive-cv" => false,
         "save-full" => false,
         "target-type" => "Real",
     )
@@ -150,15 +146,13 @@ end
 
 @testset "Test tmle_run with binary targets" begin
     parsed_args = Dict(
-        "genotypes" => genotypesfile,
-        "phenotypes" => binary_phenotypefile,
+        "treatments" => treatmentsfile,
+        "targets" => binary_phenotypefile,
         "confounders" => confoundersfile,
-        "queries" => iate_queryfile,
-        "estimator" => tmle_configfile,
+        "parameters-file" => joinpath("config", "iate_parameters.yaml"),
+        "estimator-file" => tmle_configfile,
         "out" => "RSID_10_RSID_100.hdf5",
-        "phenotypes-list" => nothing,
         "verbosity" => 0,
-        "adaptive-cv" => true,
         "save-full" => true,
         "target-type" => "Bool",
     )

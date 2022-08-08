@@ -3,17 +3,17 @@ module TestsStackBuilding
 using Test
 using TargetedEstimation
 using MLJBase
-using TOML
 using TMLE
 using MLJGLMInterface
 using MLJLinearModels
 using MLJModels
 using EvoTrees
+using YAML
 
 include("testutils.jl")
 
 @testset "Categorical target TMLE built from configuration file" begin
-    queries = TargetedEstimation.parse_queries(iate_queryfile)
+    queries = TargetedEstimation.parse_queries(YAML.load_file(iate_param_file))
     tmle_bin = TargetedEstimation.tmle_from_yaml(tmle_configfile, queries, Bool)
 
     @test tmle_bin.threshold == 0.001
@@ -83,7 +83,7 @@ include("testutils.jl")
 end
 
 @testset "Test standard ATE TMLE build" begin
-    queries = TargetedEstimation.parse_queries(ate_queryfile)
+    queries = TargetedEstimation.parse_queries(YAML.load_file(ate_param_file))
     tmle_bin = TargetedEstimation.tmle_from_yaml(tmle_configfile_2, queries, Bool)
     tmle_cont = TargetedEstimation.tmle_from_yaml(tmle_configfile_2, queries, Real)
     expected_queries = [

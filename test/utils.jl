@@ -3,37 +3,21 @@ module TestUtils
 using Test
 using TargetedEstimation
 using MLJBase
-using TOML
 using DataFrames
-using Serialization
 using TMLE
 using MLJLinearModels
+using YAML
 
 include("testutils.jl")
 
 @testset "Test parse_queries" begin
-    queries = TargetedEstimation.parse_queries(iate_queryfile)
+    queries = TargetedEstimation.parse_queries(YAML.load_file(iate_param_file))
     expected_queries = [
         Query(case=(RSID_10="AG", RSID_100="AG"), control=(RSID_10="GG", RSID_100="GG"), name="QUERY_1"),
         Query(case=(RSID_10="AG", RSID_100="AA"), control=(RSID_10="GG", RSID_100="GG"), name="QUERY_2"),
         Query(case=(RSID_10="AG", RSID_100="AA"), control=(RSID_10="TT", RSID_100="GG"), name="QUERY_3"),
     ]
     test_queries(queries, expected_queries)
-end
-
-@testset "Test phenotypes parsing" begin
-    # Fallback when no list is specified
-    @test nothing === TargetedEstimation.phenotypesnames(nothing)
-    # Test with a list of phenotypes
-    @test ["SAMPLE_ID", "CONTINUOUS_1"] == TargetedEstimation.phenotypesnames(phenotypelist_file)
-    # phenotypes loading
-    phenotypes = TargetedEstimation.load_phenotypes(binary_phenotypefile, nothing)
-    @test size(phenotypes) == (490, 3)
-    @test names(phenotypes) == ["SAMPLE_ID", "BINARY_1", "BINARY_2"]
-
-    phenotypes = TargetedEstimation.load_phenotypes(continuous_phenotypefile, phenotypelist_file)
-    @test size(phenotypes) == (490, 2)
-    @test names(phenotypes) == ["SAMPLE_ID", "CONTINUOUS_1"]
 end
 
 @testset "Test AdaptiveCV" begin

@@ -1,0 +1,25 @@
+Treatments:
+  - RSID_10
+  - RSID_100
+Parameters:
+  - name: QUERY_1
+    RSID_10:
+      control: GG
+      case: AG
+    RSID_100:
+      control: GG
+      case: AG
+  - name: QUERY_2
+    RSID_10:
+      control: GG
+      case: AG
+    RSID_100:
+      control: GG
+      case: AA
+  - name: QUERY_3
+    RSID_10:
+      control: TT
+      case: AG
+    RSID_100:
+      control: GG
+      case: AA

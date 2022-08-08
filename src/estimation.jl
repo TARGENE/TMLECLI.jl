@@ -38,9 +38,9 @@ end
 ####################             Utilities                 ####################
 ###############################################################################
 
-function sample_ids_per_phenotype(data, phenotypes_columns)
+function sample_ids_per_phenotype(data, targets_columns)
     sample_ids = Dict()
-    for colname in phenotypes_columns
+    for colname in targets_columns
         sample_ids[colname] =
             dropmissing(data[!, ["SAMPLE_ID", colname]]).SAMPLE_ID
         
@@ -51,7 +51,7 @@ end
 convert_target(x, ::Type{Bool}) = categorical(x)
 convert_target(x, ::Type{Real}) = x
 
-function genotypes_combinations(query)
+function treatments_combinations(query)
     snps = keys(query.case)
     snp_levels = NamedTuple{snps}(
         [[getfield(query.control, snp), getfield(query.case, snp)] for snp in snps]
@@ -63,13 +63,13 @@ function genotypes_combinations(query)
     return combinations
 end
 
-function actualqueries(genotypes, queries)
-    unique_genotypes = unique(dropmissing(genotypes))
+function actualqueries(treatments, queries)
+    unique_treatments = unique(dropmissing(treatments))
     actual_queries = []
     for query in queries
-        required_genotypes = genotypes_combinations(query)
-        joined = innerjoin(unique_genotypes, required_genotypes, on=names(genotypes))
-        if size(joined, 1) == size(required_genotypes, 1)
+        required_treatments = treatments_combinations(query)
+        joined = innerjoin(unique_treatments, required_treatments, on=names(treatments))
+        if size(joined, 1) == size(required_treatments, 1)
             push!(actual_queries, query)
         else
             @warn string("Query: ", query.name, " will not be processed due to missing genotypic data.")
@@ -78,26 +78,26 @@ function actualqueries(genotypes, queries)
     return actual_queries
 end
 
-function preprocess(genotypes, confounders, phenotypes, target_type, queries)
+function preprocess(treatments, confounders, targets, target_type, queries)
     # Make sure data SAMPLE_ID types coincide
-    genotypes.SAMPLE_ID = string.(genotypes.SAMPLE_ID)
+    treatments.SAMPLE_ID = string.(treatments.SAMPLE_ID)
     confounders.SAMPLE_ID = string.(confounders.SAMPLE_ID)
-    phenotypes.SAMPLE_ID = string.(phenotypes.SAMPLE_ID)
+    targets.SAMPLE_ID = string.(targets.SAMPLE_ID)
     
     # columns names 
-    genotypes_columns = filter(!=("SAMPLE_ID"), names(genotypes))
+    treatments_columns = filter(!=("SAMPLE_ID"), names(treatments))
     confounders_columns = filter(!=("SAMPLE_ID"), names(confounders))
-    phenotypes_columns = filter(!=("SAMPLE_ID"), names(phenotypes))
+    targets_columns = filter(!=("SAMPLE_ID"), names(targets))
 
     # Join all elements together by SAMPLE_ID
     data = innerjoin(
-            innerjoin(genotypes, confounders, on=:SAMPLE_ID),
-            phenotypes,
+            innerjoin(treatments, confounders, on=:SAMPLE_ID),
+            targets,
             on=:SAMPLE_ID
             )
 
-    # Drop missing values based on genotypes and covariates 
-    dropmissing!(data, vcat(genotypes_columns, confounders_columns))
+    # Drop missing values based on treatments and covariates 
+    dropmissing!(data, vcat(treatments_columns, confounders_columns))
 
     # Retrieve T and convert to categorical data
     # The use of the query he is so that the order of the columns in both
@@ -108,7 +108,7 @@ function preprocess(genotypes, confounders, phenotypes, target_type, queries)
     end
 
     # Retrive sample_ids per phenotype
-    sample_ids = sample_ids_per_phenotype(data, phenotypes_columns)
+    sample_ids = sample_ids_per_phenotype(data, targets_columns)
 
     # Retrieve W
     W = DataFrame()
@@ -118,11 +118,22 @@ function preprocess(genotypes, confounders, phenotypes, target_type, queries)
 
     # Retrieve Y and convert to categorical if needed
     Y = DataFrame()
-    for name in phenotypes_columns
+    for name in targets_columns
         Y[:, name] = convert_target(data[!, name], target_type)
     end
 
     return T, W, Y, sample_ids
+end
+
+function parse_queries(parameters_dicts)
+    treatments = Tuple(parameters_dicts["Treatments"])
+    queries = Query[]
+    for param in parameters_dicts["Parameters"]
+        case = NamedTuple{Symbol.(treatments)}([param[t]["case"] for t in treatments])
+        control = NamedTuple{Symbol.(treatments)}([param[t]["control"] for t in treatments])
+        push!(queries, TMLE.Query(case=case, control=control, name=param["name"]))
+    end
+    return queries
 end
 
 ###############################################################################
@@ -132,30 +143,38 @@ end
 function tmle_run(parsed_args)
     v = parsed_args["verbosity"]
     target_type = parsed_args["target-type"] == "Real" ? Real : Bool
-
-    queries = parse_queries(parsed_args["queries"])
+    parameters_dicts = YAML.load_file(parsed_args["parameters-file"])
+    queries = parse_queries(parameters_dicts)
+    treatment_cols = vcat("SAMPLE_ID", parameters_dicts["Treatments"][:])
+    confounders_cols = haskey(parameters_dicts, "Confounders") ? vcat("SAMPLE_ID", parameters_dicts["Confounders"][:]) : nothing
+    target_cols = haskey(parameters_dicts, "Targets") ? vcat("SAMPLE_ID", parameters_dicts["Targets"][:]) : nothing
 
     v >= 1 && @info "Loading data."
-    # Load Genotypes
-    genotypes = CSV.read(
-        parsed_args["genotypes"], 
-        DataFrame, 
-        select=[:SAMPLE_ID, keys(first(queries).control)...]
+    # Load Treatment variables
+    treatments = CSV.read(
+        parsed_args["treatments"], 
+        DataFrame; 
+        select=treatment_cols
     )
-
-    # Read Confounders
-    confounders = CSV.File(parsed_args["confounders"]) |> DataFrame
-
-    # Load phenotypes
-    phenotypes = load_phenotypes(parsed_args["phenotypes"], parsed_args["phenotypes-list"])
-
+    # Read Confounding variables
+    confounders = CSV.read(
+        parsed_args["confounders"], 
+        DataFrame; 
+        select=confounders_cols
+    )
+    # Load Target variables
+    targets = CSV.read(
+        parsed_args["targets"],
+        DataFrame;
+        select=target_cols
+    )
     # Preprocessing
     v >= 1 && @info "Preprocessing data."
-    genotypes, confounders, phenotypes, sample_ids = 
-        preprocess(genotypes, confounders, phenotypes, target_type, queries)
+    treatments, confounders, targets, sample_ids = 
+        preprocess(treatments, confounders, targets, target_type, queries)
     
     # Each genotype should have probability > 0
-    queries = actualqueries(genotypes, queries)
+    queries = actualqueries(treatments, queries)
     if size(queries, 1) == 0
         jldopen(parsed_args["out"], "a") do io
             JLD2.Group(io, "TMLEREPORTS")
@@ -164,11 +183,11 @@ function tmle_run(parsed_args)
     end
 
     # Build estimator
-    tmle = tmle_from_yaml(parsed_args["estimator"], queries, target_type)
+    tmle = tmle_from_yaml(parsed_args["estimator-file"], queries, target_type)
 
     # tmle_run TMLE 
     v >= 1 && @info "TMLE Estimation."
-    TMLE.fit(tmle, genotypes, confounders, phenotypes;
+    TMLE.fit(tmle, treatments, confounders, targets;
              verbosity=v-1, 
              cache=false,
              callbacks=[JLD2Saver(parsed_args["out"], parsed_args["save-full"])]

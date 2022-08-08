@@ -10,37 +10,32 @@ function parse_commandline()
         add_version = true)
 
     @add_arg_table s begin
-        "genotypes"
+        "treatments"
             help = "Path to treatment .csv file"
             required = true
-        "phenotypes"
-            help = "A file (.csv format). The first row contains the column names with `eid` the sample ID"*
-                   " and the rest of the columns are phenotypes of interest."
+        "targets"
+            help = "A file (.csv format) containing targets variables (see also --target-type)"
             required = true
         "confounders"
             help = "A file (.csv format) containing the confounding variables values and the sample ids associated"*
                    " with the participants. The first line of the file should contain the columns names and the sample ids "*
                    " column name should be: `SAMPLE_ID`."
             required = true
-        "queries"
-            help = "A file (.toml format) see: config/sample_query.toml for more information"
+        "parameters-file"
+            help = "A file (.yaml format) see README.md"
             required = true
-        "estimator"
-            help = "A file (.toml format) describing the tmle estimator to use, see config/sample_estimator.toml"*
-                   " for a basic example."
+        "estimator-file"
+            help = "A file (.yaml format) describing the tmle estimator to use, README.md"
             required = true
         "out"
             help = "Path where the ouput will be saved"
             required = true
+        "--covariates"
+            help = "A file (.csv format) containing extra covariates variables for E[Y|X]"
         "--target-type", "-t"
             help = "The type of the target variable: Real or Bool"
             arg_type = String
             default = "Bool"
-        "--phenotypes-list", "-p"
-            help = "A file, one line for each phenotype, containing a restrictions of the phenotypes "*
-                   "to consider for the analysis."
-            required = false
-            arg_type = String
         "--save-full", "-f"
             help = "Also save the full TMLE estimators for each phenotype."
             action = :store_true

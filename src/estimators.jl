@@ -1,6 +1,3 @@
-###############################################################################
-# BUILD TMLE FROM .TOML
-
 function buildmodels(config)
     models = Dict()
     for model_spec in config

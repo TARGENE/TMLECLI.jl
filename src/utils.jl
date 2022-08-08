@@ -1,47 +1,4 @@
 #####################################################################
-##### GENERIC FUNCTIONS                                         #####
-#####################################################################
-
-isbinary(y) = sort(unique(y)) == [0, 1]
-
-#####################################################################
-#####                     QUERY PARSING                          ####
-#####################################################################
-
-function parse_queries(queryfile::String)
-    config = TOML.parsefile(queryfile)
-    queries = Query[]
-    for (queryname, querydict) in config
-        if lowercase(queryname) ∉ ("threshold", "snps")
-            rsids = keys(querydict)
-            names = Tuple(Symbol(x) for x in rsids)
-            rsid_vals = [split(filter(x->!isspace(x), querydict[rsid]), "->") for rsid in rsids]
-            case = NamedTuple{names}(rsid_val[2] for rsid_val in rsid_vals)
-            control = NamedTuple{names}(rsid_val[1] for rsid_val in rsid_vals)
-            push!(queries,  Query(case=case, control=control, name=queryname))
-        end
-    end
-    return queries
-end
-
-
-#####################################################################
-#####                 PHENOTYPE PARSING                          ####
-#####################################################################
-
-phenotypesnames(phenotype_listfile::Nothing) = nothing
-
-function phenotypesnames(phenotype_listfile::String)
-    phenotypeslist = open(readlines, phenotype_listfile)
-    return vcat(["SAMPLE_ID"], phenotypeslist)
-end
-
-function load_phenotypes(phenotypes_datafile, phenotypes_listfile)
-    columns = phenotypesnames(phenotypes_listfile)
-    return CSV.File(phenotypes_datafile, select=columns) |> DataFrame
-end
-
-#####################################################################
 #####                 CV ADAPTIVE FOLDS                          ####
 #####################################################################
 
