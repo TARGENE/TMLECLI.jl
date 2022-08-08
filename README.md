@@ -22,7 +22,7 @@ Here is a description of the arguments:
 
 ## Parameters configuration file
 
-A Parameters configuration file, describes the causal model and the parameters of interest. It contains up to 5 sections: 4 sections to describe the variables' roles in the causal model and 1 section for the parameters. Examples of such configuration files can be found in either `test/config/ate_parameters.yaml`, `test/config/iate_parameters.yaml` or `test/config/iate_parameters_only_cont_1.yaml`.
+A Parameters configuration file, describes the causal model and the parameters of interest. It contains up to 5 sections: 4 sections to describe the variables' roles in the causal model and 1 section for the parameters. Examples of such configuration files can be found in either [test/config/ate_parameters.yaml](test/config/ate_parameters.yaml), [test/config/iate_parameters.yaml](test/config/iate_parameters.yaml) or [test/config/iate_parameters_only_cont_1.yaml](test/config/iate_parameters_only_cont_1.yaml).
 
 The variables sections are `Targets`, `Treatments`, `Confounders` and `Covariates`. `Treatments`, `Confounders` and `Covariates` will be fixed during the run while `Targets` will be looped through. Those sections are all optional and, if not provided, all the variables in the associated files will be loaded. If provided, they should be a list of variables.
 
@@ -30,7 +30,7 @@ The `Parameters` section lists all parameters of interest. Each parameter has a 
 
 ## Estimator configuration file
 
-The estimator configuration file describes the TMLE specification for the estimation of the parameters defined in the [Parameters configuration file](#parameters-configuration-file). Examples of such configuration files can be found in either `test/config/tmle_config.yaml` or `test/config/tmle_config_2.yaml`
+The estimator configuration file describes the TMLE specification for the estimation of the parameters defined in the [Parameters configuration file](#parameters-configuration-file). Examples of such configuration files can be found in either [test/config/tmle_config.yaml](test/config/tmle_config.yaml) or [test/config/tmle_config_2.yaml](test/config/tmle_config_2.yaml)
 
 This configuration contains 4 sections:
 
