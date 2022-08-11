@@ -124,7 +124,8 @@ end
         "estimator-file" => tmle_configfile,
         "out" => "RSID_10_RSID_100.hdf5",
         "verbosity" => 0,
-        "save-full" => false,
+        "save-models" => false,
+        "no-ic" => false,
         "target-type" => "Real",
     )
 
@@ -153,7 +154,8 @@ end
         "estimator-file" => tmle_configfile,
         "out" => "RSID_10_RSID_100.hdf5",
         "verbosity" => 0,
-        "save-full" => true,
+        "save-models" => true,
+        "no-ic" => true,
         "target-type" => "Bool",
     )
 
@@ -162,14 +164,15 @@ end
     # Essential results
     file = jldopen(parsed_args["out"])
 
-    @test size(file["SAMPLE_IDS"]["BINARY_1"], 1) == 487
-    @test size(file["SAMPLE_IDS"]["BINARY_2"], 1) == 485
+    @test !haskey(file, "SAMPLE_IDS")
     
     tmlereports = file["TMLEREPORTS"]
-    # QUERY_3 contains a missing genotype so is not actually computed
-    @test keys(tmlereports) == ["1_1", "1_2", "2_1", "2_2"]
-    test_base_serialization(tmlereports, 487, phenotype_id=1)
-    test_base_serialization(tmlereports, 485, phenotype_id=2)
+    # Those are summaries not containing the influence curve
+    for key in  ("1_1", "1_2", "2_1", "2_2")
+        @test tmlereports[key].pvalue isa Real
+        @test tmlereports[key].stderror isa Real
+        @test tmlereports[key].confint isa Tuple
+    end
 
     machines = file["MACHINES"]
     Gmach = machines["G"]
@@ -182,6 +185,7 @@ end
     # Clean
     rm(parsed_args["out"])
 end
+
 
 end;
 

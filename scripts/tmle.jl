@@ -36,8 +36,11 @@ function parse_commandline()
             help = "The type of the target variable: Real or Bool"
             arg_type = String
             default = "Bool"
-        "--save-full", "-f"
-            help = "Also save the full TMLE estimators for each phenotype."
+        "--save-models", "-f"
+            help = "Also save the full TMLE nuisance estimators"
+            action = :store_true
+        "--no-ic"
+            help = "Do not save the influence curves."
             action = :store_true
         "--verbosity", "-v"
             help = "Verbosity level"

@@ -9,12 +9,27 @@ A callback to save the TMLE estimation results to disk instead of keeping them i
 mutable struct JLD2Saver <: TMLE.Callback
     file::String
     save_machines::Bool
+    save_ic::Bool
+end
+
+"""
+    maybe_summarize(report::TMLEReport, save_ic)
+
+This is a temporary way to remove the influence curve data to save disk space
+while waiting for the new TMLE API.
+"""
+function maybe_summarize(report::TMLEReport, save_ic)
+    if save_ic
+        return report
+    else
+        return TMLE.summarize(report)
+    end
 end
 
 function TMLE.after_tmle(callback::JLD2Saver, report::TMLEReport, target_id::Int, query_id::Int)
     jldopen(callback.file, "a"; compress=true) do io
         group = haskey(io, "TMLEREPORTS") ? io["TMLEREPORTS"] : JLD2.Group(io, "TMLEREPORTS")
-        group[string(target_id, "_", query_id)] = report
+        group[string(target_id, "_", query_id)] = maybe_summarize(report, callback.save_ic)
     end
 end
 
@@ -190,12 +205,14 @@ function tmle_run(parsed_args)
     TMLE.fit(tmle, treatments, confounders, targets;
              verbosity=v-1, 
              cache=false,
-             callbacks=[JLD2Saver(parsed_args["out"], parsed_args["save-full"])]
+             callbacks=[JLD2Saver(parsed_args["out"], parsed_args["save-models"], !parsed_args["no-ic"])]
     )
 
     # Save sample_ids
-    jldopen(parsed_args["out"], "a") do io
-        io["SAMPLE_IDS"] = sample_ids
+    if !parsed_args["no-ic"]
+        jldopen(parsed_args["out"], "a") do io
+            io["SAMPLE_IDS"] = sample_ids
+        end
     end
 
     v >= 1 && @info "Done."

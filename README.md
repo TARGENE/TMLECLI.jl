@@ -22,7 +22,8 @@ Here is a description of the arguments:
 - `out`: Output path for the `.hdf5` file.
 - `--covariates`: Currently unused because the TMLE package cannot yet make use of it (see [this issue](https://github.com/olivierlabayle/TMLE.jl/issues/59)).
 - `--target-type`: The script can only process one target type at a time which can be either `Bool` or `Real`.
-- `--save-full`: Whether nuisance parameters should also be saved.
+- `--save-models`: Whether nuisance parameters should also be saved.
+- `--no-ic`: Not to include the influence curves in the output files.
 
 ## Parameters configuration file
 
