@@ -176,7 +176,7 @@ end
 
     machines = file["MACHINES"]
     Gmach = machines["G"]
-    @test length(report(Gmach).cv_report) == 3
+    @test length(report(Gmach).additions.cv_report) == 3
     Qmach₁ = machines["Q_1"]
     @test length(report(Qmach₁).cv_report) == 4
     Qmach₂ = machines["Q_2"]
