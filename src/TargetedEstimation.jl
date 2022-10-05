@@ -10,6 +10,7 @@ using MLJModels
 using MLJLinearModels
 using JLD2
 using YAML
+using CategoricalArrays
 
 include("utils.jl")
 include("estimators.jl")

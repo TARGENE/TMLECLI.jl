@@ -44,7 +44,7 @@ function learner_from_config(config)
     return modeltype(;config...)
 end
 
-function tmle_from_yaml(yamlfile, queries, target_type)
+function tmle_spec_from_yaml(yamlfile)
     config = YAML.load_file(yamlfile; dicttype=Dict{Symbol,Any})
 
     # Build G estimator
@@ -53,30 +53,23 @@ function tmle_from_yaml(yamlfile, queries, target_type)
     else
         G = learner_from_config(config[:G])
     end
-    if length(first(queries).case) > 1
-        G = FullCategoricalJoint(G)
-    end
 
-    # Build Q estimator
-    if target_type == Real
-        if config[:Q_continuous][:model] == "Stack"
-            metalearner =  LinearRegressor(fit_intercept=false)
-            Q = stack_from_config(config[:Q_continuous], metalearner)
-        else
-            Q = learner_from_config(config[:Q_continuous])
-        end
-    elseif target_type == Bool
-        if config[:Q_binary][:model] == "Stack"
-            metalearner =  LogisticClassifier(fit_intercept=false)
-            Q = stack_from_config(config[:Q_binary], metalearner)
-        else
-            Q = learner_from_config(config[:Q_binary])
-        end
+
+    if config[:Q_continuous][:model] == "Stack"
+        metalearner =  LinearRegressor(fit_intercept=false)
+        Q_continuous = stack_from_config(config[:Q_continuous], metalearner)
     else
-        throw(ArgumentError("The type of the outcomes: $target_type, should be either a Float or a Bool"))
+        Q_continuous = learner_from_config(config[:Q_continuous])
     end
 
-    threshold = haskey(config, :threshold) ? config[:threshold] : 0.005
+    if config[:Q_binary][:model] == "Stack"
+        metalearner =  LogisticClassifier(fit_intercept=false)
+        Q_binary = stack_from_config(config[:Q_binary], metalearner)
+    else
+        Q_binary = learner_from_config(config[:Q_binary])
+    end
 
-    return TMLEstimator(Q, G, queries...; threshold=threshold)
+    threshold = haskey(config, :threshold) ? config[:threshold] : 1e-8
+
+    return (G=G, Q_continuous=Q_continuous, Q_binary=Q_binary, threshold=threshold)
 end

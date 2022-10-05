@@ -3,107 +3,76 @@ module TestsStackBuilding
 using Test
 using TargetedEstimation
 using MLJBase
-using TMLE
 using MLJGLMInterface
 using MLJLinearModels
 using MLJModels
 using EvoTrees
-using YAML
 
-include("testutils.jl")
+@testset "Test tmle_spec_from_yaml: Only Stacks" begin
+    tmle_spec = TargetedEstimation.tmle_spec_from_yaml(joinpath("config", "tmle_config.yaml"))
 
-@testset "Categorical target TMLE built from configuration file" begin
-    queries = TargetedEstimation.parse_queries(YAML.load_file(iate_param_file))
-    tmle_bin = TargetedEstimation.tmle_from_yaml(tmle_configfile, queries, Bool)
-
-    @test tmle_bin.threshold == 0.001
+    @test tmle_spec.threshold == 0.001
     # Test binary target TMLE's Qstack
-    @test tmle_bin.Q̅.measures == [log_loss]
-    @test tmle_bin.F isa LinearBinaryClassifier
+    Q_binary = tmle_spec.Q_binary
+    @test Q_binary.measures == [log_loss]
     ## Checking Qstack.metalearner
-    @test tmle_bin.Q̅.metalearner isa LogisticClassifier
-    @test tmle_bin.Q̅.metalearner.fit_intercept == false
+    @test Q_binary.metalearner isa LogisticClassifier
+    @test Q_binary.metalearner.fit_intercept == false
     ## Checking Qstack.resampling
-    @test tmle_bin.Q̅.resampling isa StratifiedCV
-    @test tmle_bin.Q̅.resampling.nfolds == 2
+    @test Q_binary.resampling isa StratifiedCV
+    @test Q_binary.resampling.nfolds == 2
     ## Checking Qstack EvoTree models
-    @test tmle_bin.Q̅.EvoTreeClassifier_1.nrounds == 10
+    @test Q_binary.EvoTreeClassifier_1.nrounds == 10
     ## Checking Qstack  Interaction Logistic models
-    @test tmle_bin.Q̅.InteractionLMClassifier_1 isa TargetedEstimation.InteractionLMClassifier
-    @test tmle_bin.Q̅.InteractionLMClassifier_1.interaction_transformer.column_pattern == r"^RS_"
+    @test Q_binary.InteractionLMClassifier_1 isa TargetedEstimation.InteractionLMClassifier
+    @test Q_binary.InteractionLMClassifier_1.interaction_transformer.column_pattern == r"^RS_"
     ## Checking Qstack HAL model
-    @test tmle_bin.Q̅.HALClassifier_1.lambda == 10
-    @test tmle_bin.Q̅.HALClassifier_1.smoothness_orders == 1
-    @test tmle_bin.Q̅.HALClassifier_1.cv_select == false
-    @test tmle_bin.Q̅.HALClassifier_1.num_knots == [10, 5]
+    @test Q_binary.HALClassifier_1.lambda == 10
+    @test Q_binary.HALClassifier_1.smoothness_orders == 1
+    @test Q_binary.HALClassifier_1.cv_select == false
+    @test Q_binary.HALClassifier_1.num_knots == [10, 5]
 
-    # Test binary target TMLE Qstack
-    tmle_cont = TargetedEstimation.tmle_from_yaml(tmle_configfile, queries, Real)
-    @test tmle_cont.Q̅.measures == [rmse]
-    @test tmle_cont.F isa MLJGLMInterface.LinearRegressor
+    # Test continuous target TMLE's Qstack
+    Q_continuous = tmle_spec.Q_continuous
+    @test Q_continuous.measures == [rmse]
     ## Checking Qstack.metalearner
-    @test tmle_cont.Q̅.metalearner isa MLJLinearModels.LinearRegressor
-    @test tmle_cont.Q̅.metalearner.fit_intercept == false
+    @test Q_continuous.metalearner isa MLJLinearModels.LinearRegressor
+    @test Q_continuous.metalearner.fit_intercept == false
 
     ## Checking Qstack.resampling
-    @test tmle_cont.Q̅.resampling isa CV
-    @test tmle_cont.Q̅.resampling.nfolds == 2
+    @test Q_continuous.resampling isa CV
+    @test Q_continuous.resampling.nfolds == 2
     ## Checking Qstack EvoTree models
-    @test tmle_cont.Q̅.EvoTreeRegressor_1.nrounds == 10
-    @test tmle_cont.Q̅.EvoTreeRegressor_2.nrounds == 20
+    @test Q_continuous.EvoTreeRegressor_1.nrounds == 10
+    @test Q_continuous.EvoTreeRegressor_2.nrounds == 20
     ## Checking Qstack Interaction Linear model
-    @test tmle_cont.Q̅.InteractionLMRegressor_1.interaction_transformer.column_pattern == r"^RS_"
+    @test Q_continuous.InteractionLMRegressor_1.interaction_transformer.column_pattern == r"^RS_"
     ## Checking Qstack HAL model
-    @test tmle_cont.Q̅.HALRegressor_1.lambda == 10
-    @test tmle_cont.Q̅.HALRegressor_1.smoothness_orders == 1
-    @test tmle_cont.Q̅.HALRegressor_1.cv_select == false
-    @test tmle_cont.Q̅.HALRegressor_1.num_knots == [10, 5]
+    @test Q_continuous.HALRegressor_1.lambda == 10
+    @test Q_continuous.HALRegressor_1.smoothness_orders == 1
+    @test Q_continuous.HALRegressor_1.cv_select == false
+    @test Q_continuous.HALRegressor_1.num_knots == [10, 5]
     
-    # Both TMLE have the same G Stack
-    expected_queries = [
-        Query(case=(RSID_10="AG", RSID_100="AG"), control=(RSID_10="GG", RSID_100="GG"), name="QUERY_1"),
-        Query(case=(RSID_10="AG", RSID_100="AA"), control=(RSID_10="GG", RSID_100="GG"), name="QUERY_2"),
-        Query(case=(RSID_10="AG", RSID_100="AA"), control=(RSID_10="TT", RSID_100="GG"), name="QUERY_3")
-    ]
-    for tmle in [tmle_bin, tmle_cont]
-        @test tmle.G.model.measures == [log_loss]
-        test_queries(tmle.queries, expected_queries)
-        # Checking Gstack
-        @test tmle.G isa FullCategoricalJoint 
-        ## Checking Gstack.metalearner
-        @test tmle.G.model.metalearner isa LogisticClassifier
-        @test tmle.G.model.metalearner.fit_intercept == false
-        ## Checking Gstack.resampling
-        @test tmle.G.model.resampling isa StratifiedCV
-        @test tmle.G.model.resampling.nfolds == 2
-        ## Checking Gstack models
-        @test tmle.G.model.LogisticClassifier_1.lambda == 1.0
-        @test tmle.G.model.EvoTreeClassifier_1.nrounds == 10
-    end
+    # TMLE G Stack
+    G = tmle_spec.G
+    @test G.measures == [log_loss]
+    ## Checking Gstack.metalearner
+    @test G.metalearner isa LogisticClassifier
+    @test G.metalearner.fit_intercept == false
+    ## Checking Gstack.resampling
+    @test G.resampling isa StratifiedCV
+    @test G.resampling.nfolds == 2
+    ## Checking Gstack models
+    @test G.LogisticClassifier_1.lambda == 1.0
+    @test G.EvoTreeClassifier_1.nrounds == 10
 end
 
-@testset "Test standard ATE TMLE build" begin
-    queries = TargetedEstimation.parse_queries(YAML.load_file(ate_param_file))
-    tmle_bin = TargetedEstimation.tmle_from_yaml(tmle_configfile_2, queries, Bool)
-    tmle_cont = TargetedEstimation.tmle_from_yaml(tmle_configfile_2, queries, Real)
-    expected_queries = [
-        Query(case=(RSID_10="AG",), control=(RSID_10="GG",), name="QUERY_1"),
-        Query(case=(RSID_10="AA",), control=(RSID_10="GG",), name="QUERY_2"),
-    ]
-    for (type, tmle) in [("binary", tmle_bin), ("continuous", tmle_cont)]
-        test_queries(tmle.queries, expected_queries)
-        @test tmle.G isa EvoTreeClassifier
-    end
-
-    @test tmle_bin.Q̅ isa LogisticClassifier
-    @test tmle_bin.Q̅.lambda == 10.
-
-    @test tmle_cont.Q̅.EvoTreeRegressor_4 isa EvoTreeRegressor
-    @test tmle_cont.Q̅.resampling isa TargetedEstimation.AdaptiveCV
-
+@testset "Test tmle_spec_from_yaml: Simple models" begin
+    tmle_spec = TargetedEstimation.tmle_spec_from_yaml(joinpath("config", "tmle_config_2.yaml"))
+    @test tmle_spec.G == EvoTreeClassifier(nrounds=10)
+    @test tmle_spec.Q_binary == LogisticClassifier(lambda=10)
+    @test tmle_spec.threshold == 1e-8
 end
-
-
 
 end;
 

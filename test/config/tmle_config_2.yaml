@@ -1,4 +1,4 @@
-threshold: 0.001
+
 # For the estimation of E[Y|W, T]: continuous target
 Q_continuous:
   model: Stack
