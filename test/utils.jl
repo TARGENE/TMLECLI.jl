@@ -3,22 +3,7 @@ module TestUtils
 using Test
 using TargetedEstimation
 using MLJBase
-using DataFrames
-using TMLE
-using MLJLinearModels
-using YAML
 
-include("testutils.jl")
-
-@testset "Test parse_queries" begin
-    queries = TargetedEstimation.parse_queries(YAML.load_file(iate_param_file))
-    expected_queries = [
-        Query(case=(RSID_10="AG", RSID_100="AG"), control=(RSID_10="GG", RSID_100="GG"), name="QUERY_1"),
-        Query(case=(RSID_10="AG", RSID_100="AA"), control=(RSID_10="GG", RSID_100="GG"), name="QUERY_2"),
-        Query(case=(RSID_10="AG", RSID_100="AA"), control=(RSID_10="TT", RSID_100="GG"), name="QUERY_3"),
-    ]
-    test_queries(queries, expected_queries)
-end
 
 @testset "Test AdaptiveCV" begin
     # Continuous target
