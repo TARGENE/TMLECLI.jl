@@ -49,7 +49,7 @@ function tmle_spec_from_yaml(yamlfile)
 
     # Build G estimator
     if config[:G][:model] == "Stack"
-        G = stack_from_config(config[:G], LogisticClassifier(fit_intercept=false))
+        G = stack_from_config(config[:G], LogisticClassifier(fit_intercept=false, lambda=0))
     else
         G = learner_from_config(config[:G])
     end
@@ -63,7 +63,7 @@ function tmle_spec_from_yaml(yamlfile)
     end
 
     if config[:Q_binary][:model] == "Stack"
-        metalearner =  LogisticClassifier(fit_intercept=false)
+        metalearner =  LogisticClassifier(fit_intercept=false, lambda=0)
         Q_binary = stack_from_config(config[:Q_binary], metalearner)
     else
         Q_binary = learner_from_config(config[:Q_binary])

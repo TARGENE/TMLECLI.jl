@@ -16,6 +16,5 @@ YAML = "ddb6d928-2868-570f-bddf-ab3f9cf99eb6"
 
 [compat]
 MLJGLMInterface = "0.3"
-MLJLinearModels = "0.5.7"
 RCall = "0.13"
 StableRNGs = "1.0"
