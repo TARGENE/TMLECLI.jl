@@ -1,22 +1,32 @@
-Treatments:
+W:
+  - PC1
+  - PC2
+C:
+  - 21003
+  - 22001
+T:
   - RSID_10
   - RSID_100
+Y:
+  - CONTINUOUS_2
+  - BINARY_2
+  
 Parameters:
-  - name: QUERY_1
+  - name: IATE
     RSID_10:
       control: GG
       case: AG
     RSID_100:
       control: GG
       case: AG
-  - name: QUERY_2
+  - name: IATE
     RSID_10:
       control: GG
       case: AG
     RSID_100:
       control: GG
       case: AA
-  - name: QUERY_3
+  - name: ATE
     RSID_10:
       control: TT
       case: AG

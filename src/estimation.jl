@@ -1,220 +1,96 @@
 
 ###############################################################################
-####################         JLD2Saver Callback            ####################
-###############################################################################
-
-"""
-A callback to save the TMLE estimation results to disk instead of keeping them in memory
-"""
-mutable struct JLD2Saver <: TMLE.Callback
-    file::String
-    save_machines::Bool
-    save_ic::Bool
-end
-
-"""
-    maybe_summarize(report::TMLEReport, save_ic)
-
-This is a temporary way to remove the influence curve data to save disk space
-while waiting for the new TMLE API.
-"""
-function maybe_summarize(report::TMLEReport, save_ic)
-    if save_ic
-        return report
-    else
-        return TMLE.summarize(report)
-    end
-end
-
-function TMLE.after_tmle(callback::JLD2Saver, report::TMLEReport, target_id::Int, query_id::Int)
-    jldopen(callback.file, "a"; compress=true) do io
-        group = haskey(io, "TMLEREPORTS") ? io["TMLEREPORTS"] : JLD2.Group(io, "TMLEREPORTS")
-        group[string(target_id, "_", query_id)] = maybe_summarize(report, callback.save_ic)
-    end
-end
-
-function TMLE.after_fit(callback::JLD2Saver, mach::Machine, id::Symbol)
-    if callback.save_machines
-        jldopen(callback.file, "a"; compress=true) do io
-            group = haskey(io, "MACHINES") ? io["MACHINES"] : JLD2.Group(io, "MACHINES")
-            group[string(id)] = mach
-        end
-    end
-end
-
-function TMLE.finalize(callback::JLD2Saver, estimation_report::NamedTuple)
-    jldopen(callback.file, "a"; compress=true) do io
-        io["low_propensity_scores"] = estimation_report.low_propensity_scores
-    end
-    return estimation_report
-end
-
-###############################################################################
 ####################             Utilities                 ####################
 ###############################################################################
 
-function sample_ids_per_phenotype(data, targets_columns)
-    sample_ids = Dict()
-    for colname in targets_columns
-        sample_ids[colname] =
-            dropmissing(data[!, ["SAMPLE_ID", colname]]).SAMPLE_ID
-        
+get_sample_ids(data, targets_columns) = dropmissing(data[!, [:SAMPLE_ID, targets_columns...]]).SAMPLE_ID
+
+
+"""
+    instantiate_dataset(path::String)
+
+Returns a DataFrame wrapper around a dataset, either in CSV or Arrow format.
+"""
+function instantiate_dataset(path::String)
+    if endswith(path, "arrow")
+        return DataFrame(Arrow.Table(path))
+    else
+        return CSV.read(path, DataFrame)
     end
-    return sample_ids
 end
 
-convert_target(x, ::Type{Bool}) = categorical(x)
-convert_target(x, ::Type{Real}) = x
+isbinarytarget(y::AbstractVector) = Set(unique(skipmissing(y))) == Set([0, 1])
 
-function treatments_combinations(query)
-    snps = keys(query.case)
-    snp_levels = NamedTuple{snps}(
-        [[getfield(query.control, snp), getfield(query.case, snp)] for snp in snps]
-    )
-    combinations = DataFrame(NamedTuple{snps}([[] for _ in snps]))
-    for comb in reduce(vcat, Iterators.product(snp_levels...))
-        push!(combinations, comb)
-    end
-    return combinations
+function nuisance_spec_from_target(tmle_spec, isbinary)
+    Q_spec = isbinary ? tmle_spec.Q_binary : tmle_spec.Q_continuous
+    return NuisanceSpec(Q_spec, tmle_spec.G)
 end
 
-function actualqueries(treatments, queries)
-    unique_treatments = unique(dropmissing(treatments))
-    actual_queries = []
-    for query in queries
-        required_treatments = treatments_combinations(query)
-        joined = innerjoin(unique_treatments, required_treatments, on=names(treatments))
-        if size(joined, 1) == size(required_treatments, 1)
-            push!(actual_queries, query)
-        else
-            @warn string("Query: ", query.name, " will not be processed due to missing genotypic data.")
-        end
+maybe_categorical(v) = categorical(v)
+maybe_categorical(v::CategoricalArray) = v
+
+make_categorical!(dataset, colname::Union{String, Symbol}, isbinary::Bool) =
+    isbinary ? dataset[!, colname] = maybe_categorical(dataset[!, colname]) : nothing
+
+function make_categorical!(dataset, colnames::Tuple, isbinary::Bool)
+    for colname in colnames
+        make_categorical!(dataset, colname, isbinary)
     end
-    return actual_queries
 end
 
-function preprocess(treatments, confounders, targets, target_type, queries)
-    # Make sure data SAMPLE_ID types coincide
-    treatments.SAMPLE_ID = string.(treatments.SAMPLE_ID)
-    confounders.SAMPLE_ID = string.(confounders.SAMPLE_ID)
-    targets.SAMPLE_ID = string.(targets.SAMPLE_ID)
-    
-    # columns names 
-    treatments_columns = filter(!=("SAMPLE_ID"), names(treatments))
-    confounders_columns = filter(!=("SAMPLE_ID"), names(confounders))
-    targets_columns = filter(!=("SAMPLE_ID"), names(targets))
-
-    # Join all elements together by SAMPLE_ID
-    data = innerjoin(
-            innerjoin(treatments, confounders, on=:SAMPLE_ID),
-            targets,
-            on=:SAMPLE_ID
-            )
-
-    # Drop missing values based on treatments and covariates 
-    dropmissing!(data, vcat(treatments_columns, confounders_columns))
-
-    # Retrieve T and convert to categorical data
-    # The use of the query he is so that the order of the columns in both
-    # T and queries are matching which is currently a technical requirement of the TMLE package
-    T = DataFrame()
-    for name in keys(first(queries).control)
-        T[:, name] = categorical(data[!, name])
-    end
-
-    # Retrive sample_ids per phenotype
-    sample_ids = sample_ids_per_phenotype(data, targets_columns)
-
-    # Retrieve W
-    W = DataFrame()
-    for col in confounders_columns
-        W[:, col] = convert(Vector{Float64}, data[!, col])
-    end
-
-    # Retrieve Y and convert to categorical if needed
-    Y = DataFrame()
-    for name in targets_columns
-        Y[:, name] = convert_target(data[!, name], target_type)
-    end
-
-    return T, W, Y, sample_ids
+function save_estimation_results(target_group, tmle_results, initial_estimates, sample_ids)
+    target_group["tmle_results"] = tmle_results
+    target_group["initial_estimates"] = initial_estimates
+    target_group["sample_ids"] = sample_ids
 end
 
-function parse_queries(parameters_dicts)
-    treatments = Tuple(parameters_dicts["Treatments"])
-    queries = Query[]
-    for param in parameters_dicts["Parameters"]
-        case = NamedTuple{Symbol.(treatments)}([param[t]["case"] for t in treatments])
-        control = NamedTuple{Symbol.(treatments)}([param[t]["control"] for t in treatments])
-        push!(queries, TMLE.Query(case=case, control=control, name=param["name"]))
-    end
-    return queries
-end
+get_non_target_columns(parameter) =
+    vcat(keys(parameter.treatment)..., parameter.confounders, parameter.covariates)
 
 ###############################################################################
 ####################           Main Function               ####################
 ###############################################################################
 
 function tmle_run(parsed_args)
-    v = parsed_args["verbosity"]
-    target_type = parsed_args["target-type"] == "Real" ? Real : Bool
-    parameters_dicts = YAML.load_file(parsed_args["parameters-file"])
-    queries = parse_queries(parameters_dicts)
-    treatment_cols = vcat("SAMPLE_ID", parameters_dicts["Treatments"][:])
-    confounders_cols = haskey(parameters_dicts, "Confounders") ? vcat("SAMPLE_ID", parameters_dicts["Confounders"][:]) : nothing
-    target_cols = haskey(parameters_dicts, "Targets") ? vcat("SAMPLE_ID", parameters_dicts["Targets"][:]) : nothing
+    verbosity = parsed_args["verbosity"]
+    parameters = TMLE.parameters_from_yaml(parsed_args["param-file"])
+    non_target_columns = get_non_target_columns(first(parameters))
+    parameters_df = DataFrame(TARGET=[p.target for p in parameters], PARAMETER=parameters)
 
-    v >= 1 && @info "Loading data."
-    # Load Treatment variables
-    treatments = CSV.read(
-        parsed_args["treatments"], 
-        DataFrame; 
-        select=treatment_cols
-    )
-    # Read Confounding variables
-    confounders = CSV.read(
-        parsed_args["confounders"], 
-        DataFrame; 
-        select=confounders_cols
-    )
-    # Load Target variables
-    targets = CSV.read(
-        parsed_args["targets"],
-        DataFrame;
-        select=target_cols
-    )
-    # Preprocessing
-    v >= 1 && @info "Preprocessing data."
-    treatments, confounders, targets, sample_ids = 
-        preprocess(treatments, confounders, targets, target_type, queries)
-    
-    # Each genotype should have probability > 0
-    queries = actualqueries(treatments, queries)
-    if size(queries, 1) == 0
-        jldopen(parsed_args["out"], "a") do io
-            JLD2.Group(io, "TMLEREPORTS")
+    dataset = TargetedEstimation.instantiate_dataset(parsed_args["data"])
+
+    tmle_spec = TargetedEstimation.tmle_spec_from_yaml(parsed_args["estimator-file"])
+
+    cache = nothing
+    jldopen(parsed_args["out"], "w", compress=true) do io
+        results_group = JLD2.Group(io, "results")
+        gpd_parameters = groupby(parameters_df, :TARGET)
+        for (target_key, target_parameters) in pairs(gpd_parameters)
+            target = target_key.TARGET
+            verbosity >= 1 && @info string("Targeted Estimation for target: ", target)
+            target_group = JLD2.Group(results_group, string(target))
+            targetisbinary = TargetedEstimation.isbinarytarget(dataset[!, target])
+            TargetedEstimation.make_categorical!(dataset, target, targetisbinary)
+            η_spec = TargetedEstimation.nuisance_spec_from_target(tmle_spec, targetisbinary)
+            tmle_results = TMLE.AbstractTMLE[]
+            initial_estimates = Float64[]
+            for Ψ in target_parameters[!, :PARAMETER]
+                TargetedEstimation.make_categorical!(dataset, keys(Ψ.treatment), true)
+                if cache === nothing
+                    tmle_result, initial_result, cache = tmle(Ψ, η_spec, dataset; verbosity=verbosity-1, threshold=tmle_spec.threshold)
+                else
+                    tmle_result, initial_result, cache = tmle!(cache; verbosity=verbosity-1, threshold=tmle_spec.threshold)
+                end
+                push!(tmle_results, tmle_result)
+                push!(initial_estimates, estimate(initial_result))
+            end
+            sample_ids = get_sample_ids(dataset, vcat(target, non_target_columns))
+            save_estimation_results(target_group, tmle_results, initial_estimates, sample_ids)
+            # push!(io["sample_ids"], sample_ids)
         end
-        return 0
+        io["parameters"] = first(gpd_parameters)[!, "PARAMETER"]
     end
 
-    # Build estimator
-    tmle = tmle_from_yaml(parsed_args["estimator-file"], queries, target_type)
-
-    # tmle_run TMLE 
-    v >= 1 && @info "TMLE Estimation."
-    TMLE.fit(tmle, treatments, confounders, targets;
-             verbosity=v-1, 
-             cache=false,
-             callbacks=[JLD2Saver(parsed_args["out"], parsed_args["save-models"], !parsed_args["no-ic"])]
-    )
-
-    # Save sample_ids
-    if !parsed_args["no-ic"]
-        jldopen(parsed_args["out"], "a") do io
-            io["SAMPLE_IDS"] = sample_ids
-        end
-    end
-
-    v >= 1 && @info "Done."
+    verbosity >= 1 && @info "Done."
     return 0
 end
