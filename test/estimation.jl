@@ -4,7 +4,13 @@ using Test
 using TargetedEstimation
 using TMLE
 using JLD2
-
+using StableRNGs
+using Distributions
+using LogExpFunctions
+using CategoricalArrays
+using DataFrames
+using Arrow
+using CSV
 
 function test_parameters(params, expected_params)
     for (param, expected_param) in zip(params, expected_params)
@@ -16,11 +22,58 @@ function test_parameters(params, expected_params)
     end
 end
 
+"""
+CONTINUOUS_TARGET: 
+- IATE(0->1, 0->1) = E[W₂] = 0.5
+- ATE(0->1, 0->1)  = -4 E[C₁] + 1 + E[W₂] = -2 + 1 + 0.5 = -0.5
 
-@testset "Test tmle_run with no extra covariate" begin
+BINARY_TARGET:
+- IATE(0->1, 0->1) =
+- ATE(0->1, 0->1)  = 
+
+"""
+function build_dataset(;n=1000, format="csv")
+    rng = StableRNG(123)
+    # Confounders
+    W₁ = rand(rng, Uniform(), n)
+    W₂ = rand(rng, Uniform(), n)
+    # Covariates
+    C₁ = rand(rng, n)
+    # Treatment | Confounders
+    T₁ = rand(rng, Uniform(), n) .< logistic.(0.5sin.(W₁) .- 1.5W₂)
+    T₂ = rand(rng, Uniform(), n) .< logistic.(-3W₁ - 1.5W₂)
+    # target | Confounders, Covariates, Treatments
+    μ = 1 .+ 2W₁ .+ 3W₂ .- 4C₁.*T₁ .+ T₁ + T₂.*W₂.*T₁
+    y₁ = μ .+ rand(rng, Normal(0, 0.01), n)
+    y₂ = rand(rng, Uniform(), n) .< logistic.(μ)
+    # Add some missingness
+    y₂ = vcat(missing, y₂[2:end])
+
+    dataset = DataFrame(
+        SAMPLE_ID = 1:n,
+        T1 = categorical(T₁),
+        T2 = categorical(T₂),
+        W1 = W₁, 
+        W2 = W₂,
+        C1 = C₁,
+        CONTINUOUS_TARGET = y₁,
+        BINARY_TARGET = categorical(y₂)
+    )
+    if format == "csv"
+        CSV.write("data.csv", dataset)
+    elseif format == "arrow"
+        Arrow.write("data.arrow", dataset)
+    else
+        throw(ArgumentError("Format not supported"))
+    end
+end
+
+
+@testset "Test tmle_run with: no extra covariate, csv format, save all, super learning only" begin
+    build_dataset(;n=1000, format="csv")
     # Only one continuous phenotype / machines not saved / no adaptive cv
     parsed_args = Dict(
-        "data" => joinpath("data", "data.csv"),
+        "data" => "data.csv",
         "param-file" => joinpath("config", "parameters_no_extra_covariate.yaml"),
         "estimator-file" => joinpath("config", "tmle_config.yaml"),
         "out" => "output.hdf5",
@@ -34,77 +87,84 @@ end
     # Parameters are saved only for the first target to save memory
     expected_params = [
         IATE(
-            :CONTINUOUS_1, 
-            (RSID_10 = (case = "AG", control = "GG"), RSID_100 = (case = "AG", control = "GG")), 
-            [:PC1, :PC2], 
+            :CONTINUOUS_TARGET, 
+            (T2 = (case = 1, control = 0), T1 = (case = 1, control = 0)), 
+            [:W1, :W2], 
             Symbol[]
         ),
         IATE(
-            :CONTINUOUS_1, 
-            (RSID_10 = (case = "AG", control = "GG"), RSID_100 = (case = "AA", control = "GG")), 
-            [:PC1, :PC2], 
+            :CONTINUOUS_TARGET, 
+            (T2 = (case = 0, control = 1), T1 = (case = 1, control = 0)),
+            [:W1, :W2],
             Symbol[]
         ),
         ATE(
-            :CONTINUOUS_1, 
-            (RSID_10 = (case = "AG", control = "TT"), RSID_100 = (case = "AA", control = "GG")), 
-            [:PC1, :PC2], 
+            :CONTINUOUS_TARGET, 
+            (T2 = (case = 1, control = 0), T1 = (case = 1, control = 0)),
+            [:W1, :W2], 
             Symbol[]
         )
     ]
     test_parameters(outfile["parameters"], expected_params)
-    # results for targets
-    var_to_sample_ids = ("CONTINUOUS_1" => 488, "BINARY_1" => 489)
-    for (variable, n_samples) in var_to_sample_ids
-        results = outfile["results"][variable]
-        @test size(results["tmle_results"], 1) == 3
-        @test eltype(results["tmle_results"]) == TMLE.AbstractTMLE
-        @test size(results["initial_estimates"], 1) == 3 
-        @test eltype(results["initial_estimates"]) == Float64
-        @test size(results["sample_ids"], 1) == n_samples
+    
+    # results for CONTINUOUS_TARGET
+    continuous_results = outfile["results"]["CONTINUOUS_TARGET"]
+    @test continuous_results["sample_ids"] == 1:1000
+    tmles = continuous_results["tmle_results"]
+    @test pvalue(OneSampleTTest(tmles[1], 0.5)) > 0.05
+    @test pvalue(OneSampleTTest(tmles[2], -0.5)) > 0.05
+    @test pvalue(OneSampleTTest(tmles[3], -0.5)) > 0.05
+    @test continuous_results["initial_estimates"] isa Vector{Float64}
+    @test size(continuous_results["initial_estimates"], 1) == 3
+
+    # results for BINARY_TARGET
+    binary_results = outfile["results"]["BINARY_TARGET"]
+    @test binary_results["sample_ids"] == 2:1000
+    tmles = binary_results["tmle_results"]
+    for i in 1:3
+        @test size(tmles[i].IC, 1) == 999
+        @test TMLE.estimate(tmles[i]) isa Float64
     end
+    @test binary_results["initial_estimates"] isa Vector{Float64}
+    @test size(binary_results["initial_estimates"], 1) == 3
 
     # Clean
     rm(parsed_args["out"])
+    rm(parsed_args["data"])
 end
 
 
-# @testset "Test tmle_run with binary targets" begin
-#     parsed_args = Dict(
-#         "data" => joinpath("data", "data.arrow"),
-#         "param-file" => joinpath("config", "parameters_extra_covariate.yaml"),
-#         "estimator-file" => joinpath("config", "tmle_config_2.yaml"),
-#         "out" => "output.hdf5",
-#         "verbosity" => 1,
-#         "no-ic" => false,
-#     )
+@testset "Test tmle_run with: extra covariate, arrow format, no influence curve, classifier simple models" begin
+    build_dataset(;n=1000, format="arrow")
+    parsed_args = Dict(
+        "data" => "data.arrow",
+        "param-file" => joinpath("config", "parameters_extra_covariate.yaml"),
+        "estimator-file" => joinpath("config", "tmle_config_2.yaml"),
+        "out" => "output.hdf5",
+        "verbosity" => 0,
+        "no-ic" => true,
+    )
 
-#     tmle_run(parsed_args)
+    tmle_run(parsed_args)
     
-#     # Essential results
-#     file = jldopen(parsed_args["out"])
+    # Essential results
+    outfile = jldopen(parsed_args["out"])
 
-#     @test !haskey(file, "SAMPLE_IDS")
-    
-#     tmlereports = file["TMLEREPORTS"]
-#     # Those are summaries not containing the influence curve
-#     for key in  ("1_1", "1_2", "2_1", "2_2")
-#         @test tmlereports[key].pvalue isa Real
-#         @test tmlereports[key].stderror isa Real
-#         @test tmlereports[key].confint isa Tuple
-#     end
+    # CONTINUOUS_TARGET
+    for var in ("CONTINUOUS_TARGET", "BINARY_TARGET")
+        results = outfile["results"][var]
+        tmles = results["tmle_results"]
+        for i in 1:3
+            @test tmles[i].estimate isa Float64
+            @test tmles[i].variance isa Float64
+        end
+        @test results["initial_estimates"] isa Vector{Float64}
+        @test size(results["initial_estimates"], 1) == 3
+    end
 
-#     machines = file["MACHINES"]
-#     Gmach = machines["G"]
-#     @test length(report(Gmach).additions.cv_report) == 3
-#     Qmach₁ = machines["Q_1"]
-#     @test length(report(Qmach₁).cv_report) == 4
-#     Qmach₂ = machines["Q_2"]
-#     @test length(report(Qmach₂).cv_report) == 4
-
-#     # Clean
-#     rm(parsed_args["out"])
-# end
+    rm(parsed_args["data"])
+    rm(parsed_args["out"])
+end
 
 
 end;

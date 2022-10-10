@@ -1,32 +1,32 @@
 W:
-  - PC1
-  - PC2
+  - W1
+  - W2
 T:
-  - RSID_10
-  - RSID_100
+  - T1
+  - T2
 Y:
-  - CONTINUOUS_1
-  - BINARY_1
-  
+  - CONTINUOUS_TARGET
+  - BINARY_TARGET
+
 Parameters:
   - name: IATE
-    RSID_10:
-      control: GG
-      case: AG
-    RSID_100:
-      control: GG
-      case: AG
+    T1:
+      control: 0
+      case: 1
+    T2:
+      control: 0
+      case: 1
   - name: IATE
-    RSID_10:
-      control: GG
-      case: AG
-    RSID_100:
-      control: GG
-      case: AA
+    T1:
+      control: 0
+      case: 1
+    T2:
+      control: 1
+      case: 0
   - name: ATE
-    RSID_10:
-      control: TT
-      case: AG
-    RSID_100:
-      control: GG
-      case: AA
+    T1:
+      control: 0
+      case: 1
+    T2:
+      control: 0
+      case: 1

@@ -38,10 +38,14 @@ function make_categorical!(dataset, colnames::Tuple, isbinary::Bool)
     end
 end
 
-function save_estimation_results(target_group, tmle_results, initial_estimates, sample_ids)
-    target_group["tmle_results"] = tmle_results
+function save_estimation_results(target_group, tmle_results, initial_estimates, sample_ids, save_ic)
     target_group["initial_estimates"] = initial_estimates
-    target_group["sample_ids"] = sample_ids
+    if save_ic
+        target_group["tmle_results"] = tmle_results
+        target_group["sample_ids"] = sample_ids
+    else
+        target_group["tmle_results"] = [(estimate=estimate(r), variance=var(r)) for r in tmle_results]
+    end
 end
 
 get_non_target_columns(parameter) =
@@ -53,11 +57,13 @@ get_non_target_columns(parameter) =
 
 function tmle_run(parsed_args)
     verbosity = parsed_args["verbosity"]
+    save_ic = !parsed_args["no-ic"]
     parameters = TMLE.parameters_from_yaml(parsed_args["param-file"])
-    non_target_columns = get_non_target_columns(first(parameters))
+    non_target_columns = TargetedEstimation.get_non_target_columns(first(parameters))
     parameters_df = DataFrame(TARGET=[p.target for p in parameters], PARAMETER=parameters)
 
     dataset = TargetedEstimation.instantiate_dataset(parsed_args["data"])
+    TargetedEstimation.make_categorical!(dataset, keys(first(parameters).treatment), true)
 
     tmle_spec = TargetedEstimation.tmle_spec_from_yaml(parsed_args["estimator-file"])
 
@@ -75,18 +81,16 @@ function tmle_run(parsed_args)
             tmle_results = TMLE.AbstractTMLE[]
             initial_estimates = Float64[]
             for Ψ in target_parameters[!, :PARAMETER]
-                TargetedEstimation.make_categorical!(dataset, keys(Ψ.treatment), true)
                 if cache === nothing
                     tmle_result, initial_result, cache = tmle(Ψ, η_spec, dataset; verbosity=verbosity-1, threshold=tmle_spec.threshold)
                 else
-                    tmle_result, initial_result, cache = tmle!(cache; verbosity=verbosity-1, threshold=tmle_spec.threshold)
+                    tmle_result, initial_result, cache = tmle!(cache, Ψ, η_spec; verbosity=verbosity-1, threshold=tmle_spec.threshold)
                 end
                 push!(tmle_results, tmle_result)
-                push!(initial_estimates, estimate(initial_result))
+                push!(initial_estimates, TMLE.estimate(initial_result))
             end
-            sample_ids = get_sample_ids(dataset, vcat(target, non_target_columns))
-            save_estimation_results(target_group, tmle_results, initial_estimates, sample_ids)
-            # push!(io["sample_ids"], sample_ids)
+            sample_ids = TargetedEstimation.get_sample_ids(dataset, vcat(target, non_target_columns))
+            save_estimation_results(target_group, tmle_results, initial_estimates, sample_ids, save_ic)
         end
         io["parameters"] = first(gpd_parameters)[!, "PARAMETER"]
     end
