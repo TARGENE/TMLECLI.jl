@@ -18,6 +18,6 @@ include("estimators.jl")
 include("models.jl")
 include("estimation.jl")
 
-export tmle_run
+export main
 
 end

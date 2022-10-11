@@ -3,6 +3,7 @@ module TestUtils
 using Test
 using TargetedEstimation
 using MLJBase
+using TMLE
 
 
 @testset "Test AdaptiveCV" begin
@@ -31,6 +32,34 @@ using MLJBase
     ttp = MLJBase.train_test_pairs(cv, 1:n, y)
     @test length(ttp)== 10
     @test ttp == MLJBase.train_test_pairs(StratifiedCV(nfolds=10), 1:n, y)
+end
+
+@testset "Test CSV writing" begin
+    Ψ = TMLE.IATE(
+        target=:Y,
+        treatment=(T₁=(case=1, control=0), T₂=(case="AC", control="CC")),
+        confounders=[:W₁, :W₂]
+    )
+    @test TargetedEstimation.covariates_string(Ψ) === missing
+    @test TargetedEstimation.param_string(Ψ) == "IATE"
+    @test TargetedEstimation.case_string(Ψ) == "1_&_AC"
+    @test TargetedEstimation.control_string(Ψ) == "0_&_CC"
+    @test TargetedEstimation.treatment_string(Ψ) == "T₁_&_T₂"
+    @test TargetedEstimation.confounders_string(Ψ) == "W₁_&_W₂"
+
+    Ψ = TMLE.CM(
+        target=:Y,
+        treatment=(T₁=1, T₂="AC"),
+        confounders=[:W₁, :W₂],
+        covariates=[:C₁]
+    )
+
+    @test TargetedEstimation.covariates_string(Ψ) === "C₁"
+    @test TargetedEstimation.param_string(Ψ) == "CM"
+    @test TargetedEstimation.case_string(Ψ) == "1_&_AC"
+    @test TargetedEstimation.control_string(Ψ) === missing
+    @test TargetedEstimation.treatment_string(Ψ) == "T₁_&_T₂"
+    @test TargetedEstimation.confounders_string(Ψ) == "W₁_&_W₂"
 
 end
 

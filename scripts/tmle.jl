@@ -10,37 +10,23 @@ function parse_commandline()
         add_version = true)
 
     @add_arg_table s begin
-        "treatments"
-            help = "Path to treatment .csv file"
+        "data"
+            help = "Path to dataset file (.csv|.arrow)"
             required = true
-        "targets"
-            help = "A file (.csv format) containing targets variables (see also --target-type)"
-            required = true
-        "confounders"
-            help = "A file (.csv format) containing the confounding variables values and the sample ids associated"*
-                   " with the participants. The first line of the file should contain the columns names and the sample ids "*
-                   " column name should be: `SAMPLE_ID`."
-            required = true
-        "parameters-file"
+        "param-file"
             help = "A file (.yaml format) see README.md"
             required = true
         "estimator-file"
             help = "A file (.yaml format) describing the tmle estimator to use, README.md"
             required = true
         "out"
-            help = "Path where the ouput will be saved"
+            help = "Path where the ouput will be saved. If `--save-full` is set then"*
+                   " this will be a .hdf5 file, otherwise a .csv summary file is output."
             required = true
-        "--covariates"
-            help = "A file (.csv format) containing extra covariates variables for E[Y|X]"
-        "--target-type", "-t"
-            help = "The type of the target variable: Real or Bool"
-            arg_type = String
-            default = "Bool"
-        "--save-models", "-f"
-            help = "Also save the full TMLE nuisance estimators"
-            action = :store_true
-        "--no-ic"
-            help = "Do not save the influence curves."
+        "--save-full"
+            help = "If the influence curves also need to be stored"
+            default = false
+            arg_type = Bool
             action = :store_true
         "--verbosity", "-v"
             help = "Verbosity level"
@@ -53,6 +39,6 @@ end
 
 parsed_args = parse_commandline()
 
-tmle_run(parsed_args)
+main(parsed_args)
 
 

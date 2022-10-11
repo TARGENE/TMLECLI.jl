@@ -78,11 +78,11 @@ end
         "estimator-file" => joinpath("config", "tmle_config.yaml"),
         "out" => "output.hdf5",
         "verbosity" => 0,
-        "no-ic" => false,
+        "save-full" => true,
     )
 
-    tmle_run(parsed_args)
-    
+    main(parsed_args)
+
     outfile = jldopen(parsed_args["out"])
     # Parameters are saved only for the first target to save memory
     expected_params = [
@@ -128,6 +128,7 @@ end
     @test binary_results["initial_estimates"] isa Vector{Float64}
     @test size(binary_results["initial_estimates"], 1) == 3
 
+    close(outfile)
     # Clean
     rm(parsed_args["out"])
     rm(parsed_args["data"])
@@ -140,26 +141,28 @@ end
         "data" => "data.arrow",
         "param-file" => joinpath("config", "parameters_extra_covariate.yaml"),
         "estimator-file" => joinpath("config", "tmle_config_2.yaml"),
-        "out" => "output.hdf5",
+        "out" => "output.csv",
         "verbosity" => 0,
-        "no-ic" => true,
+        "save-full" => false,
     )
 
-    tmle_run(parsed_args)
+    main(parsed_args)
     
     # Essential results
-    outfile = jldopen(parsed_args["out"])
-
-    # CONTINUOUS_TARGET
-    for var in ("CONTINUOUS_TARGET", "BINARY_TARGET")
-        results = outfile["results"][var]
-        tmles = results["tmle_results"]
-        for i in 1:3
-            @test tmles[i].estimate isa Float64
-            @test tmles[i].variance isa Float64
-        end
-        @test results["initial_estimates"] isa Vector{Float64}
-        @test size(results["initial_estimates"], 1) == 3
+    out = CSV.read(parsed_args["out"], DataFrame)
+    some_expected_col_values = DataFrame(
+        PARAMETER_TYPE=["IATE", "IATE", "ATE", "IATE", "IATE", "ATE"], 
+        TREATMENTS=["T2_&_T1", "T2_&_T1", "T2_&_T1", "T2_&_T1", "T2_&_T1", "T2_&_T1"], 
+        CASE=["1_&_1", "0_&_1", "1_&_1", "1_&_1", "0_&_1", "1_&_1"],
+        CONTROL=["0_&_0", "1_&_0", "0_&_0", "0_&_0", "1_&_0", "0_&_0"], 
+        TARGET=["CONTINUOUS_TARGET", "CONTINUOUS_TARGET", "CONTINUOUS_TARGET", "BINARY_TARGET", "BINARY_TARGET", "BINARY_TARGET"], 
+        CONFOUNDERS=["W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2"], 
+        COVARIATES=["C1", "C1", "C1", "C1", "C1", "C1"]
+    )
+    @test some_expected_col_values ==
+        out[!, [:PARAMETER_TYPE, :TREATMENTS, :CASE, :CONTROL, :TARGET, :CONFOUNDERS, :COVARIATES]]
+    for colname in [:INITIAL_ESTIMATE, :ESTIMATE, :STD, :PVALUE, :LWB, :UPB]
+        @test eltype(out[!, colname]) == Float64
     end
 
     rm(parsed_args["data"])
