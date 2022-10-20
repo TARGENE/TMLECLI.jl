@@ -3,38 +3,8 @@ module TestUtils
 using Test
 using TargetedEstimation
 using MLJBase
-using TOML
-using DataFrames
-using Serialization
 using TMLE
-using MLJLinearModels
 
-include("testutils.jl")
-
-@testset "Test parse_queries" begin
-    queries = TargetedEstimation.parse_queries(iate_queryfile)
-    expected_queries = [
-        Query(case=(RSID_10="AG", RSID_100="AG"), control=(RSID_10="GG", RSID_100="GG"), name="QUERY_1"),
-        Query(case=(RSID_10="AG", RSID_100="AA"), control=(RSID_10="GG", RSID_100="GG"), name="QUERY_2"),
-        Query(case=(RSID_10="AG", RSID_100="AA"), control=(RSID_10="TT", RSID_100="GG"), name="QUERY_3"),
-    ]
-    test_queries(queries, expected_queries)
-end
-
-@testset "Test phenotypes parsing" begin
-    # Fallback when no list is specified
-    @test nothing === TargetedEstimation.phenotypesnames(nothing)
-    # Test with a list of phenotypes
-    @test ["SAMPLE_ID", "CONTINUOUS_1"] == TargetedEstimation.phenotypesnames(phenotypelist_file)
-    # phenotypes loading
-    phenotypes = TargetedEstimation.load_phenotypes(binary_phenotypefile, nothing)
-    @test size(phenotypes) == (490, 3)
-    @test names(phenotypes) == ["SAMPLE_ID", "BINARY_1", "BINARY_2"]
-
-    phenotypes = TargetedEstimation.load_phenotypes(continuous_phenotypefile, phenotypelist_file)
-    @test size(phenotypes) == (490, 2)
-    @test names(phenotypes) == ["SAMPLE_ID", "CONTINUOUS_1"]
-end
 
 @testset "Test AdaptiveCV" begin
     # Continuous target
@@ -62,6 +32,34 @@ end
     ttp = MLJBase.train_test_pairs(cv, 1:n, y)
     @test length(ttp)== 10
     @test ttp == MLJBase.train_test_pairs(StratifiedCV(nfolds=10), 1:n, y)
+end
+
+@testset "Test CSV writing" begin
+    Ψ = TMLE.IATE(
+        target=:Y,
+        treatment=(T₁=(case=1, control=0), T₂=(case="AC", control="CC")),
+        confounders=[:W₁, :W₂]
+    )
+    @test TargetedEstimation.covariates_string(Ψ) === missing
+    @test TargetedEstimation.param_string(Ψ) == "IATE"
+    @test TargetedEstimation.case_string(Ψ) == "1_&_AC"
+    @test TargetedEstimation.control_string(Ψ) == "0_&_CC"
+    @test TargetedEstimation.treatment_string(Ψ) == "T₁_&_T₂"
+    @test TargetedEstimation.confounders_string(Ψ) == "W₁_&_W₂"
+
+    Ψ = TMLE.CM(
+        target=:Y,
+        treatment=(T₁=1, T₂="AC"),
+        confounders=[:W₁, :W₂],
+        covariates=[:C₁]
+    )
+
+    @test TargetedEstimation.covariates_string(Ψ) === "C₁"
+    @test TargetedEstimation.param_string(Ψ) == "CM"
+    @test TargetedEstimation.case_string(Ψ) == "1_&_AC"
+    @test TargetedEstimation.control_string(Ψ) === missing
+    @test TargetedEstimation.treatment_string(Ψ) == "T₁_&_T₂"
+    @test TargetedEstimation.confounders_string(Ψ) == "W₁_&_W₂"
 
 end
 

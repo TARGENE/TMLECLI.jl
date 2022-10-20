@@ -10,39 +10,23 @@ function parse_commandline()
         add_version = true)
 
     @add_arg_table s begin
-        "genotypes"
-            help = "Path to treatment .csv file"
+        "data"
+            help = "Path to dataset file (.csv|.arrow)"
             required = true
-        "phenotypes"
-            help = "A file (.csv format). The first row contains the column names with `eid` the sample ID"*
-                   " and the rest of the columns are phenotypes of interest."
+        "param-file"
+            help = "A file (.yaml format) see README.md"
             required = true
-        "confounders"
-            help = "A file (.csv format) containing the confounding variables values and the sample ids associated"*
-                   " with the participants. The first line of the file should contain the columns names and the sample ids "*
-                   " column name should be: `SAMPLE_ID`."
-            required = true
-        "queries"
-            help = "A file (.toml format) see: config/sample_query.toml for more information"
-            required = true
-        "estimator"
-            help = "A file (.toml format) describing the tmle estimator to use, see config/sample_estimator.toml"*
-                   " for a basic example."
+        "estimator-file"
+            help = "A file (.yaml format) describing the tmle estimator to use, README.md"
             required = true
         "out"
-            help = "Path where the ouput will be saved"
+            help = "Path where the ouput will be saved. If `--save-full` is set then"*
+                   " this will be a .hdf5 file, otherwise a .csv summary file is output."
             required = true
-        "--target-type", "-t"
-            help = "The type of the target variable: Real or Bool"
-            arg_type = String
-            default = "Bool"
-        "--phenotypes-list", "-p"
-            help = "A file, one line for each phenotype, containing a restrictions of the phenotypes "*
-                   "to consider for the analysis."
-            required = false
-            arg_type = String
-        "--save-full", "-f"
-            help = "Also save the full TMLE estimators for each phenotype."
+        "--save-full"
+            help = "If the influence curves also need to be stored"
+            default = false
+            arg_type = Bool
             action = :store_true
         "--verbosity", "-v"
             help = "Verbosity level"
@@ -55,6 +39,6 @@ end
 
 parsed_args = parse_commandline()
 
-tmle_run(parsed_args)
+main(parsed_args)
 
 

@@ -1,193 +1,174 @@
 module TestsUKBB
 
 using Test
-using CSV
-using DataFrames
 using TargetedEstimation
-using CategoricalArrays
-using TOML
-using Serialization
 using TMLE
 using JLD2
-using MLJBase
+using StableRNGs
+using Distributions
+using LogExpFunctions
+using CategoricalArrays
+using DataFrames
+using Arrow
+using CSV
 
-include("testutils.jl")
-
-function test_base_serialization(tmle_reports, n_expected; phenotype_id=1)
-    tmle_report = tmle_reports["$(phenotype_id)_1"]
-    @test tmle_report isa TMLE.TMLEReport
-    test_queries((tmle_report.query,),
-        (Query(name="QUERY_1", case=(RSID_10 = "AG", RSID_100 = "AG"), control=(RSID_10 = "GG", RSID_100 = "GG")),)
-    )
-    @test size(tmle_report.influence_curve, 1) == n_expected
-    @test tmle_report.estimate isa Real
-    @test tmle_report.initial_estimate isa Real
-
-    # Check second tmle_report
-    tmle_report = tmle_reports["$(phenotype_id)_2"]
-    @test tmle_report isa TMLE.TMLEReport
-    test_queries((tmle_report.query,),
-        (Query(name="QUERY_2", case=(RSID_10 = "AG", RSID_100 = "AA"), control=(RSID_10 = "GG", RSID_100 = "GG")),)
-    )
-    @test size(tmle_report.influence_curve, 1) == n_expected
-    @test tmle_report.estimate isa Real
-    @test tmle_report.initial_estimate isa Real
+function test_parameters(params, expected_params)
+    for (param, expected_param) in zip(params, expected_params)
+        @test param.target == expected_param.target
+        @test param.treatment == expected_param.treatment
+        @test param.confounders == expected_param.confounders
+        @test param.covariates == expected_param.covariates
+        @test typeof(param) == typeof(expected_param)
+    end
 end
 
-@testset "Test actualqueries" begin
-    genotypes = DataFrame(
-        rs1 = ["AC", "CC", "AC", "CC", missing],
-        rs2 = ["CG", "CG", "GG", "GG", "GG"]
+"""
+CONTINUOUS_TARGET: 
+- IATE(0->1, 0->1) = E[W₂] = 0.5
+- ATE(0->1, 0->1)  = -4 E[C₁] + 1 + E[W₂] = -2 + 1 + 0.5 = -0.5
+
+BINARY_TARGET:
+- IATE(0->1, 0->1) =
+- ATE(0->1, 0->1)  = 
+
+"""
+function build_dataset(;n=1000, format="csv")
+    rng = StableRNG(123)
+    # Confounders
+    W₁ = rand(rng, Uniform(), n)
+    W₂ = rand(rng, Uniform(), n)
+    # Covariates
+    C₁ = rand(rng, n)
+    # Treatment | Confounders
+    T₁ = rand(rng, Uniform(), n) .< logistic.(0.5sin.(W₁) .- 1.5W₂)
+    T₂ = rand(rng, Uniform(), n) .< logistic.(-3W₁ - 1.5W₂)
+    # target | Confounders, Covariates, Treatments
+    μ = 1 .+ 2W₁ .+ 3W₂ .- 4C₁.*T₁ .+ T₁ + T₂.*W₂.*T₁
+    y₁ = μ .+ rand(rng, Normal(0, 0.01), n)
+    y₂ = rand(rng, Uniform(), n) .< logistic.(μ)
+    # Add some missingness
+    y₂ = vcat(missing, y₂[2:end])
+
+    dataset = DataFrame(
+        SAMPLE_ID = 1:n,
+        T1 = categorical(T₁),
+        T2 = categorical(T₂),
+        W1 = W₁, 
+        W2 = W₂,
+        C1 = C₁,
+        CONTINUOUS_TARGET = y₁,
+        BINARY_TARGET = categorical(y₂)
     )
-    queries = [
-    Query(
-        case=(rs1 = "AC", rs2 = "CG"),
-        control=(rs1 = "CC", rs2 = "GG"),
-        name="QUERY_1"),
-    Query(
-        case=(rs1 = "AC", rs2 = "CG"),
-        control=(rs1 = "CC", rs2 = "CC"),
-        name="QUERY_2")
-    ]
-    @test TargetedEstimation.genotypes_combinations(queries[1]) ==
-        DataFrame(
-            rs1 = ["CC", "AC", "CC", "AC"],
-            rs2 = ["GG", "GG", "CG", "CG"]
-        )
-    @test TargetedEstimation.genotypes_combinations(queries[2]) ==
-        DataFrame(
-            rs1 = ["CC", "AC", "CC", "AC"],
-            rs2 = ["CC", "CC", "CG", "CG"]
-        )
-
-    actual_queries = TargetedEstimation.actualqueries(genotypes, queries)
-    @test actual_queries == queries[1:1]
-end
-
-@testset "Test preprocess" begin
-    n = 10
-    base_sample_ids = 1:n
-
-    confounders = DataFrame(rand(n, 3), :auto)
-    confounders.sex = [0, 1, 1, 1, 0, 0 , 0, 1, 1, 0]
-    confounders.SAMPLE_ID = base_sample_ids
-
-    genotypes = DataFrame(
-        SAMPLE_ID = base_sample_ids, 
-        RSID_1    = ["AC", "AC", "AC", "AC", "AC", "CC", "CC", "CC", "CC", "CC"],
-        RSID_2    = ["AG", "AA", "AA", "AA", "AA", "AG", "AG", "AA", "AA", "AA"]
-        )
-
-    queries = [TMLE.Query(case=(RSID_2="AA", RSID_1="CC"), control=(RSID_2="AG", RSID_1="AC"))]
-    phenotypes = DataFrame(
-        SAMPLE_ID = base_sample_ids,
-        Y1 = rand(n),
-        Y2 = rand(n)
-    )
-    T, W, y, sample_ids = TargetedEstimation.preprocess(genotypes, confounders, phenotypes, Real, queries)
-    
-    # Check the order of columns has been reversed
-    @test T == genotypes[!, [:RSID_2, :RSID_1]]
-    @test W == confounders[!, Not("SAMPLE_ID")]
-    @test all(eltype(W[!, col]) === Float64 for col in names(W))
-    @test y == phenotypes[!, Not("SAMPLE_ID")]
-    @test sample_ids == 
-            Dict(
-                "Y1" => string.(base_sample_ids),
-                "Y2" => string.(base_sample_ids),
-            )
-    # Checking joining on sample_ids
-    genotypes = DataFrame(
-        SAMPLE_ID = base_sample_ids, 
-        RSID_1    = ["AC", "AC", missing, "AC", "AC", "CC", "CC", "CC", "CC", "CC"],
-        RSID_2    = ["AG", "AG", "AA", "AA", "AA", "AG", "AG", "AA", "AA", "AA"]
-        )
-    phenotypes = DataFrame(
-        SAMPLE_ID = base_sample_ids,
-        Y1 = [0, 1, 0, 1, 0, 1, 0, 0, 1, missing],
-    )
-    T, W, y, sample_ids = TargetedEstimation.preprocess(genotypes, confounders, phenotypes, Bool, queries)
-
-    @test size(T) == (9, 2)
-    # For y the missing value hasn't been dropped yet, it will be dropped during TMLE
-    @test size(y) == (9, 1)
-    @test size(W) == (9, 4)
-    @test sample_ids == Dict("Y1" => ["1", "2", "4", "5", "6", "7", "8", "9"])
+    if format == "csv"
+        CSV.write("data.csv", dataset)
+    elseif format == "arrow"
+        Arrow.write("data.arrow", dataset)
+    else
+        throw(ArgumentError("Format not supported"))
+    end
 end
 
 
-@testset "Test tmle_run with continuous target" begin
+@testset "Test tmle_run with: no extra covariate, csv format, save all, super learning only" begin
+    build_dataset(;n=1000, format="csv")
     # Only one continuous phenotype / machines not saved / no adaptive cv
     parsed_args = Dict(
-        "genotypes" => genotypesfile,
-        "phenotypes" => continuous_phenotypefile,
-        "confounders" => confoundersfile,
-        "queries" => iate_queryfile,
-        "estimator" => tmle_configfile,
-        "out" => "RSID_10_RSID_100.hdf5",
-        "phenotypes-list" => phenotypelist_file,
+        "data" => "data.csv",
+        "param-file" => joinpath("config", "parameters_no_extra_covariate.yaml"),
+        "estimator-file" => joinpath("config", "tmle_config.yaml"),
+        "out" => "output.hdf5",
         "verbosity" => 0,
-        "adaptive-cv" => false,
-        "save-full" => false,
-        "target-type" => "Real",
-    )
-
-    tmle_run(parsed_args)
-    # Essential results
-    file = jldopen(parsed_args["out"])
-    # Missing data
-    n_expected = 486
-    @test size(file["SAMPLE_IDS"]["CONTINUOUS_1"], 1) == n_expected
-    test_base_serialization(file["TMLEREPORTS"], n_expected)
-    # QUERY_3 contains a missing genotype so is not actually computed
-    @test keys(file["TMLEREPORTS"]) == ["1_1", "1_2"]
-    close(file)
-
-    # Clean
-    rm(parsed_args["out"])
-end
-
-
-@testset "Test tmle_run with binary targets" begin
-    parsed_args = Dict(
-        "genotypes" => genotypesfile,
-        "phenotypes" => binary_phenotypefile,
-        "confounders" => confoundersfile,
-        "queries" => iate_queryfile,
-        "estimator" => tmle_configfile,
-        "out" => "RSID_10_RSID_100.hdf5",
-        "phenotypes-list" => nothing,
-        "verbosity" => 0,
-        "adaptive-cv" => true,
         "save-full" => true,
-        "target-type" => "Bool",
     )
 
-    tmle_run(parsed_args)
+    main(parsed_args)
+
+    outfile = jldopen(parsed_args["out"])
+    # Parameters are saved only for the first target to save memory
+    expected_params = [
+        IATE(
+            :CONTINUOUS_TARGET, 
+            (T2 = (case = 1, control = 0), T1 = (case = 1, control = 0)), 
+            [:W1, :W2], 
+            Symbol[]
+        ),
+        IATE(
+            :CONTINUOUS_TARGET, 
+            (T2 = (case = 0, control = 1), T1 = (case = 1, control = 0)),
+            [:W1, :W2],
+            Symbol[]
+        ),
+        ATE(
+            :CONTINUOUS_TARGET, 
+            (T2 = (case = 1, control = 0), T1 = (case = 1, control = 0)),
+            [:W1, :W2], 
+            Symbol[]
+        )
+    ]
+    test_parameters(outfile["parameters"], expected_params)
     
-    # Essential results
-    file = jldopen(parsed_args["out"])
+    # results for CONTINUOUS_TARGET
+    continuous_results = outfile["results"]["CONTINUOUS_TARGET"]
+    @test continuous_results["sample_ids"] == 1:1000
+    tmles = continuous_results["tmle_results"]
+    @test pvalue(OneSampleTTest(tmles[1], 0.5)) > 0.05
+    @test pvalue(OneSampleTTest(tmles[2], -0.5)) > 0.05
+    @test pvalue(OneSampleTTest(tmles[3], -0.5)) > 0.05
+    @test continuous_results["initial_estimates"] isa Vector{Float64}
+    @test size(continuous_results["initial_estimates"], 1) == 3
 
-    @test size(file["SAMPLE_IDS"]["BINARY_1"], 1) == 487
-    @test size(file["SAMPLE_IDS"]["BINARY_2"], 1) == 485
-    
-    tmlereports = file["TMLEREPORTS"]
-    # QUERY_3 contains a missing genotype so is not actually computed
-    @test keys(tmlereports) == ["1_1", "1_2", "2_1", "2_2"]
-    test_base_serialization(tmlereports, 487, phenotype_id=1)
-    test_base_serialization(tmlereports, 485, phenotype_id=2)
+    # results for BINARY_TARGET
+    binary_results = outfile["results"]["BINARY_TARGET"]
+    @test binary_results["sample_ids"] == 2:1000
+    tmles = binary_results["tmle_results"]
+    for i in 1:3
+        @test size(tmles[i].IC, 1) == 999
+        @test TMLE.estimate(tmles[i]) isa Float64
+    end
+    @test binary_results["initial_estimates"] isa Vector{Float64}
+    @test size(binary_results["initial_estimates"], 1) == 3
 
-    machines = file["MACHINES"]
-    Gmach = machines["G"]
-    @test length(report(Gmach).cv_report) == 3
-    Qmach₁ = machines["Q_1"]
-    @test length(report(Qmach₁).cv_report) == 4
-    Qmach₂ = machines["Q_2"]
-    @test length(report(Qmach₂).cv_report) == 4
-
+    close(outfile)
     # Clean
     rm(parsed_args["out"])
+    rm(parsed_args["data"])
 end
+
+
+@testset "Test tmle_run with: extra covariate, arrow format, no influence curve, classifier simple models" begin
+    build_dataset(;n=1000, format="arrow")
+    parsed_args = Dict(
+        "data" => "data.arrow",
+        "param-file" => joinpath("config", "parameters_extra_covariate.yaml"),
+        "estimator-file" => joinpath("config", "tmle_config_2.yaml"),
+        "out" => "output.csv",
+        "verbosity" => 0,
+        "save-full" => false,
+    )
+
+    main(parsed_args)
+    
+    # Essential results
+    out = CSV.read(parsed_args["out"], DataFrame)
+    some_expected_col_values = DataFrame(
+        PARAMETER_TYPE=["IATE", "IATE", "ATE", "IATE", "IATE", "ATE"], 
+        TREATMENTS=["T2_&_T1", "T2_&_T1", "T2_&_T1", "T2_&_T1", "T2_&_T1", "T2_&_T1"], 
+        CASE=["1_&_1", "0_&_1", "1_&_1", "1_&_1", "0_&_1", "1_&_1"],
+        CONTROL=["0_&_0", "1_&_0", "0_&_0", "0_&_0", "1_&_0", "0_&_0"], 
+        TARGET=["CONTINUOUS_TARGET", "CONTINUOUS_TARGET", "CONTINUOUS_TARGET", "BINARY_TARGET", "BINARY_TARGET", "BINARY_TARGET"], 
+        CONFOUNDERS=["W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2"], 
+        COVARIATES=["C1", "C1", "C1", "C1", "C1", "C1"]
+    )
+    @test some_expected_col_values ==
+        out[!, [:PARAMETER_TYPE, :TREATMENTS, :CASE, :CONTROL, :TARGET, :CONFOUNDERS, :COVARIATES]]
+    for colname in [:INITIAL_ESTIMATE, :ESTIMATE, :STD, :PVALUE, :LWB, :UPB]
+        @test eltype(out[!, colname]) == Float64
+    end
+
+    rm(parsed_args["data"])
+    rm(parsed_args["out"])
+end
+
 
 end;
 
