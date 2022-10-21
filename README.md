@@ -16,7 +16,7 @@ julia --project --startup-file=no scripts/tmle.jl --help
 
 Here is a description of the arguments:
 
-- `data`: .CSV or .arrow dataset.
+- `data`: .CSV dataset.
 - `param-file`: The parameters configuration file
 - `estimator-file`: The estimator configuration file
 - `out`: Output path for the `.hdf5` or `.csv` file.

@@ -155,14 +155,10 @@ get_sample_ids(data, targets_columns, save_full::SaveFull{false}) = nothing
 """
     instantiate_dataset(path::String)
 
-Returns a DataFrame wrapper around a dataset, either in CSV or Arrow format.
+Returns a DataFrame wrapper around a dataset, either in CSV format.
 """
 function instantiate_dataset(path::String)
-    if endswith(path, "arrow")
-        return DataFrame(Arrow.Table(path))
-    else
         return CSV.read(path, DataFrame)
-    end
 end
 
 isbinarytarget(y::AbstractVector) = Set(unique(skipmissing(y))) == Set([0, 1])

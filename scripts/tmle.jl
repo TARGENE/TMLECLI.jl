@@ -11,7 +11,7 @@ function parse_commandline()
 
     @add_arg_table s begin
         "data"
-            help = "Path to dataset file (.csv|.arrow)"
+            help = "Path to dataset file (.csv)"
             required = true
         "param-file"
             help = "A file (.yaml format) see README.md"

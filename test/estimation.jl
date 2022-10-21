@@ -9,7 +9,6 @@ using Distributions
 using LogExpFunctions
 using CategoricalArrays
 using DataFrames
-using Arrow
 using CSV
 
 function test_parameters(params, expected_params)
@@ -59,13 +58,8 @@ function build_dataset(;n=1000, format="csv")
         CONTINUOUS_TARGET = y₁,
         BINARY_TARGET = categorical(y₂)
     )
-    if format == "csv"
-        CSV.write("data.csv", dataset)
-    elseif format == "arrow"
-        Arrow.write("data.arrow", dataset)
-    else
-        throw(ArgumentError("Format not supported"))
-    end
+
+    CSV.write("data.csv", dataset)
 end
 
 
@@ -135,10 +129,10 @@ end
 end
 
 
-@testset "Test tmle_run with: extra covariate, arrow format, no influence curve, classifier simple models" begin
-    build_dataset(;n=1000, format="arrow")
+@testset "Test tmle_run with: extra covariate, csv format, no influence curve, classifier simple models" begin
+    build_dataset(;n=1000, format="csv")
     parsed_args = Dict(
-        "data" => "data.arrow",
+        "data" => "data.csv",
         "param-file" => joinpath("config", "parameters_extra_covariate.yaml"),
         "estimator-file" => joinpath("config", "tmle_config_2.yaml"),
         "out" => "output.csv",
