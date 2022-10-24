@@ -124,13 +124,13 @@ open_io(f, file, save_full::SaveFull{false}, mode="w", args...; kwargs...) =
 #####################################################################
 #####                       JLD2 OUTPUT                          ####
 #####################################################################
+no_slash(x) = replace(string(x), "/" => "_OR_")
 
-function initialize_outfile(io::JLD2.JLDFile, gpd_parameters)
+initialize_outfile(io::JLD2.JLDFile, gpd_parameters) =
     io["parameters"] = first(gpd_parameters)[!, "PARAMETER"]
-end
 
 function write_target_results(io::JLD2.JLDFile, target_parameters, tmle_results, initial_estimates, sample_ids, logs)
-    target = target_parameters[1, :TARGET]
+    target = no_slash(target_parameters[1, :TARGET])
     io["results/$target/initial_estimates"] = initial_estimates
     io["results/$target/tmle_results"] = tmle_results
     io["results/$target/sample_ids"] = sample_ids

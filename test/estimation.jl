@@ -55,10 +55,10 @@ function build_dataset(;n=1000, format="csv")
         W1 = W₁, 
         W2 = W₂,
         C1 = C₁,
-        CONTINUOUS_TARGET = y₁,
-        BINARY_TARGET = categorical(y₂)
+        CONTINUOUS_TARGET = y₁
     )
-
+    # Slash in name
+    dataset[!, "BINARY/TARGET"] = categorical(y₂)
     CSV.write("data.csv", dataset)
 end
 
@@ -112,7 +112,7 @@ end
     @test size(continuous_results["initial_estimates"], 1) == 3
 
     # results for BINARY_TARGET
-    binary_results = outfile["results"]["BINARY_TARGET"]
+    binary_results = outfile["results"]["BINARY_OR_TARGET"]
     @test binary_results["sample_ids"] == 2:1000
     tmles = binary_results["tmle_results"]
     for i in 1:3
@@ -149,7 +149,7 @@ end
         TREATMENTS=["T2_&_T1", "T2_&_T1", "T2_&_T1", "T2_&_T1", "T2_&_T1", "T2_&_T1"], 
         CASE=["1_&_1", "0_&_1", "1_&_1", "1_&_1", "0_&_1", "1_&_1"],
         CONTROL=["0_&_0", "1_&_0", "0_&_0", "0_&_0", "1_&_0", "0_&_0"], 
-        TARGET=["CONTINUOUS_TARGET", "CONTINUOUS_TARGET", "CONTINUOUS_TARGET", "BINARY_TARGET", "BINARY_TARGET", "BINARY_TARGET"], 
+        TARGET=["CONTINUOUS_TARGET", "CONTINUOUS_TARGET", "CONTINUOUS_TARGET", "BINARY/TARGET", "BINARY/TARGET", "BINARY/TARGET"], 
         CONFOUNDERS=["W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2"], 
         COVARIATES=["C1", "C1", "C1", "C1", "C1", "C1"]
     )
