@@ -68,7 +68,8 @@ csv_headers() = DataFrame(
     STD=[],
     PVALUE=[],
     LWB=[],
-    UPB=[]
+    UPB=[],
+    LOG=[]
 )
 
 covariates_string(Ψ; join_string="_&_") = 
@@ -97,9 +98,9 @@ confounders_string(Ψ; join_string="_&_") = join(Ψ.confounders, join_string)
 initialize_outfile(io, gpd_parameters) =
     CSV.write(io, csv_headers())
 
-function write_target_results(io, target_parameters, tmle_results, initial_estimates, sample_ids)
+function write_target_results(io, target_parameters, tmle_results, initial_estimates, sample_ids, logs)
     data = csv_headers()
-    for (Ψ, result, Ψ̂₀) in zip(target_parameters.PARAMETER, tmle_results, initial_estimates)
+    for (Ψ, result, Ψ̂₀, log) in zip(target_parameters.PARAMETER, tmle_results, initial_estimates, logs)
         param_type = param_string(Ψ)
         treatments = treatment_string(Ψ)
         case = case_string(Ψ)
@@ -111,7 +112,7 @@ function write_target_results(io, target_parameters, tmle_results, initial_estim
         testresult = OneSampleTTest(result)
         pval = pvalue(testresult)
         lw, up = confint(testresult)
-        row = (param_type, treatments, case, control, Ψ.target, confounders, covariates, Ψ̂₀, Ψ̂, std, pval, lw, up)
+        row = (param_type, treatments, case, control, Ψ.target, confounders, covariates, Ψ̂₀, Ψ̂, std, pval, lw, up, log)
         push!(data, row)
     end
     CSV.write(io, data, append=true)
@@ -128,11 +129,12 @@ function initialize_outfile(io::JLD2.JLDFile, gpd_parameters)
     io["parameters"] = first(gpd_parameters)[!, "PARAMETER"]
 end
 
-function write_target_results(io::JLD2.JLDFile, target_parameters, tmle_results, initial_estimates, sample_ids)
+function write_target_results(io::JLD2.JLDFile, target_parameters, tmle_results, initial_estimates, sample_ids, logs)
     target = target_parameters[1, :TARGET]
     io["results/$target/initial_estimates"] = initial_estimates
     io["results/$target/tmle_results"] = tmle_results
     io["results/$target/sample_ids"] = sample_ids
+    io["results/$target/logs"] = logs
 end
 
 
@@ -185,3 +187,6 @@ tmle_run!(cache::Nothing, Ψ, η_spec, dataset; verbosity=1, threshold=1e-8) =
 
 tmle_run!(cache, Ψ, η_spec, dataset; verbosity=1, threshold=1e-8) = 
     tmle!(cache, Ψ, η_spec; verbosity=verbosity, threshold=threshold)
+
+
+TMLE.estimate(e::Missing) = missing

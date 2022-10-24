@@ -108,7 +108,7 @@ end
     @test pvalue(OneSampleTTest(tmles[1], 0.5)) > 0.05
     @test pvalue(OneSampleTTest(tmles[2], -0.5)) > 0.05
     @test pvalue(OneSampleTTest(tmles[3], -0.5)) > 0.05
-    @test continuous_results["initial_estimates"] isa Vector{Float64}
+    @test continuous_results["initial_estimates"] isa Vector{Union{Missing, Float64}}
     @test size(continuous_results["initial_estimates"], 1) == 3
 
     # results for BINARY_TARGET
@@ -119,7 +119,7 @@ end
         @test size(tmles[i].IC, 1) == 999
         @test TMLE.estimate(tmles[i]) isa Float64
     end
-    @test binary_results["initial_estimates"] isa Vector{Float64}
+    @test binary_results["initial_estimates"] isa Vector{Union{Missing, Float64}}
     @test size(binary_results["initial_estimates"], 1) == 3
 
     close(outfile)
