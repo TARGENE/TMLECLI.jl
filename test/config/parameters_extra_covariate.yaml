@@ -8,7 +8,7 @@ T:
   - T2
 Y:
   - CONTINUOUS_TARGET
-  - BINARY_TARGET
+  - "BINARY/TARGET"
   
 Parameters:
   - name: IATE

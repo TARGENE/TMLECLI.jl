@@ -11,7 +11,6 @@ using MLJLinearModels
 using JLD2
 using YAML
 using CategoricalArrays
-using Arrow
 
 include("utils.jl")
 include("estimators.jl")

@@ -9,7 +9,6 @@ using Distributions
 using LogExpFunctions
 using CategoricalArrays
 using DataFrames
-using Arrow
 using CSV
 
 function test_parameters(params, expected_params)
@@ -56,16 +55,11 @@ function build_dataset(;n=1000, format="csv")
         W1 = W₁, 
         W2 = W₂,
         C1 = C₁,
-        CONTINUOUS_TARGET = y₁,
-        BINARY_TARGET = categorical(y₂)
+        CONTINUOUS_TARGET = y₁
     )
-    if format == "csv"
-        CSV.write("data.csv", dataset)
-    elseif format == "arrow"
-        Arrow.write("data.arrow", dataset)
-    else
-        throw(ArgumentError("Format not supported"))
-    end
+    # Slash in name
+    dataset[!, "BINARY/TARGET"] = categorical(y₂)
+    CSV.write("data.csv", dataset)
 end
 
 
@@ -114,18 +108,18 @@ end
     @test pvalue(OneSampleTTest(tmles[1], 0.5)) > 0.05
     @test pvalue(OneSampleTTest(tmles[2], -0.5)) > 0.05
     @test pvalue(OneSampleTTest(tmles[3], -0.5)) > 0.05
-    @test continuous_results["initial_estimates"] isa Vector{Float64}
+    @test continuous_results["initial_estimates"] isa Vector{Union{Missing, Float64}}
     @test size(continuous_results["initial_estimates"], 1) == 3
 
     # results for BINARY_TARGET
-    binary_results = outfile["results"]["BINARY_TARGET"]
+    binary_results = outfile["results"]["BINARY_OR_TARGET"]
     @test binary_results["sample_ids"] == 2:1000
     tmles = binary_results["tmle_results"]
     for i in 1:3
         @test size(tmles[i].IC, 1) == 999
         @test TMLE.estimate(tmles[i]) isa Float64
     end
-    @test binary_results["initial_estimates"] isa Vector{Float64}
+    @test binary_results["initial_estimates"] isa Vector{Union{Missing, Float64}}
     @test size(binary_results["initial_estimates"], 1) == 3
 
     close(outfile)
@@ -135,10 +129,10 @@ end
 end
 
 
-@testset "Test tmle_run with: extra covariate, arrow format, no influence curve, classifier simple models" begin
-    build_dataset(;n=1000, format="arrow")
+@testset "Test tmle_run with: extra covariate, csv format, no influence curve, classifier simple models" begin
+    build_dataset(;n=1000, format="csv")
     parsed_args = Dict(
-        "data" => "data.arrow",
+        "data" => "data.csv",
         "param-file" => joinpath("config", "parameters_extra_covariate.yaml"),
         "estimator-file" => joinpath("config", "tmle_config_2.yaml"),
         "out" => "output.csv",
@@ -155,7 +149,7 @@ end
         TREATMENTS=["T2_&_T1", "T2_&_T1", "T2_&_T1", "T2_&_T1", "T2_&_T1", "T2_&_T1"], 
         CASE=["1_&_1", "0_&_1", "1_&_1", "1_&_1", "0_&_1", "1_&_1"],
         CONTROL=["0_&_0", "1_&_0", "0_&_0", "0_&_0", "1_&_0", "0_&_0"], 
-        TARGET=["CONTINUOUS_TARGET", "CONTINUOUS_TARGET", "CONTINUOUS_TARGET", "BINARY_TARGET", "BINARY_TARGET", "BINARY_TARGET"], 
+        TARGET=["CONTINUOUS_TARGET", "CONTINUOUS_TARGET", "CONTINUOUS_TARGET", "BINARY/TARGET", "BINARY/TARGET", "BINARY/TARGET"], 
         CONFOUNDERS=["W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2"], 
         COVARIATES=["C1", "C1", "C1", "C1", "C1", "C1"]
     )

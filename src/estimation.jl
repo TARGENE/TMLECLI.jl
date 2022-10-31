@@ -2,6 +2,16 @@
 ####################           Main Function               ####################
 ###############################################################################
 
+function try_tmle_run!(cache, Ψ, η_spec, dataset; verbosity=1, threshold=1e-8)
+    try
+        tmle_result, initial_result, cache = tmle_run!(cache, Ψ, η_spec, dataset; verbosity=verbosity, threshold=threshold)
+        return tmle_result, initial_result, cache, missing
+    catch e
+        return missing, missing, cache, string(e)
+    end
+end
+
+
 function main(parsed_args)
     verbosity = parsed_args["verbosity"]
     save_full = SaveFull{parsed_args["save-full"]}()
@@ -25,15 +35,19 @@ function main(parsed_args)
             targetisbinary = TargetedEstimation.isbinarytarget(dataset[!, target])
             TargetedEstimation.make_categorical!(dataset, target, targetisbinary)
             η_spec = TargetedEstimation.nuisance_spec_from_target(tmle_spec, targetisbinary)
-            tmle_results = TMLE.AbstractTMLE[]
-            initial_estimates = Float64[]
-            for Ψ in target_parameters[!, :PARAMETER]
-                tmle_result, initial_result, cache = tmle_run!(cache, Ψ, η_spec, dataset; verbosity=verbosity-1, threshold=tmle_spec.threshold)
-                push!(tmle_results, tmle_result)
-                push!(initial_estimates, TMLE.estimate(initial_result))
+            n_params = size(target_parameters[!, :PARAMETER], 1)
+            tmle_results = Vector{Union{TMLE.AbstractTMLE, Missing}}(undef, n_params)
+            initial_estimates = Vector{Union{Float64, Missing}}(undef, n_params)
+            logs = Vector{Union{String, Missing}}(undef, n_params)
+            for param_index in 1:n_params
+                Ψ = target_parameters[param_index, :PARAMETER]
+                tmle_result, initial_result, cache, log = try_tmle_run!(cache, Ψ, η_spec, dataset; verbosity=verbosity, threshold=tmle_spec.threshold)
+                tmle_results[param_index] = tmle_result
+                initial_estimates[param_index] = TMLE.estimate(initial_result)
+                logs[param_index] = log
             end
             sample_ids = TargetedEstimation.get_sample_ids(dataset, vcat(target, non_target_columns), save_full)
-            write_target_results(io, target_parameters, tmle_results, initial_estimates, sample_ids)
+            write_target_results(io, target_parameters, tmle_results, initial_estimates, sample_ids, logs)
         end
         
     end
