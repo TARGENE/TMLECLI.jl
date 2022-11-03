@@ -4,7 +4,8 @@ using Test
 using TargetedEstimation
 using MLJBase
 using TMLE
-
+using DataFrames
+using CSV
 
 @testset "Test AdaptiveCV" begin
     # Continuous target
@@ -60,6 +61,36 @@ end
     @test TargetedEstimation.control_string(Ψ) === missing
     @test TargetedEstimation.treatment_string(Ψ) == "T₁_&_T₂"
     @test TargetedEstimation.confounders_string(Ψ) == "W₁_&_W₂"
+
+end
+
+@testset "Test write_target_results with missing values" begin
+    io = open("test.csv", "w")
+    TargetedEstimation.initialize_outfile(io, nothing)
+    target_parameters = DataFrame(
+        PARAMETER=[TMLE.CM(
+                target=:Y,
+                treatment=(T₁=1, T₂="AC"),
+                confounders=[:W₁, :W₂],
+                covariates=[:C₁]
+        )])
+    tmle_results = [missing]
+    initial_estimates = [missing]
+    sample_ids = nothing
+    logs = ["Error X"]
+    TargetedEstimation.write_target_results(io, target_parameters, tmle_results, initial_estimates, sample_ids, logs)
+    close(io)
+    out = CSV.read("test.csv", DataFrame)
+    expected_out = ["CM", "T₁_&_T₂", "1_&_AC", missing, "Y", "W₁_&_W₂", "C₁", 
+        missing, missing, missing, missing, missing, missing, "Error X"]
+    for (x, y) in zip(first(out), expected_out)
+        if x === missing 
+            @test x === y
+        else
+            @test x == y
+        end
+    end
+    rm("test.csv")
 
 end
 

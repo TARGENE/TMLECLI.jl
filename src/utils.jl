@@ -98,6 +98,19 @@ confounders_string(Ψ; join_string="_&_") = join(Ψ.confounders, join_string)
 initialize_outfile(io, gpd_parameters) =
     CSV.write(io, csv_headers())
 
+
+function statistics_from_result(result)
+    Ψ̂ = estimate(result)
+    std = √(var(result))
+    testresult = OneSampleTTest(result)
+    pval = pvalue(testresult)
+    lw, up = confint(testresult)
+    return Ψ̂, std, pval, lw, up
+end
+
+statistics_from_result(result::Missing) = 
+    missing, missing, missing, missing, missing
+
 function write_target_results(io, target_parameters, tmle_results, initial_estimates, sample_ids, logs)
     data = csv_headers()
     for (Ψ, result, Ψ̂₀, log) in zip(target_parameters.PARAMETER, tmle_results, initial_estimates, logs)
@@ -107,11 +120,7 @@ function write_target_results(io, target_parameters, tmle_results, initial_estim
         control = control_string(Ψ)
         confounders = confounders_string(Ψ)
         covariates = covariates_string(Ψ)
-        Ψ̂ = estimate(result)
-        std = √(var(result))
-        testresult = OneSampleTTest(result)
-        pval = pvalue(testresult)
-        lw, up = confint(testresult)
+        Ψ̂, std, pval, lw, up = statistics_from_result(result)
         row = (param_type, treatments, case, control, Ψ.target, confounders, covariates, Ψ̂₀, Ψ̂, std, pval, lw, up, log)
         push!(data, row)
     end
