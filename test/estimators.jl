@@ -2,10 +2,9 @@ module TestsStackBuilding
 
 using Test
 using TargetedEstimation
-using MLJBase
+using MLJ
 using MLJGLMInterface
 using MLJLinearModels
-using MLJModels
 using EvoTrees
 
 @testset "Test tmle_spec_from_yaml: Only Stacks" begin

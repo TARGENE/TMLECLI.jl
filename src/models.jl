@@ -6,7 +6,7 @@ mutable struct InteractionTransformer <: Unsupervised
 end
 
 
-function MLJBase.fit(model::InteractionTransformer, verbosity::Int, X)
+function MLJ.fit(model::InteractionTransformer, verbosity::Int, X)
     matching_columns = filter(
         x -> occursin(model.column_pattern, string(x)), 
         Tables.columnnames(X)
@@ -25,7 +25,7 @@ function MLJBase.fit(model::InteractionTransformer, verbosity::Int, X)
 end
 
 
-function MLJBase.transform(model::InteractionTransformer, fitresult, X)
+function MLJ.transform(model::InteractionTransformer, fitresult, X)
     n = nrows(X)
     interactions = Matrix{Float64}(undef, n, fitresult.ninter)
     index = 1
@@ -38,11 +38,11 @@ function MLJBase.transform(model::InteractionTransformer, fitresult, X)
     return merge(Tables.columntable(X), interactions_ndt)
 end
 
-struct InteractionLMClassifier <: MLJBase.ProbabilisticComposite
+struct InteractionLMClassifier <: MLJ.ProbabilisticComposite
     interaction_transformer::InteractionTransformer
     linear_model
 end
-struct InteractionLMRegressor <: MLJBase.DeterministicComposite
+struct InteractionLMRegressor <: MLJ.DeterministicComposite
     interaction_transformer::InteractionTransformer
     linear_model
 end
@@ -50,7 +50,7 @@ end
 """
 Unfortunately it seems the definition of a pipeline in the module poses problems.
 I thus resort to the definition of this trivial learning-network while a better API for pipelines
-if not available (Ongoing work as of now: https://github.com/JuliaAI/MLJBase.jl/pull/664).
+if not available (Ongoing work as of now: https://github.com/JuliaAI/MLJ.jl/pull/664).
 """
 InteractionLM = Union{InteractionLMClassifier, InteractionLMRegressor}
 
@@ -61,25 +61,25 @@ InteractionLMRegressor(;column_pattern="^rs[0-9]+", lambda=0, kwargs...) =
     InteractionLMRegressor(InteractionTransformer(Regex(column_pattern)), RidgeRegressor(;lambda=lambda, kwargs...))
 
 
-function MLJBase.fit(model::InteractionLM, verbosity::Int, X, y)
+function MLJ.fit(model::InteractionLM, verbosity::Int, X, y)
     Xs = source(X)
     ys = source(y)
 
     inter_mach = machine(model.interaction_transformer, Xs)
-    Xt = MLJBase.transform(inter_mach, Xs)
+    Xt = MLJ.transform(inter_mach, Xs)
 
     pred_mach = machine(model.linear_model, Xt, ys)
-    ŷ = MLJBase.predict(pred_mach, Xt)
+    ŷ = MLJ.predict(pred_mach, Xt)
 
     mach = machine(supertype(supertype(typeof(model)))(), Xs, ys; predict=ŷ)
 
 	return!(mach, model, verbosity)
 end
 
-MLJBase.target_scitype(model::InteractionLMRegressor) = AbstractVector{<:MLJBase.Continuous}
-MLJBase.target_scitype(model::InteractionLMClassifier) = AbstractVector{<:Finite}
+MLJ.target_scitype(model::InteractionLMRegressor) = AbstractVector{<:MLJ.Continuous}
+MLJ.target_scitype(model::InteractionLMClassifier) = AbstractVector{<:Finite}
 
-MLJBase.input_scitype(model::InteractionLM) = Table
+MLJ.input_scitype(model::InteractionLM) = Table
 
 
 function build_formula_hal(X, column_pattern)
@@ -92,7 +92,7 @@ function build_formula_hal(X, column_pattern)
     return formula
 end
 
-struct SNPInteractionHALClassifier <: MLJBase.Probabilistic
+struct SNPInteractionHALClassifier <: MLJ.Probabilistic
     column_pattern
     hal::HALClassifier
 end
@@ -100,7 +100,7 @@ end
 SNPInteractionHALClassifier(;column_pattern="^rs[0-9]+", kwargs...) =
     SNPInteractionHALClassifier(Regex(column_pattern), HALClassifier(;kwargs...))
 
-struct SNPInteractionHALRegressor <: MLJBase.Deterministic
+struct SNPInteractionHALRegressor <: MLJ.Deterministic
     column_pattern
     hal::HALRegressor
 end
@@ -110,15 +110,15 @@ SNPInteractionHALRegressor(;column_pattern="^rs[0-9]+", kwargs...) =
 
 SNPInteractionHAL = Union{SNPInteractionHALRegressor,SNPInteractionHALClassifier}
 
-MLJBase.target_scitype(model::SNPInteractionHALRegressor) = AbstractVector{<:MLJBase.Continuous}
-MLJBase.target_scitype(model::SNPInteractionHALClassifier) = AbstractVector{<:Finite}
-MLJBase.input_scitype(model::SNPInteractionHAL) = Table
+MLJ.target_scitype(model::SNPInteractionHALRegressor) = AbstractVector{<:MLJ.Continuous}
+MLJ.target_scitype(model::SNPInteractionHALClassifier) = AbstractVector{<:Finite}
+MLJ.input_scitype(model::SNPInteractionHAL) = Table
 
-function MLJBase.fit(model::SNPInteractionHAL, verbosity::Int, X, y)
+function MLJ.fit(model::SNPInteractionHAL, verbosity::Int, X, y)
     formula_hal = build_formula_hal(X, model.column_pattern)
     model.hal.formula = formula_hal
-    return MLJBase.fit(model.hal, verbosity, X, y)
+    return MLJ.fit(model.hal, verbosity, X, y)
 end
 
-MLJBase.predict(model::SNPInteractionHAL, fitresult, X) =
-    MLJBase.predict(model.hal, fitresult, X)
+MLJ.predict(model::SNPInteractionHAL, fitresult, X) =
+    MLJ.predict(model.hal, fitresult, X)

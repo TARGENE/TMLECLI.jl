@@ -13,7 +13,7 @@ countuniques(table) =
 
 Implements the rule of thum given here: https://www.youtube.com/watch?v=WYnjja8DKPg&t=4s
 """
-mutable struct AdaptiveCV <: MLJBase.ResamplingStrategy
+mutable struct AdaptiveCV <: MLJ.ResamplingStrategy
     cv::Union{CV, StratifiedCV}
 end
 
@@ -22,7 +22,7 @@ function MLJBase.train_test_pairs(cv::AdaptiveCV, rows, y)
     # Compute n-eff
     n = nrows(y)
     neff = 
-        if scitype(first(y)) == MLJBase.Continuous
+        if scitype(first(y)) == MLJ.Continuous
             n
         else
             counts = countuniques(y)

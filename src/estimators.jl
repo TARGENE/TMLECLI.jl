@@ -29,7 +29,7 @@ function stack_from_config(config::Dict, metalearner)
 
     # Define the internal cross validation measures to report
     measures = (haskey(config, :measures) && size(config[:measures], 1) > 0) ? 
-                    [getfield(MLJBase, Symbol(fn)) for fn in config[:measures]] : 
+                    [getfield(MLJ, Symbol(fn)) for fn in config[:measures]] : 
                     nothing
         
     # Define the models library

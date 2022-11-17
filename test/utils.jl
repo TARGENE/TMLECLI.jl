@@ -2,10 +2,11 @@ module TestUtils
 
 using Test
 using TargetedEstimation
-using MLJBase
+using MLJ
 using TMLE
 using DataFrames
 using CSV
+using MLJBase
 
 @testset "Test AdaptiveCV" begin
     # Continuous target

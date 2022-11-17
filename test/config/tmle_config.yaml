@@ -61,6 +61,7 @@ G:
   models:
     - type: LogisticClassifier
       fit_intercept: true
+      lambda: 1.0
     - type: ConstantClassifier
     - type: EvoTreeClassifier
       nrounds: 10

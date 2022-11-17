@@ -2,7 +2,7 @@ module TestModels
 
 using Test
 using TargetedEstimation
-using MLJBase
+using MLJ
 using DataFrames
 using RCall
 using StableRNGs
@@ -12,7 +12,7 @@ using StableRNGs
     t = TargetedEstimation.InteractionTransformer(r"^rs[0-9]+")
     mach = machine(t, X)
     fit!(mach, verbosity=0)
-    Xt = MLJBase.transform(mach, X)
+    Xt = MLJ.transform(mach, X)
 
     @test Xt == (
         rs1234 = [1, 2, 3],
@@ -54,8 +54,8 @@ end
     @test fp.interaction_transformer.fitresult.interaction_pairs == [:rs1234 => :rs455]
     @test predict(mach) isa Vector{Float64}
 
-    @test target_scitype(TargetedEstimation.InteractionLMRegressor()) == AbstractVector{<:MLJBase.Continuous}
-    @test target_scitype(TargetedEstimation.InteractionLMClassifier()) == AbstractVector{<:MLJBase.Finite}
+    @test target_scitype(TargetedEstimation.InteractionLMRegressor()) == AbstractVector{<:MLJ.Continuous}
+    @test target_scitype(TargetedEstimation.InteractionLMClassifier()) == AbstractVector{<:MLJ.Finite}
 
 end
 
@@ -87,7 +87,7 @@ end
     @rget nb_basis
     @test nb_basis == 96
 
-    @test predict(mach, X) isa UnivariateFiniteVector
+    @test predict(mach, X) isa MLJ.UnivariateFiniteVector
     # default degree 2
     base_hal = TargetedEstimation.HALClassifier(
         lambda=1, 
@@ -123,7 +123,6 @@ end
     )
     fit!(mach, verbosity=0)
     @test predict(mach, X) isa Vector
-
 end
 
 end
