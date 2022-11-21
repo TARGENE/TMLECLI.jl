@@ -40,10 +40,11 @@ residuals(model::SALRegressor, y::AbstractNode, ŷ::AbstractNode) =
     MLJBase.prefit(model::SAL, verbosity::Int, X, y)
 """
 function MLJBase.prefit(model::SAL, verbosity::Int, X, y)
-    Xs = source(X)
-    Ys = source(y)
     gbt_machs = Vector{Machine}(undef, model.n_iter)
     lasso_machs = Vector{Machine}(undef, model.n_iter)
+    
+    Xs = source(X)
+    Ys = source(y)
     R = Ys
     
     for iter in 1:model.n_iter
