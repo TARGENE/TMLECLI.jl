@@ -17,7 +17,7 @@ include("utils.jl")
 include("estimators.jl")
 include("models.jl")
 include("estimation.jl")
-# include("models/sal.jl")
+include("models/sal.jl")
 include("models/glmnet.jl")
 
 export main

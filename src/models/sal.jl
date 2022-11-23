@@ -13,12 +13,12 @@ mutable struct SALClassifier <: MLJ.Probabilistic
     n_iter
 end
 
-SALClassifier(;evotree=EvoTreeClassifier(), lasso=LassoRegressor(), n_iter=10) =
+SALClassifier(;evotree=EvoTreeClassifier(), lasso=LassoRegressor(), n_iter=1) =
     SALClassifier(evotree, lasso, n_iter)
 
 SAL = Union{SALRegressor, SALClassifier}
 
-iteration_parameter(model::SAL) = :n_iter
+MLJBase.iteration_parameter(model::SAL) = :n_iter
 
 function gbt_transform!(H, gbt_machs, X)
     for gbt_index in eachindex(gbt_machs)
@@ -34,14 +34,14 @@ end
 
 residuals(model::SALRegressor, y, ŷ) = y .- ŷ
 
-function fit!(gbt_machs::Vector{Machine}, model::SAL, range, X, R, y, verbosity::Int)
+function update!(gbt_machs::AbstractVector{<:Machine}, model::SAL, range, X, R, y, verbosity::Int)
     local lasso_mach
     for iter in range
         gbt_machs[iter] = machine(model.evotree, X, R)
-        fit!(gbt_machs[iter], verbosity=verbosity)
-        H = TargetedEstimation.gbt_transform(gbt_machs[range], X)
+        MLJBase.fit!(gbt_machs[iter], verbosity=verbosity)
+        H = TargetedEstimation.gbt_transform(gbt_machs[1:iter], X)
         lasso_mach = machine(model.lasso, H, y)
-        fit!(lasso_mach, verbosity=verbosity)
+        MLJBase.fit!(lasso_mach, verbosity=verbosity)
         R = TargetedEstimation.residuals(model, y, MLJBase.predict(lasso_mach, H))
     end
     return lasso_mach
@@ -56,7 +56,7 @@ function update(model::SAL, verbosity, fitresult, cache, X, y)
         H = TargetedEstimation.gbt_transform(fitresult.gbt_machs, X)
         R = TargetedEstimation.residuals(model, y, MLJBase.predict(fitresult.lasso_mach, H))
         range = current_n_iter+1:model.n_iter
-        lasso_mach = fit!(gbt_machs, model, range, X, R, y, verbosity)
+        lasso_mach = update!(gbt_machs, model, range, X, R, y, verbosity)
         return (gbt_machs=gbt_machs, lasso_mach=lasso_mach), nothing, nothing
     end
 end
@@ -65,10 +65,10 @@ end
     MLJBase.fit(model::SAL, verbosity::Int, X, y)
 """
 function MLJBase.fit(model::SAL, verbosity::Int, X, y)
-    gbt_machs = Vector{Machine}(undef, model.n_iter)  
+    gbt_machs = Vector{Machine}(undef, model.n_iter) 
     R = y
     range = 1:model.n_iter
-    lasso_mach = TargetedEstimation.fit!(gbt_machs, model, range, X, R, y, verbosity)
+    lasso_mach = TargetedEstimation.update!(gbt_machs, model, range, X, R, y, verbosity)
     fitresult = (gbt_machs=gbt_machs, lasso_mach=lasso_mach)
     cache = nothing
     report = nothing

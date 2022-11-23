@@ -24,15 +24,16 @@ using EvoTrees
         resampling=Holdout(),
         measures=rmse,
         controls=[Step(1),
-                Patience(2),
-                    NumberLimit(100)],
-        iteration_parameter=:n_iter,
+                Patience(1),
+                WithLossDo(f=x->@info("loss: $x")),
+                    NumberLimit(10)],
         retrain=true)
 
     mach = machine(iterated_sal, X, y)
-    fit!(mach, verbosity=1)
+    fit!(mach)
 
     iterated_model = IteratedModel(model=EvoTreeRegressor(),
+    
         resampling=Holdout(),
         measures=rmse,
         controls=[Step(2),
