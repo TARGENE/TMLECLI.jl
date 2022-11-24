@@ -21,5 +21,6 @@ include("models/sal.jl")
 include("models/glmnet.jl")
 
 export main
+export SALRegressor
 
 end

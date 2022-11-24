@@ -6,43 +6,33 @@ using MLJ
 using StableRNGs
 using EvoTrees
 
+
 @testset "Test SALRegressor" begin
     rng = StableRNG(123)
-    X, y = make_regression(1000, 3; rng=rng)
-
-    sal = TargetedEstimation.SALRegressor()
+    X, y = make_regression(100, 3, rng=rng)
+    sal = SALRegressor()
     mach = machine(sal, X, y)
     fit!(mach, verbosity=0)
-    MLJBase.predict(mach)
-    sal_pe = evaluate!(mach, measure=rmse)
+    @test size(mach.fitresult.gbt_machs, 1) == sal.n_bases
+    @test mach.fitresult.lasso_mach.state == 1
 
-    mach = machine(EvoTreeRegressor(), X, y)
-    evotree_pe = evaluate!(mach, measure=rmse)
+    # Check training loss decreases by increasing 
+    # the number of bases
+    K = 5
+    rmses = Vector{Float64}(undef, K)
+    for k in 1:K
+        sal = SALRegressor(n_bases=k)
+        mach = machine(sal, X, y)
+        fit!(mach, verbosity=0)
+        rmses[k] = TargetedEstimation.loss(sal, predict(mach), y)
+    end
+    @test rmses[1] > rmses[2] > rmses[3] > rmses[4] > rmses[5]
 
-    iterated_sal = IteratedModel(
-        model=sal,
-        resampling=Holdout(),
-        measures=rmse,
-        controls=[Step(1),
-                Patience(1),
-                WithLossDo(f=x->@info("loss: $x")),
-                    NumberLimit(10)],
-        retrain=true)
+    # Test residuals
+    @test TargetedEstimation.residuals(sal, [1, 2, 3], [1, 2, 3]) == [0, 0, 0]
 
-    mach = machine(iterated_sal, X, y)
-    fit!(mach)
-
-    iterated_model = IteratedModel(model=EvoTreeRegressor(),
-    
-        resampling=Holdout(),
-        measures=rmse,
-        controls=[Step(2),
-                  Patience(2),
-                  NumberLimit(100)],
-        retrain=true)
-    mach = machine(iterated_model, X, y)
-    fit!(mach, verbosity=1)
 end
+
 
 end
 
