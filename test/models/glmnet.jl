@@ -6,6 +6,7 @@ using MLJ
 using StableRNGs
 
 @testset "Test GLMNetModel" begin
+    ## The following will test both the fit/predict APIs
     # Regressor
     rng = StableRNG(123)
     n, p = 1000, 5
