@@ -1,23 +1,116 @@
+#####################################################################
+###                       CONSTANT BASIS                          ###
+#####################################################################
+
+mutable struct ConstantBasis{T<:AbstractFloat} <: Deterministic
+    value::T
+end
+
+ConstantBasis(;value=0.) = ConstantBasis(value)
+
+MLJ.fit(model::ConstantBasis, verbosity::Int, X, y) = nothing, nothing, nothing
+
+MLJ.predict(model::ConstantBasis, fitresult, X) = fill(model.value, nrows(X))
+
+#####################################################################
+###                          BASIC SAL                            ###
+#####################################################################
+
+mutable struct SALFitresult
+    constant
+    gbts
+    lasso
+    SALFitresult() = new()
+end
 
 mutable struct SALRegressor <: MLJ.Deterministic
-    gbt
-    lasso
+    gbt::EvoTreeRegressor
+    lasso::LassoRegressor
     n_bases::Int
 end
 
-SALRegressor(;gbt=EvoTreeRegressor(nrounds=100), lasso=LassoRegressor(), n_bases=3) =
+SALRegressor(;gbt=EvoTreeRegressor(nrounds=100), lasso=LassoRegressor(lambda=1.), n_bases=10) =
     SALRegressor(gbt, lasso, n_bases)
 
 mutable struct SALClassifier <: MLJ.Probabilistic
-    gbt
-    lasso
+    gbt::EvoTreeClassifier
+    lasso::LogisticClassifier
     n_bases::Int
 end
 
-SALClassifier(;gbt=EvoTreeClassifier(), lasso=LassoRegressor(), n_bases=1) =
+SALClassifier(;gbt=EvoTreeClassifier(nrounds=100), lasso=LassoRegressor(lambda=1.), n_bases=10) =
     SALClassifier(gbt, lasso, n_bases)
 
 SAL = Union{SALRegressor, SALClassifier}
+
+function gbt_transform!(H, gbts, constant, X)
+    for gbt_index in eachindex(gbts)
+        H[:, gbt_index] = MLJBase.predict(gbts[gbt_index], X)
+    end
+    H[:, end] = MLJBase.predict(constant, X)
+end
+
+function transform(fitresult::SALFitresult, X, iter)
+    gbts = fitresult.gbts[1:iter]
+    H = Matrix{Float64}(undef, nrows(X), size(gbts, 1) + 1)
+    transform!(H, gbts, fitresult.constant, X)
+    return MLJBase.table(H)
+end
+
+constant_basis(model::SALRegressor, y) = ConstantBasis(value=mean(y))
+
+initialize_gradient(model::SALRegressor, n) = zeros(n)
+
+update_gradient!(∇::AbstractVector, model::SALRegressor, y, ŷ) = y .- ŷ
+
+function fit_new_basis!(fitresult::SALFitresult, model, X, y, iter, verbosity)
+    # Initialize basis with a constant prediction and array of gradient boosting trees
+    if iter == 0
+        fitresult.constant = machine(constant_basis(model, y), X, y)
+        fit!(fitresult.constant, verbosity=verbosity)
+        fitresult.gbts = Vector{Machine}(undef, model.n_bases)
+    # Fit new gradient boosting tree
+    else
+        fitresult.gbts[iter] = machine(model.gbt, X, y)
+        fit!(fitresult.gbts[iter], verbosity=verbosity)
+    end
+end
+
+function fit_lasso!(fitresult::SALFitresult, verbosity::Int, X, y)
+    fitresult.lasso = machine(model.lasso, H, y)
+    MLJBase.fit!(lasso_mach, verbosity=verbosity)
+end
+
+"""
+    MLJBase.fit(model::SAL, verbosity::Int, X, y)
+"""
+function MLJBase.fit(model::SAL, verbosity::Int, X, y)
+    fitresult = SALFitresult()
+    fit_new_basis!(fitresult, model, X, y, 0, verbosity)
+    ∇ = initialize_gradient(model, nrows(y))
+    for iter in model.n_bases
+        ∇ = TargetedEstimation.update_gradient!(∇, model, fitresult, y)
+        fit_new_basis!(fitresult, model, X, ∇, iter, verbosity)
+        H = TargetedEstimation.transform(fitresult, X, iter)
+        lasso_mach = machine(model.lasso, H, y)
+        MLJBase.fit!(lasso_mach, verbosity=verbosity)
+        R = TargetedEstimation.residuals(model, y, MLJBase.predict(lasso_mach, H))
+    end
+    lasso_mach = TargetedEstimation.update!(bases, model, X, y, verbosity)
+    fitresult = (gbt_machs=gbt_machs, lasso_mach=lasso_mach)
+    cache = nothing
+    report = nothing
+    return fitresult, cache, report
+end
+
+function MLJBase.predict(model::SAL, fitresult, X)
+    H = gbt_transform(fitresult.gbt_machs, X)
+    return MLJBase.predict(fitresult.lasso_mach, H)
+end
+
+#####################################################################
+###                      EARLY STOPPING SAL                       ###
+#####################################################################
 
 mutable struct EarlyStoppingSALRegressor <: Deterministic
     sal::SAL
@@ -113,18 +206,6 @@ function MLJBase.predict(model::EarlyStoppingSALRegressor, fitresult, X)
     MLJBase.predict(fitresult, X)
 end
 
-function gbt_transform!(H, gbt_machs, X)
-    for gbt_index in eachindex(gbt_machs)
-        H[:, gbt_index] = MLJBase.predict(gbt_machs[gbt_index], X)
-    end
-end
-
-function gbt_transform(gbt_machs, X)
-    H = Matrix{Float64}(undef, nrows(X), size(gbt_machs, 1))
-    gbt_transform!(H, gbt_machs, X)
-    return MLJBase.table(H)
-end
-
 loss(sal::SALRegressor, ŷ, y) = root_mean_squared_error(ŷ, y)
 
 function initialize_residuals(sal::SALRegressor, y, train_test_pairs) 
@@ -135,36 +216,7 @@ function initialize_residuals(sal::SALRegressor, y, train_test_pairs)
     return R
 end
 
-residuals(model::SALRegressor, y, ŷ) = y .- ŷ
 
-function update!(gbt_machs::AbstractVector{<:Machine}, model::SAL, range, X, R, y, verbosity::Int)
-    local lasso_mach
-    for iter in range
-        gbt_machs[iter] = machine(model.gbt, X, R)
-        MLJBase.fit!(gbt_machs[iter], verbosity=verbosity)
-        H = TargetedEstimation.gbt_transform(gbt_machs[1:iter], X)
-        lasso_mach = machine(model.lasso, H, y)
-        MLJBase.fit!(lasso_mach, verbosity=verbosity)
-        R = TargetedEstimation.residuals(model, y, MLJBase.predict(lasso_mach, H))
-    end
-    return lasso_mach
-end
 
-"""
-    MLJBase.fit(model::SAL, verbosity::Int, X, y)
-"""
-function MLJBase.fit(model::SAL, verbosity::Int, X, y)
-    gbt_machs = Vector{Machine}(undef, model.n_bases) 
-    R = y
-    range = 1:model.n_bases
-    lasso_mach = TargetedEstimation.update!(gbt_machs, model, range, X, R, y, verbosity)
-    fitresult = (gbt_machs=gbt_machs, lasso_mach=lasso_mach)
-    cache = nothing
-    report = nothing
-    return fitresult, cache, report
-end
 
-function MLJBase.predict(model::SAL, fitresult, X)
-    H = gbt_transform(fitresult.gbt_machs, X)
-    return MLJBase.predict(fitresult.lasso_mach, H)
-end
+
