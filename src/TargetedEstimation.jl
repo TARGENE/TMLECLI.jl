@@ -17,7 +17,8 @@ include("utils.jl")
 include("estimators.jl")
 include("models.jl")
 include("estimation.jl")
-include("models/glmnet.jl")
+include(joinpath("models", "glmnet.jl"))
+include(joinpath("models", "hal.jl"))
 
 export main
 
