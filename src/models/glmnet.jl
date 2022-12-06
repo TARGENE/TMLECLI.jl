@@ -39,3 +39,18 @@ end
 MLJBase.input_scitype(::Type{<:GLMNetModel}) = Table{<:AbstractVector{<:Continuous}}
 MLJBase.target_scitype(::Type{<:GLMNetRegressor}) = AbstractVector{<:Continuous}
 MLJBase.target_scitype(::Type{<:GLMNetClassifier}) = AbstractVector{<:Finite}
+
+
+function InteractionGLMNetRegressor(;order=2, params...)
+    return Pipeline(
+        interaction_transformer=InteractionTransformer(;order=order),
+        glmnet=GLMNetRegressor(;params...)
+    )
+end
+
+function InteractionGLMNetClassifier(;order=2, params...)
+    return Pipeline(
+        interaction_transformer=InteractionTransformer(;order=order),
+        glmnet=GLMNetClassifier(;params...)
+    )
+end

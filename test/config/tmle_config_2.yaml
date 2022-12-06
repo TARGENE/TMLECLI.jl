@@ -10,8 +10,7 @@ Q_continuous:
     adaptive: true
   # List all models and hyperparameters
   models: 
-    - type: InteractionLMRegressor
-      column_pattern: ["^RS_"]
+    - type: InteractionGLMNetRegressor
 
     - type: EvoTreeRegressor
       nrounds: [10, 20]
@@ -29,8 +28,7 @@ Q_continuous:
 
 # For the estimation of E[Y|W, T]: binary target
 Q_binary:
-  model: LogisticClassifier
-  lambda: 10.
+  model: InteractionGLMNetClassifier
 
 # For the estimation of p(T| W)
 G:

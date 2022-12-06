@@ -12,10 +12,10 @@ using JLD2
 using YAML
 using CategoricalArrays
 using GLMNet
+using MLJModels
 
 include("utils.jl")
 include("estimators.jl")
-include("models.jl")
 include("estimation.jl")
 include(joinpath("models", "glmnet.jl"))
 include(joinpath("models", "hal.jl"))
