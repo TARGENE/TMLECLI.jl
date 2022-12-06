@@ -52,7 +52,7 @@ function main(parsed_args)
         # Append HDF5 result if save-ic is true
         if parsed_args["save-ic"]
             # Append only with results passing the threshold
-            mask = [i for i in 1:n_params if pvalue(OneSampleZTest(tmle_results[i])) <= pval_threshold]
+            mask = [i for i in 1:n_params if (tmle_results[i] !== missing) && (pvalue(OneSampleZTest(tmle_results[i])) <= pval_threshold)]
             if size(mask, 1) > 0
                 sample_ids = TargetedEstimation.get_sample_ids(dataset, vcat(target, non_target_columns))
                 append_hdf5(jld_io, no_slash(target), tmle_results, initial_estimates, logs, sample_ids, mask)
