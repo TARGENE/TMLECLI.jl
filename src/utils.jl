@@ -1,5 +1,3 @@
-struct SaveFull{x} end
-
 #####################################################################
 #####                 CV ADAPTIVE FOLDS                          ####
 #####################################################################
@@ -95,8 +93,11 @@ control_string(Ψ::TMLE.Parameter; join_string="_&_") =
 treatment_string(Ψ; join_string="_&_") = join(keys(Ψ.treatment), join_string)
 confounders_string(Ψ; join_string="_&_") = join(Ψ.confounders, join_string)
 
-initialize_outfile(io, gpd_parameters) =
+function initialize_csv_io(outprefix)
+    io = open(string(outprefix, ".csv"), "w")
     CSV.write(io, csv_headers())
+    return io
+end
 
 
 function statistics_from_result(result)
@@ -111,7 +112,7 @@ end
 statistics_from_result(result::Missing) = 
     missing, missing, missing, missing, missing
 
-function write_target_results(io, target_parameters, tmle_results, initial_estimates, sample_ids, logs)
+function append_csv(io, target_parameters, tmle_results, initial_estimates, logs)
     data = csv_headers()
     for (Ψ, result, Ψ̂₀, log) in zip(target_parameters.PARAMETER, tmle_results, initial_estimates, logs)
         param_type = param_string(Ψ)
@@ -127,29 +128,27 @@ function write_target_results(io, target_parameters, tmle_results, initial_estim
     CSV.write(io, data, append=true)
 end
 
-open_io(f, file, save_full::SaveFull{false}, mode="w", args...; kwargs...) =
-    open(f, file, mode, args...; kwargs...)
 
 #####################################################################
 #####                       JLD2 OUTPUT                          ####
 #####################################################################
 no_slash(x) = replace(string(x), "/" => "_OR_")
 
-initialize_outfile(io::JLD2.JLDFile, gpd_parameters) =
-    io["parameters"] = first(gpd_parameters)[!, "PARAMETER"]
-
-function write_target_results(io::JLD2.JLDFile, target_parameters, tmle_results, initial_estimates, sample_ids, logs)
-    target = no_slash(target_parameters[1, :TARGET])
-    io["results/$target/initial_estimates"] = initial_estimates
-    io["results/$target/tmle_results"] = tmle_results
-    io["results/$target/sample_ids"] = sample_ids
-    io["results/$target/logs"] = logs
+function initialize_jld_io(outprefix, gpd_parameters, save_ic)
+    if save_ic
+        io = jldopen(string(outprefix, ".hdf5"), "w", compress=true)
+        io["parameters"] = first(gpd_parameters)[!, "PARAMETER"]
+        return io
+    end
+    return nothing
 end
 
-
-open_io(f, file, save_full::SaveFull{true}, mode="w", args...; compress=true, kwargs...) =
-    jldopen(f, file, mode, args...; compress=compress, kwargs...)
-
+function append_hdf5(io::JLD2.JLDFile, target, tmle_results, initial_estimates, logs, sample_ids, mask)
+    io["results/$target/initial_estimates"] = initial_estimates[mask]
+    io["results/$target/tmle_results"] = tmle_results[mask]
+    io["results/$target/sample_ids"] = sample_ids
+    io["results/$target/logs"] = logs[mask]
+end
 
 #####################################################################
 #####                 ADDITIONAL METHODS                         ####
@@ -159,9 +158,7 @@ get_non_target_columns(parameter) =
     vcat(keys(parameter.treatment)..., parameter.confounders, parameter.covariates)
 
 
-get_sample_ids(data, targets_columns, save_full::SaveFull{true}) = dropmissing(data[!, [:SAMPLE_ID, targets_columns...]]).SAMPLE_ID
-
-get_sample_ids(data, targets_columns, save_full::SaveFull{false}) = nothing
+get_sample_ids(data, targets_columns) = dropmissing(data[!, [:SAMPLE_ID, targets_columns...]]).SAMPLE_ID
 
 """
     instantiate_dataset(path::String)

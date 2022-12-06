@@ -65,21 +65,24 @@ function build_dataset(;n=1000, format="csv")
 end
 
 
-@testset "Test tmle_run with: no extra covariate, csv format, save all, super learning only" begin
+@testset "Test tmle_run with: no extra covariate, influence curve no threshold, super learning" begin
     build_dataset(;n=1000, format="csv")
     # Only one continuous phenotype / machines not saved / no adaptive cv
     parsed_args = Dict(
         "data" => "data.csv",
         "param-file" => joinpath("config", "parameters_no_extra_covariate.yaml"),
         "estimator-file" => joinpath("config", "tmle_config.yaml"),
-        "out" => "output.hdf5",
+        "outprefix" => "output",
         "verbosity" => 0,
-        "save-full" => true,
+        "save-ic" => true,
+        "pval-threshold" => 1.
     )
 
     main(parsed_args)
 
-    outfile = jldopen(parsed_args["out"])
+    ## Check HDF5 file
+    hdf5file = string(parsed_args["outprefix"], ".hdf5")
+    io = jldopen(hdf5file)
     # Parameters are saved only for the first target to save memory
     expected_params = [
         IATE(
@@ -101,10 +104,10 @@ end
             Symbol[]
         )
     ]
-    test_parameters(outfile["parameters"], expected_params)
+    test_parameters(io["parameters"], expected_params)
     
     # results for CONTINUOUS_TARGET
-    continuous_results = outfile["results"]["CONTINUOUS, TARGET"]
+    continuous_results = io["results"]["CONTINUOUS, TARGET"]
     @test continuous_results["sample_ids"] == 1:1000
     tmles = continuous_results["tmle_results"]
     @test pvalue(OneSampleTTest(tmles[1], 0.5)) > 0.05
@@ -114,7 +117,7 @@ end
     @test size(continuous_results["initial_estimates"], 1) == 3
 
     # results for BINARY_TARGET
-    binary_results = outfile["results"]["BINARY_OR_TARGET"]
+    binary_results = io["results"]["BINARY_OR_TARGET"]
     @test binary_results["sample_ids"] == 2:1000
     tmles = binary_results["tmle_results"]
     for i in 1:3
@@ -124,28 +127,85 @@ end
     @test binary_results["initial_estimates"] isa Vector{Union{Missing, Float64}}
     @test size(binary_results["initial_estimates"], 1) == 3
 
-    close(outfile)
+    close(io)
+
+    ## Check CSV file
+    csvfile = string(parsed_args["outprefix"], ".csv")
+    data = CSV.read(csvfile, DataFrame)
+    names(data)
+    @test data.PARAMETER_TYPE == ["IATE", "IATE", "ATE", "IATE", "IATE", "ATE"]
+    @test data.TARGET == ["CONTINUOUS, TARGET", "CONTINUOUS, TARGET", "CONTINUOUS, TARGET",
+                        "BINARY/TARGET", "BINARY/TARGET", "BINARY/TARGET"]
+    @test data.TREATMENTS == fill("T2_&_T1", 6)
+    @test data.CONFOUNDERS == fill("W1_&_W2", 6)
+    @test data.CASE == ["1_&_1", "0_&_1", "1_&_1", "1_&_1", "0_&_1", "1_&_1"]
+    @test data.CONTROL == ["0_&_0", "1_&_0", "0_&_0", "0_&_0", "1_&_0", "0_&_0"]
+
+    
+    for col in [:INITIAL_ESTIMATE, :ESTIMATE, :STD, :PVALUE, :LWB, :UPB]
+        @test data[!, col] isa Vector{Float64}
+    end
+
     # Clean
-    rm(parsed_args["out"])
+    rm(csvfile)
+    rm(hdf5file)
     rm(parsed_args["data"])
 end
 
+@testset "Test tmle_run with: no extra covariate, influence curve 0.01 threshold, super learning" begin
+    build_dataset(;n=1000, format="csv")
+    # Only one continuous phenotype / machines not saved / no adaptive cv
+    parsed_args = Dict(
+        "data" => "data.csv",
+        "param-file" => joinpath("config", "parameters_no_extra_covariate.yaml"),
+        "estimator-file" => joinpath("config", "tmle_config.yaml"),
+        "outprefix" => "output",
+        "verbosity" => 0,
+        "save-ic" => true,
+        "pval-threshold" => 0.01
+    )
 
-@testset "Test tmle_run with: extra covariate, csv format, no influence curve, classifier simple models" begin
+    main(parsed_args)
+
+    ## Check HDF5 file
+    hdf5file = string(parsed_args["outprefix"], ".hdf5")
+    io = jldopen(hdf5file)
+    continuous = io["results"]["CONTINUOUS, TARGET"]
+    @test size(continuous["tmle_results"], 1) == 2
+    @test size(continuous["logs"], 1) == 2
+    @test size(continuous["initial_estimates"], 1) == 2
+
+    @test !haskey(io["results"], "BINARY/TARGET")
+
+    ## Check CSV file
+    csvfile = string(parsed_args["outprefix"], ".csv")
+    data = CSV.read(csvfile, DataFrame)
+    @test size(data) == (6, 14)
+
+    # Clean
+    rm(csvfile)
+    rm(hdf5file)
+    rm(parsed_args["data"])
+
+end
+
+
+@testset "Test tmle_run with: extra covariate, no influence curve, classifier simple models" begin
     build_dataset(;n=1000, format="csv")
     parsed_args = Dict(
         "data" => "data.csv",
         "param-file" => joinpath("config", "parameters_extra_covariate.yaml"),
         "estimator-file" => joinpath("config", "tmle_config_2.yaml"),
-        "out" => "output.csv",
+        "outprefix" => "output",
         "verbosity" => 0,
-        "save-full" => false,
+        "save-ic" => false,
+        "pval-threshold" => 1.
     )
 
     main(parsed_args)
     
     # Essential results
-    out = CSV.read(parsed_args["out"], DataFrame)
+    out = CSV.read(string(parsed_args["outprefix"], ".csv"), DataFrame)
     some_expected_col_values = DataFrame(
         PARAMETER_TYPE=["IATE", "IATE", "ATE", "IATE", "IATE", "ATE"], 
         TREATMENTS=["T2_&_T1", "T2_&_T1", "T2_&_T1", "T2_&_T1", "T2_&_T1", "T2_&_T1"], 
@@ -162,7 +222,7 @@ end
     end
 
     rm(parsed_args["data"])
-    rm(parsed_args["out"])
+    rm(string(parsed_args["outprefix"], ".csv"))
 end
 
 

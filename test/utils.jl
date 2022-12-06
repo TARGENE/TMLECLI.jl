@@ -66,8 +66,7 @@ end
 end
 
 @testset "Test write_target_results with missing values" begin
-    io = open("test.csv", "w")
-    TargetedEstimation.initialize_outfile(io, nothing)
+    io = TargetedEstimation.initialize_csv_io("test")
     target_parameters = DataFrame(
         PARAMETER=[TMLE.CM(
                 target=:Y,
@@ -77,9 +76,8 @@ end
         )])
     tmle_results = [missing]
     initial_estimates = [missing]
-    sample_ids = nothing
     logs = ["Error X"]
-    TargetedEstimation.write_target_results(io, target_parameters, tmle_results, initial_estimates, sample_ids, logs)
+    TargetedEstimation.append_csv(io, target_parameters, tmle_results, initial_estimates, logs)
     close(io)
     out = CSV.read("test.csv", DataFrame)
     expected_out = ["CM", "T₁_&_T₂", "1_&_AC", missing, "Y", "W₁_&_W₂", "C₁", 
