@@ -5,7 +5,7 @@ T:
   - T1
   - T2
 Y:
-  - CONTINUOUS_TARGET
+  - CONTINUOUS, TARGET
   - "BINARY/TARGET"
 
 Parameters:

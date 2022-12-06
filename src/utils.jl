@@ -121,7 +121,7 @@ function write_target_results(io, target_parameters, tmle_results, initial_estim
         confounders = confounders_string(Ψ)
         covariates = covariates_string(Ψ)
         Ψ̂, std, pval, lw, up = statistics_from_result(result)
-        row = (param_type, treatments, case, control, Ψ.target, confounders, covariates, Ψ̂₀, Ψ̂, std, pval, lw, up, log)
+        row = (param_type, treatments, case, control, string(Ψ.target), confounders, covariates, Ψ̂₀, Ψ̂, std, pval, lw, up, log)
         push!(data, row)
     end
     CSV.write(io, data, append=true)

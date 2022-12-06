@@ -55,10 +55,12 @@ function build_dataset(;n=1000, format="csv")
         W1 = W₁, 
         W2 = W₂,
         C1 = C₁,
-        CONTINUOUS_TARGET = y₁
     )
+    # Comma in name
+    dataset[!, "CONTINUOUS, TARGET"] = categorical(y₁)
     # Slash in name
     dataset[!, "BINARY/TARGET"] = categorical(y₂)
+
     CSV.write("data.csv", dataset)
 end
 
@@ -81,19 +83,19 @@ end
     # Parameters are saved only for the first target to save memory
     expected_params = [
         IATE(
-            :CONTINUOUS_TARGET, 
+            Symbol("CONTINUOUS, TARGET"), 
             (T2 = (case = 1, control = 0), T1 = (case = 1, control = 0)), 
             [:W1, :W2], 
             Symbol[]
         ),
         IATE(
-            :CONTINUOUS_TARGET, 
+            Symbol("CONTINUOUS, TARGET"),  
             (T2 = (case = 0, control = 1), T1 = (case = 1, control = 0)),
             [:W1, :W2],
             Symbol[]
         ),
         ATE(
-            :CONTINUOUS_TARGET, 
+            Symbol("CONTINUOUS, TARGET"), 
             (T2 = (case = 1, control = 0), T1 = (case = 1, control = 0)),
             [:W1, :W2], 
             Symbol[]
@@ -102,7 +104,7 @@ end
     test_parameters(outfile["parameters"], expected_params)
     
     # results for CONTINUOUS_TARGET
-    continuous_results = outfile["results"]["CONTINUOUS_TARGET"]
+    continuous_results = outfile["results"]["CONTINUOUS, TARGET"]
     @test continuous_results["sample_ids"] == 1:1000
     tmles = continuous_results["tmle_results"]
     @test pvalue(OneSampleTTest(tmles[1], 0.5)) > 0.05
@@ -149,7 +151,7 @@ end
         TREATMENTS=["T2_&_T1", "T2_&_T1", "T2_&_T1", "T2_&_T1", "T2_&_T1", "T2_&_T1"], 
         CASE=["1_&_1", "0_&_1", "1_&_1", "1_&_1", "0_&_1", "1_&_1"],
         CONTROL=["0_&_0", "1_&_0", "0_&_0", "0_&_0", "1_&_0", "0_&_0"], 
-        TARGET=["CONTINUOUS_TARGET", "CONTINUOUS_TARGET", "CONTINUOUS_TARGET", "BINARY/TARGET", "BINARY/TARGET", "BINARY/TARGET"], 
+        TARGET=["CONTINUOUS, TARGET", "CONTINUOUS, TARGET", "CONTINUOUS, TARGET", "BINARY/TARGET", "BINARY/TARGET", "BINARY/TARGET"], 
         CONFOUNDERS=["W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2"], 
         COVARIATES=["C1", "C1", "C1", "C1", "C1", "C1"]
     )
