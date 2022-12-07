@@ -96,8 +96,7 @@ function build_work_list(prefix, grm_ids)
             end
         end
     end
-    influence_curves = length(influence_curves) > 0 ? reduce(vcat, transpose(influence_curves)) : influence_curves 
-    return sieve_df, influence_curves, n_obs
+    return sieve_df, reduce(vcat, transpose(influence_curves)), n_obs
 end
 
 
@@ -225,13 +224,12 @@ function sieve_variance_plateau(parsed_args)
     sieve_df, influence_curves, n_obs = build_work_list(prefix, grm_ids)
 
     verbosity > 0 && @info "Computing variance estimates."
-    if length(influence_curves) > 0
-        variances = compute_variances(influence_curves, grm, τs, n_obs)
-        std_errors = corrected_stderrors(variances, n_obs)
-        update_sieve_df!(sieve_df, std_errors, n_obs)
-        save_results(outprefix, sieve_df, τs, variances)
-    end
-    
+
+    variances = compute_variances(influence_curves, grm, τs, n_obs)
+    std_errors = corrected_stderrors(variances, n_obs)
+    update_sieve_df!(sieve_df, std_errors, n_obs)
+    save_results(outprefix, sieve_df, τs, variances)
+
     verbosity > 0 && @info "Done."
     return 0
 end

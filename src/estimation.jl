@@ -26,6 +26,7 @@ function main(parsed_args)
 
     tmle_spec = TargetedEstimation.tmle_spec_from_yaml(parsed_args["estimator-file"])
 
+    at_least_one_sieve = false
     cache = nothing
     gpd_parameters = groupby(parameters_df, :TARGET)
     csv_io = initialize_csv_io(outprefix)
@@ -54,6 +55,7 @@ function main(parsed_args)
             # Append only with results passing the threshold
             mask = [i for i in 1:n_params if (tmle_results[i] !== missing) && (pvalue(OneSampleZTest(tmle_results[i])) <= pval_threshold)]
             if size(mask, 1) > 0
+                at_least_one_sieve = true
                 sample_ids = TargetedEstimation.get_sample_ids(dataset, vcat(target, non_target_columns))
                 append_hdf5(jld_io, no_slash(target), tmle_results, initial_estimates, logs, sample_ids, mask)
             end
@@ -63,7 +65,12 @@ function main(parsed_args)
     
     # Close io files
     close(csv_io)
-    jld_io isa Nothing ? nothing : close(jld_io)
+    if jld_io !== nothing
+        close(jld_io)
+        if !at_least_one_sieve
+            rm(string(outprefix, ".hdf5"))
+        end
+    end
 
     verbosity >= 1 && @info "Done."
     return 0

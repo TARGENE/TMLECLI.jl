@@ -225,6 +225,26 @@ end
     rm(string(parsed_args["outprefix"], ".csv"))
 end
 
+@testset "Test tmle_run with: extra covariate, influence curve but none passes threshold" begin
+    # Nop HDF5 file should be output if no parameter makes the threhsold
+    build_dataset(;n=1000, format="csv")
+    parsed_args = Dict(
+        "data" => "data.csv",
+        "param-file" => joinpath("config", "parameters_extra_covariate.yaml"),
+        "estimator-file" => joinpath("config", "tmle_config_2.yaml"),
+        "outprefix" => "output",
+        "verbosity" => 0,
+        "save-ic" => true,
+        "pval-threshold" => -1
+    )
+
+    main(parsed_args)
+    
+    @test !isfile(string(parsed_args["outprefix"], ".hdf5"))
+
+    rm(parsed_args["data"])
+    rm(string(parsed_args["outprefix"], ".csv"))
+end
 
 
 end;
