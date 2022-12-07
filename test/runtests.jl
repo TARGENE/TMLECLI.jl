@@ -1,5 +1,6 @@
 include("estimation.jl")
 include("estimators.jl")
 include("utils.jl")
+include("sieve_variance.jl")
 include(joinpath("models", "glmnet.jl"))
 include(joinpath("models", "hal.jl"))

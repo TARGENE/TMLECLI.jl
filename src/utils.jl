@@ -134,6 +134,8 @@ end
 #####################################################################
 no_slash(x) = replace(string(x), "/" => "_OR_")
 
+restore_slash(x) = replace(string(x), "_OR_" => "/")
+
 function initialize_jld_io(outprefix, gpd_parameters, save_ic)
     if save_ic
         io = jldopen(string(outprefix, ".hdf5"), "w", compress=true)
