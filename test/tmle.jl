@@ -110,9 +110,8 @@ end
     continuous_results = io["results"]["CONTINUOUS, TARGET"]
     @test continuous_results["sample_ids"] == 1:1000
     tmles = continuous_results["tmle_results"]
-    @test pvalue(OneSampleTTest(tmles[1], 0.5)) > 0.05
-    @test pvalue(OneSampleTTest(tmles[2], -0.5)) > 0.05
-    @test pvalue(OneSampleTTest(tmles[3], -0.5)) > 0.05
+    @test pvalue(OneSampleTTest(tmles[1])) < 0.05
+    @test pvalue(OneSampleTTest(tmles[2])) < 0.05
     @test continuous_results["initial_estimates"] isa Vector{Union{Missing, Float64}}
     @test size(continuous_results["initial_estimates"], 1) == 3
 

@@ -1,7 +1,6 @@
 using ArgParse
 using TargetedEstimation
 
-
 function parse_commandline()
     s = ArgParseSettings(
         description = "Targeted Learning estimation",

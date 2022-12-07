@@ -211,6 +211,8 @@ function update_sieve_df!(df, stds, n_obs)
         df.SIEVE_LWB[index] = lwb
         df.SIEVE_UPB[index] = upb
     end
+
+    select!(df, Not(:ESTIMATE))
 end
 
 function sieve_variance_plateau(parsed_args)
