@@ -78,7 +78,7 @@ end
         "pval-threshold" => 1.
     )
 
-    main(parsed_args)
+    tmle_estimation(parsed_args)
 
     ## Check HDF5 file
     hdf5file = string(parsed_args["outprefix"], ".hdf5")
@@ -164,7 +164,7 @@ end
         "pval-threshold" => 0.01
     )
 
-    main(parsed_args)
+    tmle_estimation(parsed_args)
 
     ## Check HDF5 file
     hdf5file = string(parsed_args["outprefix"], ".hdf5")
@@ -201,7 +201,7 @@ end
         "pval-threshold" => 1.
     )
 
-    main(parsed_args)
+    tmle_estimation(parsed_args)
     
     # Essential results
     out = CSV.read(string(parsed_args["outprefix"], ".csv"), DataFrame)
@@ -237,7 +237,7 @@ end
         "pval-threshold" => -1
     )
 
-    main(parsed_args)
+    tmle_estimation(parsed_args)
     
     @test !isfile(string(parsed_args["outprefix"], ".hdf5"))
 

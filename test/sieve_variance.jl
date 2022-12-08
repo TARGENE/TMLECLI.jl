@@ -57,7 +57,7 @@ function build_tmle_output_file(sample_ids, param_file, outprefix)
         "pval-threshold" => 1.
     )
 
-    TargetedEstimation.main(parsed_args)
+    TargetedEstimation.tmle_estimation(parsed_args)
 end
 
 

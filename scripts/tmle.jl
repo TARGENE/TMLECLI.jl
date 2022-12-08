@@ -42,6 +42,6 @@ end
 
 parsed_args = parse_commandline()
 
-main(parsed_args)
+tmle_estimation(parsed_args)
 
 

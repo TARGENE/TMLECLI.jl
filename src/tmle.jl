@@ -12,7 +12,7 @@ function try_tmle_run!(cache, Ψ, η_spec, dataset; verbosity=1, threshold=1e-8)
 end
 
 
-function main(parsed_args)
+function tmle_estimation(parsed_args)
     verbosity = parsed_args["verbosity"]
     outprefix = parsed_args["outprefix"]
     pval_threshold = parsed_args["pval-threshold"]

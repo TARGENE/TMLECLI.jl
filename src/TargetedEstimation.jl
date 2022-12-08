@@ -23,9 +23,11 @@ include("utils.jl")
 include("estimators.jl")
 include("tmle.jl")
 include("sieve_variance.jl")
+include("merge.jl")
 include(joinpath("models", "glmnet.jl"))
 include(joinpath("models", "hal.jl"))
 
-export main, sieve_variance_plateau
+
+export tmle_estimation, sieve_variance_plateau, merge_csv_files
 
 end
