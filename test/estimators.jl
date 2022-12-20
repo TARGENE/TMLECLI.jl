@@ -67,9 +67,20 @@ using EvoTrees
     @test G.EvoTreeClassifier_1.nrounds == 10
 end
 
-@testset "Test tmle_spec_from_yaml: Simple models" begin
+@testset "Test tmle_spec_from_yaml: Simple models and GridSearch" begin
     tmle_spec = TargetedEstimation.tmle_spec_from_yaml(joinpath("config", "tmle_config_2.yaml"))
-    @test tmle_spec.G == EvoTreeClassifier(nrounds=10)
+    @test tmle_spec.G.measure isa LogLoss
+    @test tmle_spec.G.tuning.resolution == 5
+    @test tmle_spec.G.model.nrounds == 10
+    lambda_range = tmle_spec.G.range[1]
+    @test lambda_range.lower == 1e-5
+    @test lambda_range.upper == 10
+    @test lambda_range.scale == :log
+    depth_range = tmle_spec.G.range[2]
+    @test depth_range.lower == 3
+    @test depth_range.upper == 5
+    @test depth_range.scale == :linear
+
     @test tmle_spec.Q_binary == TargetedEstimation.InteractionGLMNetClassifier()
     @test tmle_spec.threshold == 1e-8
 end

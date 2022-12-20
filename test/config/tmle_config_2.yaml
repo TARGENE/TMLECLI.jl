@@ -32,5 +32,11 @@ Q_binary:
 
 # For the estimation of p(T| W)
 G:
-  model: EvoTreeClassifier
+  model: GridSearchEvoTreeClassifier
+  resolution: 5
   nrounds: 10
+  max_depth: 3,5
+  lambda: 1e-5,10,log
+  resampling:
+    type: CV
+

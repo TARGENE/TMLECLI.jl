@@ -26,6 +26,7 @@ include("sieve_variance.jl")
 include("merge.jl")
 include(joinpath("models", "glmnet.jl"))
 include(joinpath("models", "hal.jl"))
+include(joinpath("models", "grid_search_evotree.jl"))
 
 
 export tmle_estimation, sieve_variance_plateau, merge_csv_files

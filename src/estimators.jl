@@ -14,17 +14,25 @@ function buildmodels(config)
     return models
 end
 
+function resampling_from_config(resampling_info)
+    resampling_type = eval(Symbol(resampling_info[:type]))
+    resampling = resampling_type()
+    if haskey(resampling_info, :nfolds)
+        resampling = resampling_type(nfolds=resampling_info[:nfolds])
+    end
+
+    if haskey(resampling_info, :adaptive)
+        resampling = AdaptiveCV(resampling)
+    end
+
+    return resampling
+end
 
 function stack_from_config(config::Dict, metalearner)
     # Define the resampling strategy
     resampling = CV()
     if haskey(config, :resampling)
-        resampling_info = config[:resampling]
-        nfolds = haskey(resampling_info, :nfolds) ? resampling_info[:nfolds] : resampling.nfolds
-        resampling = eval(Symbol(resampling_info[:type]))(nfolds=nfolds)
-        if haskey(resampling_info, :adaptive)
-            resampling = AdaptiveCV(resampling)
-        end
+        resampling = resampling_from_config(config[:resampling])
     end
 
     # Define the internal cross validation measures to report
