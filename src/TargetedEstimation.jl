@@ -30,5 +30,9 @@ include(joinpath("models", "grid_search_evotree.jl"))
 
 
 export tmle_estimation, sieve_variance_plateau, merge_csv_files
+export GridSearchEvoTreeRegressor, GridSearchEvoTreeClassifier, \
+       InteractionGLMNetRegressor, InteractionGLMNetClassifier, \
+       GLMNetRegressor, GLMNetClassifier, \
+       SNPInteractionHALClassifier, SNPInteractionHALRegressor
 
 end
