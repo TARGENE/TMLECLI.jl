@@ -32,13 +32,13 @@ end
     model = GridSearchEvoTreeRegressor(;
         nrounds=100, 
         resampling=Dict(:type=>"Holdout"), 
-        resolution=5,
+        goal=25,
         max_depth="3, 7", 
         lambda="1e-5,10,log"
     )
     mach = machine(model, X, y)
     fit!(mach, verbosity=0)
-    @test size(report(mach).history, 1) == 5*5
+    @test size(report(mach).history, 1) == 25
     @test fitted_params(mach).best_model isa EvoTreeRegressor
 end
 
@@ -49,13 +49,13 @@ end
     model = GridSearchEvoTreeClassifier(;
         nrounds=100, 
         resampling=Dict(:type=>"Holdout"), 
-        resolution=5,
+        goal=5,
         max_depth="3, 7", 
         lambda="1e-5,10,log"
     )
     mach = machine(model, X, y)
     fit!(mach, verbosity=0)
-    @test size(report(mach).history, 1) == 5*5
+    @test size(report(mach).history, 1) == 4
     @test fitted_params(mach).best_model isa EvoTreeClassifier
 end
 

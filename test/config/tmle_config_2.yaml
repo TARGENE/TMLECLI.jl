@@ -33,7 +33,7 @@ Q_binary:
 # For the estimation of p(T| W)
 G:
   model: GridSearchEvoTreeClassifier
-  resolution: 5
+  goal: 5
   nrounds: 10
   max_depth: 3,5
   lambda: 1e-5,10,log

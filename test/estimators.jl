@@ -70,7 +70,7 @@ end
 @testset "Test tmle_spec_from_yaml: Simple models and GridSearch" begin
     tmle_spec = TargetedEstimation.tmle_spec_from_yaml(joinpath("config", "tmle_config_2.yaml"))
     @test tmle_spec.G.measure isa LogLoss
-    @test tmle_spec.G.tuning.resolution == 5
+    @test tmle_spec.G.tuning.goal == 5
     @test tmle_spec.G.model.nrounds == 10
     lambda_range = tmle_spec.G.range[1]
     @test lambda_range.lower == 1e-5

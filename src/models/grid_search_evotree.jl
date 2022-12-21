@@ -14,7 +14,7 @@ update_model_or_ranges!(model, ranges, key, val) = setproperty!(model, Symbol(ke
 GridSearchEvoTreeRegressor(;kwargs...) = GridSearchModel(EvoTreeRegressor, rmse; kwargs...)
 GridSearchEvoTreeClassifier(;kwargs...) = GridSearchModel(EvoTreeClassifier, log_loss; kwargs...)
 
-function GridSearchModel(model_class, measure; resolution=10, resampling=nothing, kwargs...)
+function GridSearchModel(model_class, measure; goal=10, resampling=nothing, kwargs...)
     ranges = []
     resampling = resampling === nothing ? Holdout() : resampling_from_config(resampling)
     model = model_class()
@@ -24,7 +24,7 @@ function GridSearchModel(model_class, measure; resolution=10, resampling=nothing
     return TunedModel(
         model=model,
         resampling=resampling,
-        tuning=Grid(resolution=resolution),
+        tuning=Grid(goal=goal),
         range=ranges,
         measure=measure
         )
