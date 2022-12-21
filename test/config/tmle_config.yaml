@@ -45,8 +45,13 @@ Q_binary:
       lambda: 10
       cv_select: false
 
-    - type: EvoTreeClassifier
+    - type: GridSearchEvoTreeClassifier
+      goal: 5
       nrounds: 10
+      max_depth: 3,5
+      lambda: 1e-5,10,log
+      resampling:
+        type: CV
 
 # For the estimation of p(T| W)
 G:

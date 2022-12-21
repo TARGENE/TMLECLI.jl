@@ -21,7 +21,16 @@ using EvoTrees
     @test Q_binary.resampling isa StratifiedCV
     @test Q_binary.resampling.nfolds == 2
     ## Checking Qstack EvoTree models
-    @test Q_binary.EvoTreeClassifier_1.nrounds == 10
+    @test Q_binary.GridSearchEvoTreeClassifier_1.tuning.goal == 5
+    @test Q_binary.GridSearchEvoTreeClassifier_1.model.nrounds == 10
+    @test Q_binary.GridSearchEvoTreeClassifier_1.resampling isa CV
+    ranges = Q_binary.GridSearchEvoTreeClassifier_1.range
+    @test ranges[1].lower == 1e-5
+    @test ranges[1].upper == 10
+    @test ranges[1].scale == :log
+    @test ranges[2].lower == 3
+    @test ranges[2].upper == 5
+    @test ranges[2].scale == :linear
     ## Checking Qstack  Interaction Logistic models
     @test Q_binary.InteractionGLMNetClassifier_1 isa MLJ.ProbabilisticPipeline
     @test Q_binary.InteractionGLMNetClassifier_1.interaction_transformer.order == 2

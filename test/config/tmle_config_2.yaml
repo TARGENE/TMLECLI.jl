@@ -14,8 +14,8 @@ Q_continuous:
 
     - type: EvoTreeRegressor
       nrounds: [10, 20]
-      λ: [0., 1.]
-      γ: [0.3]
+      lambda: [0., 1.]
+      gamma: [0.3]
 
     - type: ConstantRegressor
 

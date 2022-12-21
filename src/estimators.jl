@@ -1,3 +1,7 @@
+asarrayed(val::AbstractArray) = val
+asarrayed(val) = [val]
+
+
 function buildmodels(config)
     models = Dict()
     for model_spec in config
@@ -5,7 +9,7 @@ function buildmodels(config)
         modeltype = eval(Symbol(modelname))
         paramnames = Tuple(keys(model_spec))
         counter = 1
-        for paramvals in Base.Iterators.product(values(model_spec)...)
+        for paramvals in Base.Iterators.product((asarrayed(x) for x in values(model_spec))...)
             model = modeltype(;NamedTuple{paramnames}(paramvals)...)
             models[Symbol(modelname*"_$counter")] = model
             counter += 1
