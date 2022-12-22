@@ -168,7 +168,7 @@ get_sample_ids(data, targets_columns) = dropmissing(data[!, [:SAMPLE_ID, targets
 Returns a DataFrame wrapper around a dataset, either in CSV format.
 """
 function instantiate_dataset(path::String)
-        return CSV.read(path, DataFrame)
+        return CSV.read(path, DataFrame, ntasks=1)
 end
 
 isbinarytarget(y::AbstractVector) = Set(unique(skipmissing(y))) == Set([0, 1])
