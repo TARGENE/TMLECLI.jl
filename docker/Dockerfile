@@ -39,6 +39,6 @@ WORKDIR /TargetedEstimation.jl
 
 RUN julia -q --project -e'using Pkg; Pkg.instantiate(); Pkg.resolve(); Pkg.precompile()'
 
-# RUN julia -q --project build_sysimage.jl
+RUN julia --project -t auto --startup-file=no sysimage/create_sysimage.jl
 
-# RUN echo 'alias julia="julia -J TMLEEpistasisSysimage.so"' >> ~/.bashrc
+RUN echo 'alias juliap="julia --startup-file=no --project=/TargetedEstimation.jl -J /TargetedEstimation.jl/TargetedEstimationSysimage.so"' >> ~/.bashrc
