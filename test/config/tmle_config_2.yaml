@@ -11,6 +11,7 @@ Q_continuous:
   # List all models and hyperparameters
   models: 
     - type: InteractionGLMNetRegressor
+      nfolds: 3
 
     - type: EvoTreeRegressor
       nrounds: [10, 20]
