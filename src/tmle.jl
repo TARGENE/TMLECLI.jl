@@ -68,9 +68,7 @@ function tmle_estimation(parsed_args)
     end
     
     # Close io files
-    close(csv_io)
     if jld_io !== nothing
-        close(jld_io)
         if !at_least_one_sieve
             rm(string(outprefix, ".hdf5"))
         end

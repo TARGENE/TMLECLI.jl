@@ -94,9 +94,11 @@ treatment_string(Ψ; join_string="_&_") = join(keys(Ψ.treatment), join_string)
 confounders_string(Ψ; join_string="_&_") = join(Ψ.confounders, join_string)
 
 function initialize_csv_io(outprefix)
-    io = open(string(outprefix, ".csv"), "w")
-    CSV.write(io, csv_headers())
-    return io
+    filename = string(outprefix, ".csv")
+    open(filename, "w") do io
+        CSV.write(io, csv_headers())
+    end
+    return filename
 end
 
 
@@ -112,7 +114,7 @@ end
 statistics_from_result(result::Missing) = 
     missing, missing, missing, missing, missing
 
-function append_csv(io, target_parameters, tmle_results, initial_estimates, logs)
+function append_csv(filename, target_parameters, tmle_results, initial_estimates, logs)
     data = csv_headers()
     for (Ψ, result, Ψ̂₀, log) in zip(target_parameters.PARAMETER, tmle_results, initial_estimates, logs)
         param_type = param_string(Ψ)
@@ -125,7 +127,7 @@ function append_csv(io, target_parameters, tmle_results, initial_estimates, logs
         row = (param_type, treatments, case, control, string(Ψ.target), confounders, covariates, Ψ̂₀, Ψ̂, std, pval, lw, up, log)
         push!(data, row)
     end
-    CSV.write(io, data, append=true)
+    CSV.write(filename, data, append=true)
 end
 
 
@@ -138,18 +140,22 @@ restore_slash(x) = replace(string(x), "_OR_" => "/")
 
 function initialize_jld_io(outprefix, gpd_parameters, save_ic)
     if save_ic
-        io = jldopen(string(outprefix, ".hdf5"), "w", compress=true)
-        io["parameters"] = first(gpd_parameters)[!, "PARAMETER"]
-        return io
+        filename = string(outprefix, ".hdf5")
+        jldopen(filename, "w", compress=true) do io
+            io["parameters"] = first(gpd_parameters)[!, "PARAMETER"]
+        end
+        return filename
     end
     return nothing
 end
 
-function append_hdf5(io::JLD2.JLDFile, target, tmle_results, initial_estimates, logs, sample_ids, mask)
-    io["results/$target/initial_estimates"] = initial_estimates[mask]
-    io["results/$target/tmle_results"] = tmle_results[mask]
-    io["results/$target/sample_ids"] = sample_ids
-    io["results/$target/logs"] = logs[mask]
+function append_hdf5(filename, target, tmle_results, initial_estimates, logs, sample_ids, mask)
+    jldopen(filename, "a+", compress=true) do io
+        io["results/$target/initial_estimates"] = initial_estimates[mask]
+        io["results/$target/tmle_results"] = tmle_results[mask]
+        io["results/$target/sample_ids"] = sample_ids
+        io["results/$target/logs"] = logs[mask]
+    end
 end
 
 #####################################################################
@@ -167,9 +173,8 @@ get_sample_ids(data, targets_columns) = dropmissing(data[!, [:SAMPLE_ID, targets
 
 Returns a DataFrame wrapper around a dataset, either in CSV format.
 """
-function instantiate_dataset(path::String)
-        return CSV.read(path, DataFrame, ntasks=1)
-end
+instantiate_dataset(path::String) =
+    CSV.read(path, DataFrame, ntasks=1)
 
 isbinarytarget(y::AbstractVector) = Set(unique(skipmissing(y))) == Set([0, 1])
 
