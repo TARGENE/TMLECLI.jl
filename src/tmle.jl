@@ -60,7 +60,11 @@ function tmle_estimation(parsed_args)
                 append_hdf5(jld_io, no_slash(target), tmle_results, initial_estimates, logs, sample_ids, mask)
             end
         end
-
+        # See if this helps with memory issue
+        GC.gc()
+        if Sys.islinux()
+            ccall(:malloc_trim, Cvoid, (Cint,), 0)
+        end
     end
     
     # Close io files
