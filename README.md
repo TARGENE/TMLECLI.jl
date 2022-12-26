@@ -1,6 +1,6 @@
 # TargetedEstimation
 
-![GitHub Workflow Status (branch)](https://img.shields.io/github/workflow/status/TARGENE/TargetedEstimation.jl/CI/main?label=Build%20main)
+![GitHub Workflow Status (with branch)](https://img.shields.io/github/actions/workflow/status/TARGENE/TargetedEstimation.jl/CI.yml?branch=main)
 ![Codecov branch](https://img.shields.io/codecov/c/github/TARGENE/TargetedEstimation.jl/main?label=Coverage%20main)
 ![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/TARGENE/TargetedEstimation.jl)
 
