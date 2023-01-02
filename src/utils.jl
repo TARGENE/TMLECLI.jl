@@ -53,21 +53,21 @@ end
 #####################################################################
 
 
-csv_headers() = DataFrame(
-    PARAMETER_TYPE=[], 
-    TREATMENTS=[], 
-    CASE=[], 
-    CONTROL=[], 
-    TARGET=[], 
-    CONFOUNDERS=[], 
-    COVARIATES=[], 
-    INITIAL_ESTIMATE=[], 
-    ESTIMATE=[],
-    STD=[],
-    PVALUE=[],
-    LWB=[],
-    UPB=[],
-    LOG=[]
+csv_headers(;size=0) = DataFrame(
+    PARAMETER_TYPE=Vector{String}(undef, size), 
+    TREATMENTS=Vector{String}(undef, size), 
+    CASE=Vector{String}(undef, size), 
+    CONTROL=Vector{Union{Missing, String}}(undef, size), 
+    TARGET=Vector{String}(undef, size), 
+    CONFOUNDERS=Vector{String}(undef, size), 
+    COVARIATES=Vector{Union{Missing, String}}(undef, size), 
+    INITIAL_ESTIMATE=Vector{Union{Missing, Float64}}(undef, size), 
+    ESTIMATE=Vector{Union{Missing, Float64}}(undef, size),
+    STD=Vector{Union{Missing, Float64}}(undef, size),
+    PVALUE=Vector{Union{Missing, Float64}}(undef, size),
+    LWB=Vector{Union{Missing, Float64}}(undef, size),
+    UPB=Vector{Union{Missing, Float64}}(undef, size),
+    LOG=Vector{Union{Missing, String}}(undef, size)
 )
 
 covariates_string(Ψ; join_string="_&_") = 
@@ -115,8 +115,8 @@ statistics_from_result(result::Missing) =
     missing, missing, missing, missing, missing
 
 function append_csv(filename, target_parameters, tmle_results, initial_estimates, logs)
-    data = csv_headers()
-    for (Ψ, result, Ψ̂₀, log) in zip(target_parameters.PARAMETER, tmle_results, initial_estimates, logs)
+    data = csv_headers(size=size(tmle_results, 1))
+    for (i, (Ψ, result, Ψ̂₀, log)) in enumerate(zip(target_parameters.PARAMETER, tmle_results, initial_estimates, logs))
         param_type = param_string(Ψ)
         treatments = treatment_string(Ψ)
         case = case_string(Ψ)
@@ -125,7 +125,7 @@ function append_csv(filename, target_parameters, tmle_results, initial_estimates
         covariates = covariates_string(Ψ)
         Ψ̂, std, pval, lw, up = statistics_from_result(result)
         row = (param_type, treatments, case, control, string(Ψ.target), confounders, covariates, Ψ̂₀, Ψ̂, std, pval, lw, up, log)
-        push!(data, row)
+        data[i, :] = row
     end
     CSV.write(filename, data, append=true)
 end
