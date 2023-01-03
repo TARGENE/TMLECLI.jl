@@ -42,11 +42,10 @@ end
     mach = machine(net, X, y)
     fit!(mach, verbosity=0)
     @test predict(mach) isa Vector{Float64}
-
     # Classification
     rng = StableRNG(123)
     X, y = make_blobs(n, rng=rng)
-    net = TargetedEstimation.InteractionGLMNetClassifier(order=2, rng=rng)
+    net = TargetedEstimation.InteractionGLMNetClassifier(order=2, rng=rng, cache=true)
     mach = machine(net, X, y)
     fit!(mach, verbosity=0)
     @test predict(mach) isa MLJ.UnivariateFiniteVector

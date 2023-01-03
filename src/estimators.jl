@@ -47,8 +47,11 @@ function stack_from_config(config::Dict, metalearner)
     # Define the models library
     models = buildmodels(config[:models])
 
+    # Caching behaviour
+    cache = haskey(config, :cache) ? config[:cache] : false
+
     # Define the Stack
-    Stack(;metalearner=metalearner, resampling=resampling, measures=measures, cache=false, models...)
+    Stack(;metalearner=metalearner, resampling=resampling, measures=measures, cache=cache, models...)
 end
 
 function learner_from_config(config)
@@ -58,6 +61,9 @@ end
 
 function tmle_spec_from_yaml(yamlfile)
     config = YAML.load_file(yamlfile; dicttype=Dict{Symbol,Any})
+
+    threshold = haskey(config, :threshold) ? config[:threshold] : 1e-8
+    cache = haskey(config, :cache) ? config[:cache] : false
 
     # Build G estimator
     if config[:G][:model] == "Stack"
@@ -81,7 +87,5 @@ function tmle_spec_from_yaml(yamlfile)
         Q_binary = learner_from_config(config[:Q_binary])
     end
 
-    threshold = haskey(config, :threshold) ? config[:threshold] : 1e-8
-
-    return (G=G, Q_continuous=Q_continuous, Q_binary=Q_binary, threshold=threshold)
+    return (G=G, Q_continuous=Q_continuous, Q_binary=Q_binary, threshold=threshold, cache=cache)
 end

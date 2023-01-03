@@ -13,6 +13,7 @@ using EvoTrees
     @test tmle_spec.threshold == 0.001
     # Test binary target TMLE's Qstack
     Q_binary = tmle_spec.Q_binary
+    @test Q_binary.cache == false
     @test Q_binary.measures == [log_loss]
     ## Checking Qstack.metalearner
     @test Q_binary.metalearner isa LogisticClassifier
@@ -74,6 +75,8 @@ using EvoTrees
     ## Checking Gstack models
     @test G.InteractionGLMNetClassifier_1.interaction_transformer.order == 2
     @test G.EvoTreeClassifier_1.nrounds == 10
+
+    @test tmle_spec.cache == false
 end
 
 @testset "Test tmle_spec_from_yaml: Simple models and GridSearch" begin
@@ -92,6 +95,11 @@ end
 
     @test tmle_spec.Q_binary == TargetedEstimation.InteractionGLMNetClassifier()
     @test tmle_spec.threshold == 1e-8
+
+    @test tmle_spec.Q_continuous.cache == true
+    @test tmle_spec.Q_continuous.InteractionGLMNetRegressor_1.cache == true
+
+    @test tmle_spec.cache == true
 end
 
 end;

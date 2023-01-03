@@ -195,10 +195,10 @@ function make_categorical!(dataset, colnames::Tuple, isbinary::Bool)
     end
 end
 
-tmle_run!(cache::Nothing, Ψ, η_spec, dataset; verbosity=1, threshold=1e-8) = 
-    tmle(Ψ, η_spec, dataset; verbosity=verbosity, threshold=threshold)
+tmle_run!(cache::Nothing, Ψ, η_spec, dataset; verbosity=1, threshold=1e-8, mach_cache=false) = 
+    tmle(Ψ, η_spec, dataset; verbosity=verbosity, threshold=threshold, mach_cache=mach_cache)
 
-tmle_run!(cache, Ψ, η_spec, dataset; verbosity=1, threshold=1e-8) = 
+tmle_run!(cache, Ψ, η_spec, dataset; verbosity=1, threshold=1e-8, mach_cache=false) = 
     tmle!(cache, Ψ, η_spec; verbosity=verbosity, threshold=threshold)
 
 

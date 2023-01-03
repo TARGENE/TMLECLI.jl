@@ -1,8 +1,10 @@
 threshold: 1e-8
+cache: true
 # For the estimation of E[Y|W, T]: continuous target
 Q_continuous:
   model: Stack
   measures: [rmse]
+  cache: true
   # Description of the resampling strategy
   resampling:
     type: CV
@@ -12,6 +14,7 @@ Q_continuous:
   models: 
     - type: InteractionGLMNetRegressor
       nfolds: 3
+      cache: true
 
     - type: EvoTreeRegressor
       nrounds: [10, 20]

@@ -12,20 +12,25 @@ GLMNetClassifier(;params...) = GLMNetClassifier(Dict(params))
 
 GLMNetModel = Union{GLMNetRegressor, GLMNetClassifier}
 
-make_fitresult(model::GLMNetRegressor, res, y) = (glmnetcv=res, )
-make_fitresult(model::GLMNetClassifier, res, y) = (glmnetcv=res, levels=sort(unique(y)))
+make_fitresult(::GLMNetRegressor, res, y) = (glmnetcv=res, )
+make_fitresult(::GLMNetClassifier, res, y) = (glmnetcv=res, levels=sort(unique(y)))
 
-function MLJBase.fit(model::GLMNetModel, verbosity::Int, X, y)
-    res = glmnetcv(MLJ.matrix(X), y; model.params...)
+MLJBase.reformat(::GLMNetModel, X, y) = (MLJBase.matrix(X), y)
+MLJBase.reformat(::GLMNetModel, X) = (MLJBase.matrix(X),)
+MLJBase.selectrows(::GLMNetModel, I, Xmatrix, y) = (view(Xmatrix, I, :), view(y, I))
+MLJBase.selectrows(::GLMNetModel, I, Xmatrix) = (view(Xmatrix, I, :),)
+
+function MLJBase.fit(model::GLMNetModel, verbosity::Int, Xmatrix, y)
+    res = glmnetcv(Xmatrix, y; model.params...)
     return make_fitresult(model, res, y), nothing, nothing
 end
 
-MLJBase.predict(model::GLMNetRegressor, fitresult, X) =
-    GLMNet.predict(fitresult.glmnetcv, MLJ.matrix(X))
+MLJBase.predict(::GLMNetRegressor, fitresult, Xmatrix) =
+    GLMNet.predict(fitresult.glmnetcv, Xmatrix)
 
 
-function MLJBase.predict(model::GLMNetClassifier, fitresult, X)
-    raw_probs = GLMNet.predict(fitresult.glmnetcv, MLJ.matrix(X), outtype=:prob)
+function MLJBase.predict(::GLMNetClassifier, fitresult, Xmatrix)
+    raw_probs = GLMNet.predict(fitresult.glmnetcv, Xmatrix, outtype=:prob)
     levels = fitresult.levels
     if size(levels, 1) == 2
         probs = hcat(1 .- raw_probs, raw_probs)
@@ -41,16 +46,18 @@ MLJBase.target_scitype(::Type{<:GLMNetRegressor}) = AbstractVector{<:Continuous}
 MLJBase.target_scitype(::Type{<:GLMNetClassifier}) = AbstractVector{<:Finite}
 
 
-function InteractionGLMNetRegressor(;order=2, params...)
+function InteractionGLMNetRegressor(;order=2, cache=false, params...)
     return Pipeline(
         interaction_transformer=InteractionTransformer(;order=order),
-        glmnet=GLMNetRegressor(;params...)
+        glmnet=GLMNetRegressor(;params...),
+        cache=cache
     )
 end
 
-function InteractionGLMNetClassifier(;order=2, params...)
+function InteractionGLMNetClassifier(;order=2, cache=false, params...)
     return Pipeline(
         interaction_transformer=InteractionTransformer(;order=order),
-        glmnet=GLMNetClassifier(;params...)
+        glmnet=GLMNetClassifier(;params...),
+        cache=cache
     )
 end

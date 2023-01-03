@@ -2,9 +2,9 @@
 ####################           Main Function               ####################
 ###############################################################################
 
-function try_tmle_run!(cache, Ψ, η_spec, dataset; verbosity=1, threshold=1e-8)
+function try_tmle_run!(cache, Ψ, η_spec, dataset; verbosity=1, threshold=1e-8, mach_cache=false)
     try
-        tmle_result, initial_result, cache = tmle_run!(cache, Ψ, η_spec, dataset; verbosity=verbosity, threshold=threshold)
+        tmle_result, initial_result, cache = tmle_run!(cache, Ψ, η_spec, dataset; verbosity=verbosity, threshold=threshold, mach_cache=mach_cache)
         return tmle_result, initial_result, cache, missing
     catch e
         return missing, missing, cache, string(e)
@@ -43,7 +43,7 @@ function tmle_estimation(parsed_args)
         logs = Vector{Union{String, Missing}}(undef, n_params)
         for param_index in 1:n_params
             Ψ = target_parameters[param_index, :PARAMETER]
-            tmle_result, initial_result, cache, log = try_tmle_run!(cache, Ψ, η_spec, dataset; verbosity=verbosity, threshold=tmle_spec.threshold)
+            tmle_result, initial_result, cache, log = try_tmle_run!(cache, Ψ, η_spec, dataset; verbosity=verbosity, threshold=tmle_spec.threshold, mach_cache=tmle_spec.cache)
             tmle_results[param_index] = tmle_result
             initial_estimates[param_index] = TMLE.estimate(initial_result)
             logs[param_index] = log
