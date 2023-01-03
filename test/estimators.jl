@@ -23,6 +23,7 @@ using EvoTrees
     @test Q_binary.resampling.nfolds == 2
     ## Checking Qstack EvoTree models
     @test Q_binary.GridSearchEvoTreeClassifier_1.tuning.goal == 5
+    @test Q_binary.GridSearchEvoTreeClassifier_1.cache == false
     @test Q_binary.GridSearchEvoTreeClassifier_1.model.nrounds == 10
     @test Q_binary.GridSearchEvoTreeClassifier_1.resampling isa CV
     ranges = Q_binary.GridSearchEvoTreeClassifier_1.range
@@ -81,6 +82,7 @@ end
 
 @testset "Test tmle_spec_from_yaml: Simple models and GridSearch" begin
     tmle_spec = TargetedEstimation.tmle_spec_from_yaml(joinpath("config", "tmle_config_2.yaml"))
+    @test tmle_spec.G.cache == true
     @test tmle_spec.G.measure isa LogLoss
     @test tmle_spec.G.tuning.goal == 5
     @test tmle_spec.G.model.nrounds == 10

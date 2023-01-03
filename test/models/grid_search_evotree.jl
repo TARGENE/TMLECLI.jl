@@ -51,7 +51,8 @@ end
         resampling=Dict(:type=>"Holdout"), 
         goal=5,
         max_depth="3, 7", 
-        lambda="1e-5,10,log"
+        lambda="1e-5,10,log",
+        cache=true
     )
     mach = machine(model, X, y)
     fit!(mach, verbosity=0)

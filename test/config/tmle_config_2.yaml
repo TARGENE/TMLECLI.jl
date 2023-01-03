@@ -41,6 +41,7 @@ G:
   nrounds: 10
   max_depth: 3,5
   lambda: 1e-5,10,log
+  cache: true
   resampling:
     type: CV
 
