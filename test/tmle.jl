@@ -1,4 +1,4 @@
-module TestsUKBB
+module TestsTMLE
 
 using Test
 using TargetedEstimation
@@ -109,38 +109,38 @@ end
     # results for CONTINUOUS_TARGET
     continuous_results = io["results"]["CONTINUOUS, TARGET"]
     @test continuous_results["sample_ids"] == 1:1000
+    @test all(continuous_results["logs"] .=== [missing, missing, missing])
     tmles = continuous_results["tmle_results"]
-    @test pvalue(OneSampleTTest(tmles[1])) < 1.
-    @test pvalue(OneSampleTTest(tmles[2])) < 1.
-    @test pvalue(OneSampleTTest(tmles[3])) < 1.
-    @test continuous_results["initial_estimates"] isa Vector{Union{Missing, Float64}}
-    @test size(continuous_results["initial_estimates"], 1) == 3
-
+    for i in 1:3
+        @test TMLE.estimate(tmles[i]) isa Float64
+        @test initial_estimate(tmles[i]) isa Float64
+        tmles[i].IC isa Vector{Float64}
+    end
+    
     # results for BINARY_TARGET
     binary_results = io["results"]["BINARY_OR_TARGET"]
     @test binary_results["sample_ids"] == 2:1000
+    @test all(binary_results["logs"] .=== [missing, missing, missing])
     tmles = binary_results["tmle_results"]
     for i in 1:3
         @test size(tmles[i].IC, 1) == 999
         @test TMLE.estimate(tmles[i]) isa Float64
+        @test initial_estimate(tmles[i]) isa Float64
     end
-    @test binary_results["initial_estimates"] isa Vector{Union{Missing, Float64}}
-    @test size(binary_results["initial_estimates"], 1) == 3
 
     close(io)
 
     ## Check CSV file
     csvfile = string(parsed_args["outprefix"], ".csv")
     data = CSV.read(csvfile, DataFrame)
-    names(data)
     @test data.PARAMETER_TYPE == ["IATE", "IATE", "ATE", "IATE", "IATE", "ATE"]
     @test data.TARGET == ["CONTINUOUS, TARGET", "CONTINUOUS, TARGET", "CONTINUOUS, TARGET",
                         "BINARY/TARGET", "BINARY/TARGET", "BINARY/TARGET"]
     @test data.TREATMENTS == fill("T2_&_T1", 6)
     @test data.CONFOUNDERS == fill("W1_&_W2", 6)
-    @test data.CASE == ["1_&_1", "0_&_1", "1_&_1", "1_&_1", "0_&_1", "1_&_1"]
-    @test data.CONTROL == ["0_&_0", "1_&_0", "0_&_0", "0_&_0", "1_&_0", "0_&_0"]
-
+    @test data.CASE == ["true_&_true", "false_&_true", "true_&_true", "true_&_true", "false_&_true", "true_&_true"]
+    @test data.CONTROL == ["false_&_false", "true_&_false", "false_&_false", "false_&_false", "true_&_false", "false_&_false"]
+    
     
     for col in [:INITIAL_ESTIMATE, :ESTIMATE, :STD, :PVALUE, :LWB, :UPB]
         @test data[!, col] isa Vector{Float64}
@@ -173,7 +173,6 @@ end
     continuous = io["results"]["CONTINUOUS, TARGET"]
     @test size(continuous["tmle_results"], 1) == 2
     @test size(continuous["logs"], 1) == 2
-    @test size(continuous["initial_estimates"], 1) == 2
 
     @test !haskey(io["results"], "BINARY/TARGET")
 
@@ -209,12 +208,13 @@ end
     some_expected_col_values = DataFrame(
         PARAMETER_TYPE=["IATE", "IATE", "ATE", "IATE", "IATE", "ATE"], 
         TREATMENTS=["T2_&_T1", "T2_&_T1", "T2_&_T1", "T2_&_T1", "T2_&_T1", "T2_&_T1"], 
-        CASE=["1_&_1", "0_&_1", "1_&_1", "1_&_1", "0_&_1", "1_&_1"],
-        CONTROL=["0_&_0", "1_&_0", "0_&_0", "0_&_0", "1_&_0", "0_&_0"], 
+        CASE=["true_&_true", "false_&_true", "true_&_true", "true_&_true", "false_&_true", "true_&_true"],
+        CONTROL=["false_&_false", "true_&_false", "false_&_false", "false_&_false", "true_&_false", "false_&_false"], 
         TARGET=["CONTINUOUS, TARGET", "CONTINUOUS, TARGET", "CONTINUOUS, TARGET", "BINARY/TARGET", "BINARY/TARGET", "BINARY/TARGET"], 
         CONFOUNDERS=["W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2"], 
         COVARIATES=["C1", "C1", "C1", "C1", "C1", "C1"]
     )
+    
     @test some_expected_col_values ==
         out[!, [:PARAMETER_TYPE, :TREATMENTS, :CASE, :CONTROL, :TARGET, :CONFOUNDERS, :COVARIATES]]
     for colname in [:INITIAL_ESTIMATE, :ESTIMATE, :STD, :PVALUE, :LWB, :UPB]

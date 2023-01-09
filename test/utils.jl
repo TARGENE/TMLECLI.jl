@@ -65,6 +65,19 @@ end
 
 end
 
+@testset "Test parameters_from_yaml" begin
+    param_file = joinpath("config", "parameters_no_extra_covariate.yaml")
+    dataset = DataFrame(T1 = [1., 0.], T2=[true, false])
+    params = TargetedEstimation.parameters_from_yaml(param_file, dataset)
+    for param in params
+        @test param.treatment.T1.case isa Float64
+        @test param.treatment.T1.control isa Float64
+        @test param.treatment.T2.case isa Bool
+        @test param.treatment.T2.control isa Bool
+    end
+end
+
+
 @testset "Test write_target_results with missing values" begin
     io = TargetedEstimation.initialize_csv_io("test")
     target_parameters = DataFrame(

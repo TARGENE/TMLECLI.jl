@@ -134,8 +134,8 @@ end
     some_expected_cols = DataFrame(
         PARAMETER_TYPE = ["IATE", "IATE", "ATE", "IATE", "IATE", "ATE"],
         TREATMENTS = ["T2_&_T1", "T2_&_T1", "T2_&_T1", "T2_&_T1", "T2_&_T1", "T2_&_T1"],
-        CASE = ["1_&_1", "0_&_1", "1_&_1", "1_&_1", "0_&_1", "1_&_1"],
-        CONTROL = ["0_&_0", "1_&_0", "0_&_0", "0_&_0", "1_&_0", "0_&_0"],
+        CASE=["true_&_true", "false_&_true", "true_&_true", "true_&_true", "false_&_true", "true_&_true"],
+        CONTROL=["false_&_false", "true_&_false", "false_&_false", "false_&_false", "true_&_false", "false_&_false"],
         TARGET = ["CONTINUOUS, TARGET", "CONTINUOUS, TARGET", "CONTINUOUS, TARGET", "BINARY/TARGET", "BINARY/TARGET", "BINARY/TARGET"],
         CONFOUNDERS = ["W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2"],
         COVARIATES = ["C1", "C1", "C1", "C1", "C1", "C1"]
@@ -155,8 +155,8 @@ end
     some_expected_cols = DataFrame(
         PARAMETER_TYPE = ["IATE", "IATE", "ATE", "IATE", "IATE", "ATE", "ATE", "CM"],
         TREATMENTS = ["T2_&_T1", "T2_&_T1", "T2_&_T1", "T2_&_T1", "T2_&_T1", "T2_&_T1", "T1", "T1"],
-        CASE = ["1_&_1", "0_&_1", "1_&_1", "1_&_1", "0_&_1", "1_&_1", "1", "0"],
-        CONTROL = ["0_&_0", "1_&_0", "0_&_0", "0_&_0", "1_&_0", "0_&_0", "0", missing],
+        CASE = ["true_&_true", "false_&_true", "true_&_true", "true_&_true", "false_&_true", "true_&_true", "true", "false"],
+        CONTROL = ["false_&_false", "true_&_false", "false_&_false", "false_&_false", "true_&_false", "false_&_false", "false", missing],
         TARGET = ["CONTINUOUS, TARGET", "CONTINUOUS, TARGET", "CONTINUOUS, TARGET", "BINARY/TARGET", "BINARY/TARGET", "BINARY/TARGET", "CONTINUOUS, TARGET", "CONTINUOUS, TARGET"],
         CONFOUNDERS = ["W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2", "W1", "W1"],
         COVARIATES = ["C1", "C1", "C1", "C1", "C1", "C1", missing, missing]
@@ -315,8 +315,8 @@ end
     some_expected_cols = DataFrame(
         PARAMETER_TYPE = ["IATE", "IATE", "ATE", "IATE", "IATE", "ATE", "ATE", "CM"],
         TREATMENTS = ["T2_&_T1", "T2_&_T1", "T2_&_T1", "T2_&_T1", "T2_&_T1", "T2_&_T1", "T1", "T1"],
-        CASE = ["1_&_1", "0_&_1", "1_&_1", "1_&_1", "0_&_1", "1_&_1", "1", "0"],
-        CONTROL = ["0_&_0", "1_&_0", "0_&_0", "0_&_0", "1_&_0", "0_&_0", "0", missing],
+        CASE = ["true_&_true", "false_&_true", "true_&_true", "true_&_true", "false_&_true", "true_&_true", "true", "false"],
+        CONTROL = ["false_&_false", "true_&_false", "false_&_false", "false_&_false", "true_&_false", "false_&_false", "false", missing],
         TARGET = ["CONTINUOUS, TARGET", "CONTINUOUS, TARGET", "CONTINUOUS, TARGET", "BINARY/TARGET", "BINARY/TARGET", "BINARY/TARGET", "CONTINUOUS, TARGET", "CONTINUOUS, TARGET"],
         CONFOUNDERS = ["W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2", "W1", "W1"],
         COVARIATES = ["C1", "C1", "C1", "C1", "C1", "C1", missing, missing]

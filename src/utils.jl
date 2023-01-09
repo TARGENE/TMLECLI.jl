@@ -207,3 +207,42 @@ end
 
 TMLE.estimate(e::Missing) = missing
 TMLE.initial_estimate(e::Missing) = missing
+
+
+function treatment_values(Ψ::Union{IATE, ATE}, treatment_names, treatment_types)
+    return [(
+        case = convert(treatment_types[j], Ψ.treatment[tn].case), 
+        control = convert(treatment_types[j], Ψ.treatment[tn].control)
+    ) 
+        for (j, tn) in enumerate(treatment_names)]
+end
+
+treatment_values(Ψ::CM, treatment_names, treatment_types) = 
+    [convert(treatment_types[j], Ψ.treatment[tn]) for (j, tn) in enumerate(treatment_names)]
+
+"""
+    parameters_from_yaml(param_file, dataset)
+
+Extends `parameters_from_yaml` so that the parameters treatment in the config file
+respect the treatment types in the dataset.
+"""
+function TMLE.parameters_from_yaml(param_file, dataset)
+    params = parameters_from_yaml(param_file)
+    n_params = size(params, 1)
+    params_respecting_dataset_type = Vector{TMLE.Parameter}(undef, n_params)
+    treatment_names = keys(first(params).treatment)
+    dataset_treatment_types = [eltype(dataset[!, tn]) for tn in treatment_names]
+    for i in 1:n_params
+        param = params[i]
+        new_treatment = NamedTuple{treatment_names}(
+            treatment_values(param, treatment_names, dataset_treatment_types)
+        )
+        params_respecting_dataset_type[i] = typeof(param)(
+            target = param.target,
+            treatment = new_treatment,
+            confounders = param.confounders,
+            covariates = param.covariates
+        )
+    end
+    return params_respecting_dataset_type
+end
