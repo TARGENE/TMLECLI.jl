@@ -114,15 +114,16 @@ end
 statistics_from_result(result::Missing) = 
     missing, missing, missing, missing, missing
 
-function append_csv(filename, target_parameters, tmle_results, initial_estimates, logs)
+function append_csv(filename, target_parameters, tmle_results, logs)
     data = csv_headers(size=size(tmle_results, 1))
-    for (i, (Ψ, result, Ψ̂₀, log)) in enumerate(zip(target_parameters.PARAMETER, tmle_results, initial_estimates, logs))
+    for (i, (Ψ, result, log)) in enumerate(zip(target_parameters.PARAMETER, tmle_results, logs))
         param_type = param_string(Ψ)
         treatments = treatment_string(Ψ)
         case = case_string(Ψ)
         control = control_string(Ψ)
         confounders = confounders_string(Ψ)
         covariates = covariates_string(Ψ)
+        Ψ̂₀ = initial_estimate(result)
         Ψ̂, std, pval, lw, up = statistics_from_result(result)
         row = (param_type, treatments, case, control, string(Ψ.target), confounders, covariates, Ψ̂₀, Ψ̂, std, pval, lw, up, log)
         data[i, :] = row
@@ -149,9 +150,8 @@ function initialize_jld_io(outprefix, gpd_parameters, save_ic)
     return nothing
 end
 
-function append_hdf5(filename, target, tmle_results, initial_estimates, logs, sample_ids, mask)
+function append_hdf5(filename, target, tmle_results, logs, sample_ids, mask)
     jldopen(filename, "a+", compress=true) do io
-        io["results/$target/initial_estimates"] = initial_estimates[mask]
         io["results/$target/tmle_results"] = tmle_results[mask]
         io["results/$target/sample_ids"] = sample_ids
         io["results/$target/logs"] = logs[mask]
@@ -195,11 +195,15 @@ function make_categorical!(dataset, colnames::Tuple, isbinary::Bool)
     end
 end
 
-tmle_run!(cache::Nothing, Ψ, η_spec, dataset; verbosity=1, threshold=1e-8, mach_cache=false) = 
-    tmle(Ψ, η_spec, dataset; verbosity=verbosity, threshold=threshold, mach_cache=mach_cache)
 
-tmle_run!(cache, Ψ, η_spec, dataset; verbosity=1, threshold=1e-8, mach_cache=false) = 
-    tmle!(cache, Ψ, η_spec; verbosity=verbosity, threshold=threshold)
-
+function try_tmle!(cache, Ψ, η_spec; verbosity=1, threshold=1e-8)
+    try
+        tmle_result, _ = tmle!(cache, Ψ, η_spec; verbosity=verbosity, threshold=threshold)
+        return tmle_result, missing
+    catch e
+        return missing, string(e)
+    end
+end
 
 TMLE.estimate(e::Missing) = missing
+TMLE.initial_estimate(e::Missing) = missing

@@ -77,7 +77,7 @@ end
     tmle_results = [missing]
     initial_estimates = [missing]
     logs = ["Error X"]
-    TargetedEstimation.append_csv(io, target_parameters, tmle_results, initial_estimates, logs)
+    TargetedEstimation.append_csv(io, target_parameters, tmle_results, logs)
     out = CSV.read("test.csv", DataFrame)
     expected_out = ["CM", "T₁_&_T₂", "1_&_AC", missing, "Y", "W₁_&_W₂", "C₁", 
         missing, missing, missing, missing, missing, missing, "Error X"]
