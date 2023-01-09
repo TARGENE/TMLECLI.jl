@@ -201,6 +201,7 @@ function try_tmle!(cache, Ψ, η_spec; verbosity=1, threshold=1e-8)
         tmle_result, _ = tmle!(cache, Ψ, η_spec; verbosity=verbosity, threshold=threshold)
         return tmle_result, missing
     catch e
+        @warn string("Failed to run Targeted Estimation for parameter:", Ψ)
         return missing, string(e)
     end
 end
