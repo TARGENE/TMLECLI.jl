@@ -46,5 +46,6 @@ RUN julia -q --project=/TargetedEstimation.jl/sysimage -e'using Pkg;Pkg.instanti
 # Build Sysimage
 RUN julia --project -t auto --startup-file=no sysimage/create_sysimage.jl
 
-# Create alias
-RUN echo 'alias juliap="julia --startup-file=no --project=/TargetedEstimation.jl -J /TargetedEstimation.jl/TargetedEstimationSysimage.so"' >> ~/.bashrc
+# Julia requires the first directory in the DEPOT_PATH to be writable
+# This is for singularity images that are not writable (The /temp dir is)
+ENV JULIA_DEPOT_PATH=/temp:/opt
