@@ -178,9 +178,9 @@ instantiate_dataset(path::String) =
 
 isbinarytarget(y::AbstractVector) = Set(unique(skipmissing(y))) == Set([0, 1])
 
-function nuisance_spec_from_target(tmle_spec, isbinary)
+function nuisance_spec_from_target(tmle_spec, isbinary, cache)
     Q_spec = isbinary ? tmle_spec.Q_binary : tmle_spec.Q_continuous
-    return NuisanceSpec(Q_spec, tmle_spec.G)
+    return NuisanceSpec(Q_spec, tmle_spec.G, cache=cache)
 end
 
 maybe_categorical(v) = categorical(v)

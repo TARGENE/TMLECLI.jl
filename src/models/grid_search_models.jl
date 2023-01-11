@@ -11,9 +11,6 @@ end
 
 update_model_or_ranges!(model, ranges, key, val) = setproperty!(model, Symbol(key), val)
 
-GridSearchEvoTreeRegressor(;kwargs...) = GridSearchModel(EvoTreeRegressor, rmse; kwargs...)
-GridSearchEvoTreeClassifier(;kwargs...) = GridSearchModel(EvoTreeClassifier, log_loss; kwargs...)
-
 function GridSearchModel(model_class, measure; goal=10, resampling=nothing, cache=false, kwargs...)
     ranges = []
     resampling = resampling === nothing ? Holdout() : resampling_from_config(resampling)
@@ -30,3 +27,14 @@ function GridSearchModel(model_class, measure; goal=10, resampling=nothing, cach
         cache=cache
         )
 end
+
+# EvoTrees
+
+GridSearchEvoTreeRegressor(;kwargs...) = GridSearchModel(EvoTreeRegressor, rmse; kwargs...)
+GridSearchEvoTreeClassifier(;kwargs...) = GridSearchModel(EvoTreeClassifier, log_loss; kwargs...)
+
+# XGboost
+
+GridSearchXGBoostRegressor(;kwargs...) = GridSearchModel(XGBoostRegressor, rmse; kwargs...)
+GridSearchXGBoostClassifier(;kwargs...) = GridSearchModel(XGBoostClassifier, log_loss; kwargs...)
+

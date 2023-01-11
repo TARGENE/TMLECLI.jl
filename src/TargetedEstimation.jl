@@ -11,6 +11,7 @@ using CSV
 using TMLE
 using HighlyAdaptiveLasso
 using EvoTrees
+using MLJXGBoostInterface
 using MLJLinearModels
 using JLD2
 using YAML
@@ -26,13 +27,14 @@ include("sieve_variance.jl")
 include("merge.jl")
 include(joinpath("models", "glmnet.jl"))
 include(joinpath("models", "hal.jl"))
-include(joinpath("models", "grid_search_evotree.jl"))
+include(joinpath("models", "grid_search_models.jl"))
 
 
 export tmle_estimation, sieve_variance_plateau, merge_csv_files
-export GridSearchEvoTreeRegressor, GridSearchEvoTreeClassifier, \
-       InteractionGLMNetRegressor, InteractionGLMNetClassifier, \
-       GLMNetRegressor, GLMNetClassifier, \
-       SNPInteractionHALClassifier, SNPInteractionHALRegressor
+export GridSearchEvoTreeRegressor, GridSearchEvoTreeClassifier
+export GridSearchXGBoostRegressor, GridSearchXGBoostClassifier
+export InteractionGLMNetRegressor, InteractionGLMNetClassifier
+export GLMNetRegressor, GLMNetClassifier
+export SNPInteractionHALClassifier, SNPInteractionHALRegressor
 
 end
