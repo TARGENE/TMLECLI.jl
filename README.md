@@ -4,21 +4,28 @@
 ![Codecov branch](https://img.shields.io/codecov/c/github/TARGENE/TargetedEstimation.jl/main?label=Coverage%20main)
 ![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/TARGENE/TargetedEstimation.jl)
 
-This package aims at providing a command line interface to run TMLE. The best way to use the interface is to use the associated [docker image](https://hub.docker.com/r/olivierlabayle/targeted-estimation/tags).
+This package provides two command line interfaces used mainly in the context of TarGene:
+1. `scripts/tmle.jl`: To run Targeted Maximum Likelihood Estimation
+1. `scripts/sieve_variance.jl`: To run sieve variance correction to account for potential non iid data.
 
 ## Usage
 
-In the provided docker image, from the project's directory, exact usage can be displayed by:
+The best way to use the command lines is to use the associated [docker image](https://hub.docker.com/r/olivierlabayle/targeted-estimation/tags). Command line arguments can be displayed by:
+
+### tmle.jl
+
+To display command line arguments:
 
 ```bash
-julia --project --startup-file=no scripts/tmle.jl --help
+julia --project=/TargetedEstimation.jl --startup-file=no scripts/tmle.jl --help
 ```
 
-Here is a description of the arguments:
+### sieve_variance.jl
 
-- `data`: .CSV dataset.
-- `param-file`: The parameters configuration file
-- `estimator-file`: The estimator configuration file
-- `out`: Output path for the `.hdf5` or `.csv` file.
-- `--save-full`: If this flag is on, `.hdf5` containing the influence curves will be output, otheerwise, only a summary of effect size in `.csv` format is output.
-- `--verbosity`: Logging level
+This requires an HDF5 file output by `tmle.jl` and the Genetic Relationship Matrix output by the GCTA software.
+
+To display command line arguments:
+
+```bash
+julia --project=/TargetedEstimation.jl --startup-file=no scripts/sieve_variance.jl --help
+```

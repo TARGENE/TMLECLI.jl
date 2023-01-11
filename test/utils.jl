@@ -2,10 +2,11 @@ module TestUtils
 
 using Test
 using TargetedEstimation
-using MLJBase
+using MLJ
 using TMLE
 using DataFrames
 using CSV
+using MLJBase
 
 @testset "Test AdaptiveCV" begin
     # Continuous target
@@ -64,9 +65,21 @@ end
 
 end
 
+@testset "Test parameters_from_yaml" begin
+    param_file = joinpath("config", "parameters_no_extra_covariate.yaml")
+    dataset = DataFrame(T1 = [1., 0.], T2=[true, false])
+    params = TargetedEstimation.parameters_from_yaml(param_file, dataset)
+    for param in params
+        @test param.treatment.T1.case isa Float64
+        @test param.treatment.T1.control isa Float64
+        @test param.treatment.T2.case isa Bool
+        @test param.treatment.T2.control isa Bool
+    end
+end
+
+
 @testset "Test write_target_results with missing values" begin
-    io = open("test.csv", "w")
-    TargetedEstimation.initialize_outfile(io, nothing)
+    io = TargetedEstimation.initialize_csv_io("test")
     target_parameters = DataFrame(
         PARAMETER=[TMLE.CM(
                 target=:Y,
@@ -76,10 +89,8 @@ end
         )])
     tmle_results = [missing]
     initial_estimates = [missing]
-    sample_ids = nothing
     logs = ["Error X"]
-    TargetedEstimation.write_target_results(io, target_parameters, tmle_results, initial_estimates, sample_ids, logs)
-    close(io)
+    TargetedEstimation.append_csv(io, target_parameters, tmle_results, logs)
     out = CSV.read("test.csv", DataFrame)
     expected_out = ["CM", "T₁_&_T₂", "1_&_AC", missing, "Y", "W₁_&_W₂", "C₁", 
         missing, missing, missing, missing, missing, missing, "Error X"]

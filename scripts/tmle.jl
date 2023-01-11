@@ -1,7 +1,6 @@
 using ArgParse
 using TargetedEstimation
 
-
 function parse_commandline()
     s = ArgParseSettings(
         description = "Targeted Learning estimation",
@@ -19,15 +18,19 @@ function parse_commandline()
         "estimator-file"
             help = "A file (.yaml format) describing the tmle estimator to use, README.md"
             required = true
-        "out"
-            help = "Path where the ouput will be saved. If `--save-full` is set then"*
-                   " this will be a .hdf5 file, otherwise a .csv summary file is output."
+        "outprefix"
+            help = "Prefix to output files. A `.csv` file is always generated. If the `--save-id` flag"*
+                   "is set, an additional .hdf5 file is generated. See `--save-ic` and `--pval-threshold`."
             required = true
-        "--save-full"
+        "--save-ic"
             help = "If the influence curves also need to be stored"
             default = false
             arg_type = Bool
             action = :store_true
+        "--pval-threshold"
+            help = "Only those parameters passing the threshold will have their influence curve saved."
+            default = 1.
+            arg_type = Float64
         "--verbosity", "-v"
             help = "Verbosity level"
             arg_type = Int
@@ -39,6 +42,6 @@ end
 
 parsed_args = parse_commandline()
 
-main(parsed_args)
+tmle_estimation(parsed_args)
 
 

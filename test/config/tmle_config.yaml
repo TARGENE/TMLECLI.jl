@@ -9,8 +9,8 @@ Q_continuous:
     nfolds: 2
   # List all models and hyperparameters
   models: 
-    - type: InteractionLMRegressor
-      column_pattern: ["^RS_"]
+    - type: InteractionGLMNetRegressor
+      order: 3
 
     - type: EvoTreeRegressor
       nrounds: [10, 20]
@@ -34,8 +34,7 @@ Q_binary:
     nfolds: 2
   # List all models and hyperparameters
   models:
-    - type: InteractionLMClassifier
-      column_pattern: ["^RS_"]
+    - type: InteractionGLMNetClassifier
 
     - type: ConstantClassifier
 
@@ -46,8 +45,13 @@ Q_binary:
       lambda: 10
       cv_select: false
 
-    - type: EvoTreeClassifier
+    - type: GridSearchEvoTreeClassifier
+      goal: 5
       nrounds: 10
+      max_depth: 3,5
+      lambda: 1e-5,10,log
+      resampling:
+        type: CV
 
 # For the estimation of p(T| W)
 G:
@@ -59,8 +63,7 @@ G:
     nfolds: 2
     # List all models and hyperparameters
   models:
-    - type: LogisticClassifier
-      fit_intercept: true
+    - type: InteractionGLMNetClassifier
     - type: ConstantClassifier
     - type: EvoTreeClassifier
       nrounds: 10

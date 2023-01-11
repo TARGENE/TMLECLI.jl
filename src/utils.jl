@@ -1,5 +1,3 @@
-struct SaveFull{x} end
-
 #####################################################################
 #####                 CV ADAPTIVE FOLDS                          ####
 #####################################################################
@@ -13,7 +11,7 @@ countuniques(table) =
 
 Implements the rule of thum given here: https://www.youtube.com/watch?v=WYnjja8DKPg&t=4s
 """
-mutable struct AdaptiveCV <: MLJBase.ResamplingStrategy
+mutable struct AdaptiveCV <: MLJ.ResamplingStrategy
     cv::Union{CV, StratifiedCV}
 end
 
@@ -22,7 +20,7 @@ function MLJBase.train_test_pairs(cv::AdaptiveCV, rows, y)
     # Compute n-eff
     n = nrows(y)
     neff = 
-        if scitype(first(y)) == MLJBase.Continuous
+        if scitype(first(y)) == MLJ.Continuous
             n
         else
             counts = countuniques(y)
@@ -55,21 +53,21 @@ end
 #####################################################################
 
 
-csv_headers() = DataFrame(
-    PARAMETER_TYPE=[], 
-    TREATMENTS=[], 
-    CASE=[], 
-    CONTROL=[], 
-    TARGET=[], 
-    CONFOUNDERS=[], 
-    COVARIATES=[], 
-    INITIAL_ESTIMATE=[], 
-    ESTIMATE=[],
-    STD=[],
-    PVALUE=[],
-    LWB=[],
-    UPB=[],
-    LOG=[]
+csv_headers(;size=0) = DataFrame(
+    PARAMETER_TYPE=Vector{String}(undef, size), 
+    TREATMENTS=Vector{String}(undef, size), 
+    CASE=Vector{String}(undef, size), 
+    CONTROL=Vector{Union{Missing, String}}(undef, size), 
+    TARGET=Vector{String}(undef, size), 
+    CONFOUNDERS=Vector{String}(undef, size), 
+    COVARIATES=Vector{Union{Missing, String}}(undef, size), 
+    INITIAL_ESTIMATE=Vector{Union{Missing, Float64}}(undef, size), 
+    ESTIMATE=Vector{Union{Missing, Float64}}(undef, size),
+    STD=Vector{Union{Missing, Float64}}(undef, size),
+    PVALUE=Vector{Union{Missing, Float64}}(undef, size),
+    LWB=Vector{Union{Missing, Float64}}(undef, size),
+    UPB=Vector{Union{Missing, Float64}}(undef, size),
+    LOG=Vector{Union{Missing, String}}(undef, size)
 )
 
 covariates_string(Ψ; join_string="_&_") = 
@@ -95,8 +93,13 @@ control_string(Ψ::TMLE.Parameter; join_string="_&_") =
 treatment_string(Ψ; join_string="_&_") = join(keys(Ψ.treatment), join_string)
 confounders_string(Ψ; join_string="_&_") = join(Ψ.confounders, join_string)
 
-initialize_outfile(io, gpd_parameters) =
-    CSV.write(io, csv_headers())
+function initialize_csv_io(outprefix)
+    filename = string(outprefix, ".csv")
+    open(filename, "w") do io
+        CSV.write(io, csv_headers())
+    end
+    return filename
+end
 
 
 function statistics_from_result(result)
@@ -111,45 +114,49 @@ end
 statistics_from_result(result::Missing) = 
     missing, missing, missing, missing, missing
 
-function write_target_results(io, target_parameters, tmle_results, initial_estimates, sample_ids, logs)
-    data = csv_headers()
-    for (Ψ, result, Ψ̂₀, log) in zip(target_parameters.PARAMETER, tmle_results, initial_estimates, logs)
+function append_csv(filename, target_parameters, tmle_results, logs)
+    data = csv_headers(size=size(tmle_results, 1))
+    for (i, (Ψ, result, log)) in enumerate(zip(target_parameters.PARAMETER, tmle_results, logs))
         param_type = param_string(Ψ)
         treatments = treatment_string(Ψ)
         case = case_string(Ψ)
         control = control_string(Ψ)
         confounders = confounders_string(Ψ)
         covariates = covariates_string(Ψ)
+        Ψ̂₀ = initial_estimate(result)
         Ψ̂, std, pval, lw, up = statistics_from_result(result)
-        row = (param_type, treatments, case, control, Ψ.target, confounders, covariates, Ψ̂₀, Ψ̂, std, pval, lw, up, log)
-        push!(data, row)
+        row = (param_type, treatments, case, control, string(Ψ.target), confounders, covariates, Ψ̂₀, Ψ̂, std, pval, lw, up, log)
+        data[i, :] = row
     end
-    CSV.write(io, data, append=true)
+    CSV.write(filename, data, append=true)
 end
 
-open_io(f, file, save_full::SaveFull{false}, mode="w", args...; kwargs...) =
-    open(f, file, mode, args...; kwargs...)
 
 #####################################################################
 #####                       JLD2 OUTPUT                          ####
 #####################################################################
 no_slash(x) = replace(string(x), "/" => "_OR_")
 
-initialize_outfile(io::JLD2.JLDFile, gpd_parameters) =
-    io["parameters"] = first(gpd_parameters)[!, "PARAMETER"]
+restore_slash(x) = replace(string(x), "_OR_" => "/")
 
-function write_target_results(io::JLD2.JLDFile, target_parameters, tmle_results, initial_estimates, sample_ids, logs)
-    target = no_slash(target_parameters[1, :TARGET])
-    io["results/$target/initial_estimates"] = initial_estimates
-    io["results/$target/tmle_results"] = tmle_results
-    io["results/$target/sample_ids"] = sample_ids
-    io["results/$target/logs"] = logs
+function initialize_jld_io(outprefix, gpd_parameters, save_ic)
+    if save_ic
+        filename = string(outprefix, ".hdf5")
+        jldopen(filename, "w", compress=true) do io
+            io["parameters"] = first(gpd_parameters)[!, "PARAMETER"]
+        end
+        return filename
+    end
+    return nothing
 end
 
-
-open_io(f, file, save_full::SaveFull{true}, mode="w", args...; compress=true, kwargs...) =
-    jldopen(f, file, mode, args...; compress=compress, kwargs...)
-
+function append_hdf5(filename, target, tmle_results, logs, sample_ids, mask)
+    jldopen(filename, "a+", compress=true) do io
+        io["results/$target/tmle_results"] = tmle_results[mask]
+        io["results/$target/sample_ids"] = sample_ids
+        io["results/$target/logs"] = logs[mask]
+    end
+end
 
 #####################################################################
 #####                 ADDITIONAL METHODS                         ####
@@ -159,24 +166,21 @@ get_non_target_columns(parameter) =
     vcat(keys(parameter.treatment)..., parameter.confounders, parameter.covariates)
 
 
-get_sample_ids(data, targets_columns, save_full::SaveFull{true}) = dropmissing(data[!, [:SAMPLE_ID, targets_columns...]]).SAMPLE_ID
-
-get_sample_ids(data, targets_columns, save_full::SaveFull{false}) = nothing
+get_sample_ids(data, targets_columns) = dropmissing(data[!, [:SAMPLE_ID, targets_columns...]]).SAMPLE_ID
 
 """
     instantiate_dataset(path::String)
 
 Returns a DataFrame wrapper around a dataset, either in CSV format.
 """
-function instantiate_dataset(path::String)
-        return CSV.read(path, DataFrame)
-end
+instantiate_dataset(path::String) =
+    CSV.read(path, DataFrame, ntasks=1)
 
 isbinarytarget(y::AbstractVector) = Set(unique(skipmissing(y))) == Set([0, 1])
 
-function nuisance_spec_from_target(tmle_spec, isbinary)
+function nuisance_spec_from_target(tmle_spec, isbinary, cache)
     Q_spec = isbinary ? tmle_spec.Q_binary : tmle_spec.Q_continuous
-    return NuisanceSpec(Q_spec, tmle_spec.G)
+    return NuisanceSpec(Q_spec, tmle_spec.G, cache=cache)
 end
 
 maybe_categorical(v) = categorical(v)
@@ -191,11 +195,55 @@ function make_categorical!(dataset, colnames::Tuple, isbinary::Bool)
     end
 end
 
-tmle_run!(cache::Nothing, Ψ, η_spec, dataset; verbosity=1, threshold=1e-8) = 
-    tmle(Ψ, η_spec, dataset; verbosity=verbosity, threshold=threshold)
 
-tmle_run!(cache, Ψ, η_spec, dataset; verbosity=1, threshold=1e-8) = 
-    tmle!(cache, Ψ, η_spec; verbosity=verbosity, threshold=threshold)
-
+function try_tmle!(cache, Ψ, η_spec; verbosity=1, threshold=1e-8)
+    try
+        tmle_result, _ = tmle!(cache, Ψ, η_spec; verbosity=verbosity, threshold=threshold)
+        return tmle_result, missing
+    catch e
+        @warn string("Failed to run Targeted Estimation for parameter:", Ψ)
+        return missing, string(e)
+    end
+end
 
 TMLE.estimate(e::Missing) = missing
+TMLE.initial_estimate(e::Missing) = missing
+
+
+function treatment_values(Ψ::Union{IATE, ATE}, treatment_names, treatment_types)
+    return [(
+        case = convert(treatment_types[j], Ψ.treatment[tn].case), 
+        control = convert(treatment_types[j], Ψ.treatment[tn].control)
+    ) 
+        for (j, tn) in enumerate(treatment_names)]
+end
+
+treatment_values(Ψ::CM, treatment_names, treatment_types) = 
+    [convert(treatment_types[j], Ψ.treatment[tn]) for (j, tn) in enumerate(treatment_names)]
+
+"""
+    parameters_from_yaml(param_file, dataset)
+
+Extends `parameters_from_yaml` so that the parameters treatment in the config file
+respect the treatment types in the dataset.
+"""
+function TMLE.parameters_from_yaml(param_file, dataset)
+    params = parameters_from_yaml(param_file)
+    n_params = size(params, 1)
+    params_respecting_dataset_type = Vector{TMLE.Parameter}(undef, n_params)
+    treatment_names = keys(first(params).treatment)
+    dataset_treatment_types = [eltype(dataset[!, tn]) for tn in treatment_names]
+    for i in 1:n_params
+        param = params[i]
+        new_treatment = NamedTuple{treatment_names}(
+            treatment_values(param, treatment_names, dataset_treatment_types)
+        )
+        params_respecting_dataset_type[i] = typeof(param)(
+            target = param.target,
+            treatment = new_treatment,
+            confounders = param.confounders,
+            covariates = param.covariates
+        )
+    end
+    return params_respecting_dataset_type
+end

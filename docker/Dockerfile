@@ -1,4 +1,4 @@
-FROM julia:1.7.2-bullseye
+FROM julia:1.8.3-bullseye
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -37,8 +37,11 @@ COPY . /TargetedEstimation.jl
 
 WORKDIR /TargetedEstimation.jl
 
+# Precompile project
 RUN julia -q --project -e'using Pkg; Pkg.instantiate(); Pkg.resolve(); Pkg.precompile()'
 
-# RUN julia -q --project build_sysimage.jl
+# Precompile Sysimage project
+RUN julia -q --project=/TargetedEstimation.jl/sysimage -e'using Pkg;Pkg.instantiate(); Pkg.resolve(); Pkg.precompile()'
 
-# RUN echo 'alias julia="julia -J TMLEEpistasisSysimage.so"' >> ~/.bashrc
+# Build Sysimage
+RUN julia --project -t auto --startup-file=no sysimage/create_sysimage.jl

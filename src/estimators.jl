@@ -1,3 +1,7 @@
+asarrayed(val::AbstractArray) = val
+asarrayed(val) = [val]
+
+
 function buildmodels(config)
     models = Dict()
     for model_spec in config
@@ -5,7 +9,7 @@ function buildmodels(config)
         modeltype = eval(Symbol(modelname))
         paramnames = Tuple(keys(model_spec))
         counter = 1
-        for paramvals in Base.Iterators.product(values(model_spec)...)
+        for paramvals in Base.Iterators.product((asarrayed(x) for x in values(model_spec))...)
             model = modeltype(;NamedTuple{paramnames}(paramvals)...)
             models[Symbol(modelname*"_$counter")] = model
             counter += 1
@@ -14,29 +18,40 @@ function buildmodels(config)
     return models
 end
 
+function resampling_from_config(resampling_info)
+    resampling_type = eval(Symbol(resampling_info[:type]))
+    resampling = resampling_type()
+    if haskey(resampling_info, :nfolds)
+        resampling = resampling_type(nfolds=resampling_info[:nfolds])
+    end
+
+    if haskey(resampling_info, :adaptive)
+        resampling = AdaptiveCV(resampling)
+    end
+
+    return resampling
+end
 
 function stack_from_config(config::Dict, metalearner)
     # Define the resampling strategy
     resampling = CV()
     if haskey(config, :resampling)
-        resampling_info = config[:resampling]
-        nfolds = haskey(resampling_info, :nfolds) ? resampling_info[:nfolds] : resampling.nfolds
-        resampling = eval(Symbol(resampling_info[:type]))(nfolds=nfolds)
-        if haskey(resampling_info, :adaptive)
-            resampling = AdaptiveCV(resampling)
-        end
+        resampling = resampling_from_config(config[:resampling])
     end
 
     # Define the internal cross validation measures to report
     measures = (haskey(config, :measures) && size(config[:measures], 1) > 0) ? 
-                    [getfield(MLJBase, Symbol(fn)) for fn in config[:measures]] : 
+                    [getfield(MLJ, Symbol(fn)) for fn in config[:measures]] : 
                     nothing
         
     # Define the models library
     models = buildmodels(config[:models])
 
+    # Caching behaviour
+    cache = haskey(config, :cache) ? config[:cache] : false
+
     # Define the Stack
-    Stack(;metalearner=metalearner, resampling=resampling, measures=measures, cache=false, models...)
+    Stack(;metalearner=metalearner, resampling=resampling, measures=measures, cache=cache, models...)
 end
 
 function learner_from_config(config)
@@ -46,6 +61,9 @@ end
 
 function tmle_spec_from_yaml(yamlfile)
     config = YAML.load_file(yamlfile; dicttype=Dict{Symbol,Any})
+
+    threshold = haskey(config, :threshold) ? config[:threshold] : 1e-8
+    cache = haskey(config, :cache) ? config[:cache] : false
 
     # Build G estimator
     if config[:G][:model] == "Stack"
@@ -69,7 +87,5 @@ function tmle_spec_from_yaml(yamlfile)
         Q_binary = learner_from_config(config[:Q_binary])
     end
 
-    threshold = haskey(config, :threshold) ? config[:threshold] : 1e-8
-
-    return (G=G, Q_continuous=Q_continuous, Q_binary=Q_binary, threshold=threshold)
+    return (G=G, Q_continuous=Q_continuous, Q_binary=Q_binary, threshold=threshold, cache=cache)
 end
