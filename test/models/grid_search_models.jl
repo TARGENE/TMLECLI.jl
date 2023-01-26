@@ -48,6 +48,7 @@ end
 
     # XGBoost
     model = GridSearchXGBoostRegressor(;
+        tree_method = "hist",
         num_round=50, 
         resampling=Dict(:type=>"Holdout"), 
         goal=25,

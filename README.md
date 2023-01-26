@@ -29,3 +29,16 @@ To display command line arguments:
 ```bash
 julia --project=/TargetedEstimation.jl --startup-file=no scripts/sieve_variance.jl --help
 ```
+
+## Experiments
+
+### Speed Test
+
+The goal of this script is to estimate the running time of TMLE in a GWAS setting. This is done by running TMLE over 100 SNPs for both a continuous and a binary target and for 4 nuisance parameters specification:
+- Vanilla GLM
+- GLMNet cross-validated over 3 folds
+- XGBoost cross validated over 3 folds
+- Super Learning: GLMNet cross-validated over 3 folds + XGBoost cross validated over 3 folds
+
+The associated julia script is `experiments/speedtest.jl`.
+

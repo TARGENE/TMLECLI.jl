@@ -1,5 +1,10 @@
+update_model!(model, key, val) = setproperty!(model, Symbol(key), val)
+
 function update_model_or_ranges!(model, ranges, key, val::String)
     string_vals = split(replace(val, " " => ""), ",")
+    if length(string_vals) == 1
+        return update_model!(model, key, val)
+    end
     lower = parse(Float64, string_vals[1])
     upper = parse(Float64, string_vals[2])
     scale = size(string_vals, 1) > 2 ? Symbol(string_vals[3]) : nothing
@@ -9,7 +14,7 @@ function update_model_or_ranges!(model, ranges, key, val::String)
     )
 end
 
-update_model_or_ranges!(model, ranges, key, val) = setproperty!(model, Symbol(key), val)
+update_model_or_ranges!(model, ranges, key, val) = update_model!(model, key, val)
 
 function GridSearchModel(model_class, measure; goal=10, resampling=nothing, cache=false, kwargs...)
     ranges = []
