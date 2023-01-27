@@ -16,14 +16,18 @@ function parse_commandline()
     @add_arg_table s begin
         "data"
             help = string("Path to the dataset, a copy is stored on datastore at: ",
-                   "/exports/igmm/datastore/ponting-lab/olivier/misc_datasets/speed_test_data.csv")
+                   "/exports/igmm/datastore/ponting-lab/olivier/misc_datasets/gwas_sample_data.csv")
             required = true
-            default = "/exports/igmm/datastore/ponting-lab/olivier/misc_datasets/speed_test_data.csv"
+            default = "/exports/igmm/datastore/ponting-lab/olivier/misc_datasets/gwas_sample_data.csv"
         "--limit"
             arg_type = Int
             help = string("Limit the number of SNPs (max 100) used for runtime estimation. The actual number will be: ",
                     "limit - 1, to remove compilation bias."
             )
+            required = false
+        "--target"
+            arg_type = String
+            help = "Either: continuous/binary"
             required = false
     end
 
@@ -136,7 +140,21 @@ function main(parsed_args)
         nsnps = parsed_args["limit"]
     end
     @info string("Runtime estimation running over: ", nsnps - 1, " SNPs.")
-    for (target, η_specs) in [(Symbol("Lymphocyte count"), regression_nuisance_specs()), (Symbol("E66 Obesity"), classification_nuisance_specs())]
+    if parsed_args["target"] === nothing
+        targets_specs = [
+            (Symbol("Lymphocyte count"), regression_nuisance_specs()), 
+            (Symbol("E66 Obesity"), classification_nuisance_specs())
+            ]
+    elseif parsed_args["target"] == "continuous"
+        targets_specs = [
+            (Symbol("Lymphocyte count"), regression_nuisance_specs()), 
+            ]
+    else
+        targets_specs = [
+            (Symbol("E66 Obesity"), classification_nuisance_specs())
+            ]
+    end
+    for (target, η_specs) in targets_specs
         @info ("Target: ", target)
         for (spec_name, η_spec) in η_specs
             times = Vector{Float64}(undef, nsnps)
