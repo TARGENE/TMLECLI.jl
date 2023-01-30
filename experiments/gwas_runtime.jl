@@ -180,21 +180,3 @@ end
 parsed_args = parse_commandline()
 
 main(parsed_args)
-
-# data = CSV.read("/home/s2042526/UK-BioBank-53116/users/olivier/runs/tmle-vdr/results/tmle_inputs/final.data.csv", DataFrame)
-# final_rsids = []
-# for rsid in filter(x -> startswith(x, "rs"), names(data))
-#     value_count = Dict(0 => 0, 1 => 0, 2 => 0)
-#     for x in data[!, rsid]
-#         if x !== missing
-#             value_count[x] += 1
-#         end
-#     end
-#     if all(x > 100 for x in values(value_count))
-#         push!(final_rsids, rsid)
-#     end
-# end
-# ys_cat = Symbol.(["depression", "E66 Obesity", "D73 Diseases of spleen"])
-# ys_cont = Symbol.(["Lymphocyte count", "Neutrophill count", "Body mass index (BMI)"])
-# W = Symbol.(["Age-Assessment", "Genetic-Sex" ,"PC1" ,"PC2" ,"PC3" ,"PC4" ,"PC5" ,"PC6"])
-# new_data = data[!, vcat(Symbol.(final_rsids[1:100]), ys_cat, ys_cont, W)]
