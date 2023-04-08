@@ -93,7 +93,9 @@ end
     TargetedEstimation.append_csv(io, target_parameters, tmle_results, logs)
     out = CSV.read("test.csv", DataFrame)
     expected_out = ["CM", "T₁_&_T₂", "1_&_AC", missing, "Y", "W₁_&_W₂", "C₁", 
-        missing, missing, missing, missing, missing, missing, "Error X"]
+        missing, missing, missing, missing, missing, missing,
+        missing, missing, missing, missing, missing,
+        "Error X"]
     for (x, y) in zip(first(out), expected_out)
         if x === missing 
             @test x === y

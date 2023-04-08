@@ -62,11 +62,16 @@ csv_headers(;size=0) = DataFrame(
     CONFOUNDERS=Vector{String}(undef, size), 
     COVARIATES=Vector{Union{Missing, String}}(undef, size), 
     INITIAL_ESTIMATE=Vector{Union{Missing, Float64}}(undef, size), 
-    ESTIMATE=Vector{Union{Missing, Float64}}(undef, size),
-    STD=Vector{Union{Missing, Float64}}(undef, size),
-    PVALUE=Vector{Union{Missing, Float64}}(undef, size),
-    LWB=Vector{Union{Missing, Float64}}(undef, size),
-    UPB=Vector{Union{Missing, Float64}}(undef, size),
+    TMLE_ESTIMATE=Vector{Union{Missing, Float64}}(undef, size),
+    TMLE_STD=Vector{Union{Missing, Float64}}(undef, size),
+    TMLE_PVALUE=Vector{Union{Missing, Float64}}(undef, size),
+    TMLE_LWB=Vector{Union{Missing, Float64}}(undef, size),
+    TMLE_UPB=Vector{Union{Missing, Float64}}(undef, size),
+    ONESTEP_ESTIMATE=Vector{Union{Missing, Float64}}(undef, size),
+    ONESTEP_STD=Vector{Union{Missing, Float64}}(undef, size),
+    ONESTEP_PVALUE=Vector{Union{Missing, Float64}}(undef, size),
+    ONESTEP_LWB=Vector{Union{Missing, Float64}}(undef, size),
+    ONESTEP_UPB=Vector{Union{Missing, Float64}}(undef, size),
     LOG=Vector{Union{Missing, String}}(undef, size)
 )
 
@@ -101,18 +106,28 @@ function initialize_csv_io(outprefix)
     return filename
 end
 
-
-function statistics_from_result(result)
-    Ψ̂ = estimate(result)
-    std = √(var(result))
-    testresult = OneSampleTTest(result)
+function statistics_from_estimator(estimator)
+    Ψ̂ = estimate(estimator)
+    std = √(var(estimator))
+    testresult = OneSampleTTest(estimator)
     pval = pvalue(testresult)
-    lw, up = confint(testresult)
-    return Ψ̂, std, pval, lw, up
+    l, u = confint(testresult)
+    return (Ψ̂, std, pval, l, u)
+end
+
+function statistics_from_result(result::TMLE.TMLEResult)
+    Ψ̂₀ = result.initial
+    # TMLE stats
+    tmle_stats = statistics_from_estimator(result.tmle) 
+    # OneStep stats
+    onestep_stats = statistics_from_estimator(result.onestep)
+    return Ψ̂₀, tmle_stats, onestep_stats
 end
 
 statistics_from_result(result::Missing) = 
-    missing, missing, missing, missing, missing
+    missing, 
+    (missing, missing, missing, missing, missing), 
+    (missing, missing, missing, missing, missing)
 
 function append_csv(filename, target_parameters, tmle_results, logs)
     data = csv_headers(size=size(tmle_results, 1))
@@ -123,10 +138,11 @@ function append_csv(filename, target_parameters, tmle_results, logs)
         control = control_string(Ψ)
         confounders = confounders_string(Ψ)
         covariates = covariates_string(Ψ)
-        Ψ̂₀ = initial_estimate(result)
-        Ψ̂, std, pval, lw, up = statistics_from_result(result)
-        row = (param_type, treatments, case, control, string(Ψ.target), confounders, covariates, Ψ̂₀, Ψ̂, std, pval, lw, up, log)
-        data[i, :] = row
+        Ψ̂₀, tmle_stats, onestep_stats = statistics_from_result(result)
+        data[i, :] = (
+            param_type, treatments, case, control, string(Ψ.target), confounders, covariates, 
+            Ψ̂₀, tmle_stats..., onestep_stats..., log
+        )
     end
     CSV.write(filename, data, append=true)
 end
@@ -205,9 +221,6 @@ function try_tmle!(cache, Ψ, η_spec; verbosity=1, threshold=1e-8)
         return missing, string(e)
     end
 end
-
-TMLE.estimate(e::Missing) = missing
-TMLE.initial_estimate(e::Missing) = missing
 
 
 function treatment_values(Ψ::Union{IATE, ATE}, treatment_names, treatment_types)

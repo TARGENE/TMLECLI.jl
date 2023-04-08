@@ -31,7 +31,7 @@ sieve_dataframe() = DataFrame(
     TARGET=String[], 
     CONFOUNDERS=String[], 
     COVARIATES=Union{String, Missing}[], 
-    ESTIMATE=Float64[],
+    TMLE_ESTIMATE=Float64[],
 )
 
 function push_sieveless!(output, Ψ, Ψ̂, target)
@@ -88,8 +88,8 @@ function build_work_list(prefix, grm_ids)
                 for index in eachindex(targetresults["tmle_results"])
                     templateΨ = templateΨs[index]
                     tmleresult = targetresults["tmle_results"][index]
-                    Ψ̂ = TMLE.estimate(tmleresult)
-                    push!(influence_curves, align_ic(tmleresult.IC, sample_ids, grm_ids))
+                    Ψ̂ = TMLE.estimate(tmleresult.tmle)
+                    push!(influence_curves, align_ic(tmleresult.tmle.IC, sample_ids, grm_ids))
                     push!(n_obs, size(sample_ids, 1))
                     push_sieveless!(sieve_df, templateΨ, Ψ̂, target)
                 end
@@ -203,7 +203,7 @@ function update_sieve_df!(df, stds, n_obs)
 
     for index in 1:n
         std = stds[index]
-        estimate = df.ESTIMATE[index]
+        estimate = df.TMLE_ESTIMATE[index]
         testresult = OneSampleZTest(estimate, std, n_obs[index])
         lwb, upb = confint(testresult)
         df.SIEVE_STD[index] = std
@@ -212,7 +212,7 @@ function update_sieve_df!(df, stds, n_obs)
         df.SIEVE_UPB[index] = upb
     end
 
-    select!(df, Not(:ESTIMATE))
+    select!(df, Not(:TMLE_ESTIMATE))
 end
 
 function sieve_variance_plateau(parsed_args)

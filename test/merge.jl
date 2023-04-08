@@ -16,8 +16,10 @@ using DataFrames
     @test names(output) == [
         "PARAMETER_TYPE", "TREATMENTS", "CASE",
         "CONTROL", "TARGET", "CONFOUNDERS",
-        "COVARIATES", "INITIAL_ESTIMATE", "ESTIMATE",
-        "STD", "PVALUE", "LWB", "UPB", "LOG"
+        "COVARIATES", "INITIAL_ESTIMATE", 
+        "TMLE_ESTIMATE", "TMLE_STD", "TMLE_PVALUE", "TMLE_LWB", "TMLE_UPB",
+        "ONESTEP_ESTIMATE", "ONESTEP_STD", "ONESTEP_PVALUE", "ONESTEP_LWB", "ONESTEP_UPB", 
+        "LOG"
     ]
     @test size(output, 1) == 8
     @test output.PARAMETER_TYPE == [
@@ -29,12 +31,25 @@ using DataFrames
 end
 
 @testset "Test merge_csv_files, sieve file" begin
+    # df = CSV.read("data/merge/sieve_output_1.csv", DataFrame)
+    # rename!(df, [:ESTIMATE => :TMLE_ESTIMATE, :STD => :TMLE_STD, :PVALUE => :TMLE_PVALUE, :LWB => :TMLE_LWB, :UPB => :TMLE_UPB])
+    # ext = DataFrame(
+    #     ONESTEP_ESTIMATE = rand(2),
+    #     ONESTEP_STD = rand(2),
+    #     ONESTEP_PVALUE = rand(2),
+    #     ONESTEP_LWB = rand(2),
+    #     ONESTEP_UPB = rand(2),
+    #     LOG = df.LOG,
+    #     )
+    # new_df = hcat(select!(df, Not(:LOG)), ext)
+    # CSV.write("data/merge/tmle_output_2.csv", new_df)
     sieve_colnames = [
         "PARAMETER_TYPE", "TREATMENTS", "CASE",
         "CONTROL", "TARGET", "CONFOUNDERS",
-        "COVARIATES", "INITIAL_ESTIMATE", "ESTIMATE",
-        "STD", "PVALUE", "LWB", "UPB", "LOG", 
-        "SIEVE_STD", "SIEVE_PVALUE", "SIEVE_LWB", "SIEVE_UPB"
+        "COVARIATES", "INITIAL_ESTIMATE", 
+        "TMLE_ESTIMATE", "TMLE_STD", "TMLE_PVALUE", "TMLE_LWB", "TMLE_UPB", 
+        "ONESTEP_ESTIMATE", "ONESTEP_STD", "ONESTEP_PVALUE", "ONESTEP_LWB", "ONESTEP_UPB",
+        "LOG", "SIEVE_STD", "SIEVE_PVALUE", "SIEVE_LWB", "SIEVE_UPB"
     ]
     parsed_args = Dict(
         "tmle-prefix" => joinpath("data", "merge", "tmle"),

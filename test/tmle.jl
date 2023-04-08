@@ -112,9 +112,9 @@ end
     @test all(continuous_results["logs"] .=== [missing, missing, missing])
     tmles = continuous_results["tmle_results"]
     for i in 1:3
-        @test TMLE.estimate(tmles[i]) isa Float64
-        @test initial_estimate(tmles[i]) isa Float64
-        tmles[i].IC isa Vector{Float64}
+        @test TMLE.estimate(tmles[i].tmle) isa Float64
+        @test tmles[i].initial isa Float64
+        tmles[i].tmle.IC isa Vector{Float64}
     end
     
     # results for BINARY_TARGET
@@ -123,9 +123,9 @@ end
     @test all(binary_results["logs"] .=== [missing, missing, missing])
     tmles = binary_results["tmle_results"]
     for i in 1:3
-        @test size(tmles[i].IC, 1) == 999
-        @test TMLE.estimate(tmles[i]) isa Float64
-        @test initial_estimate(tmles[i]) isa Float64
+        @test size(tmles[i].tmle.IC, 1) == 999
+        @test TMLE.estimate(tmles[i].tmle) isa Float64
+        @test tmles[i].initial isa Float64
     end
 
     close(io)
@@ -142,7 +142,8 @@ end
     @test data.CONTROL == ["false_&_false", "true_&_false", "false_&_false", "false_&_false", "true_&_false", "false_&_false"]
     
     
-    for col in [:INITIAL_ESTIMATE, :ESTIMATE, :STD, :PVALUE, :LWB, :UPB]
+    for col in [:INITIAL_ESTIMATE, :TMLE_ESTIMATE, :TMLE_STD, :TMLE_PVALUE, :TMLE_LWB, :TMLE_UPB,
+        :ONESTEP_ESTIMATE, :ONESTEP_STD, :ONESTEP_PVALUE, :ONESTEP_LWB, :ONESTEP_UPB]
         @test data[!, col] isa Vector{Float64}
     end
 
@@ -179,7 +180,7 @@ end
     ## Check CSV file
     csvfile = string(parsed_args["outprefix"], ".csv")
     data = CSV.read(csvfile, DataFrame)
-    @test size(data) == (6, 14)
+    @test size(data) == (6, 19)
 
     # Clean
     rm(csvfile)
@@ -217,8 +218,9 @@ end
     
     @test some_expected_col_values ==
         out[!, [:PARAMETER_TYPE, :TREATMENTS, :CASE, :CONTROL, :TARGET, :CONFOUNDERS, :COVARIATES]]
-    for colname in [:INITIAL_ESTIMATE, :ESTIMATE, :STD, :PVALUE, :LWB, :UPB]
-        @test eltype(out[!, colname]) == Float64
+    for col in [:INITIAL_ESTIMATE, :TMLE_ESTIMATE, :TMLE_STD, :TMLE_PVALUE, :TMLE_LWB, :TMLE_UPB,
+        :ONESTEP_ESTIMATE, :ONESTEP_STD, :ONESTEP_PVALUE, :ONESTEP_LWB, :ONESTEP_UPB]
+        @test out[!, col] isa Vector{Float64}
     end
 
     rm(parsed_args["data"])

@@ -30,7 +30,7 @@ function tmle_estimation(parsed_args)
         TargetedEstimation.make_categorical!(dataset, target, targetisbinary)
         η_spec = TargetedEstimation.nuisance_spec_from_target(tmle_spec, targetisbinary, tmle_spec.cache)
         n_params = size(target_parameters[!, :PARAMETER], 1)
-        tmle_results = Vector{Union{TMLE.PointTMLE, Missing}}(undef, n_params)
+        tmle_results = Vector{Union{TMLE.TMLEResult, Missing}}(undef, n_params)
         logs = Vector{Union{String, Missing}}(undef, n_params)
         for param_index in 1:n_params
             Ψ = target_parameters[param_index, :PARAMETER]
@@ -43,7 +43,7 @@ function tmle_estimation(parsed_args)
         # Append HDF5 result if save-ic is true
         if parsed_args["save-ic"]
             # Append only with results passing the threshold
-            mask = [i for i in 1:n_params if (tmle_results[i] !== missing) && (pvalue(OneSampleZTest(tmle_results[i])) <= pval_threshold)]
+            mask = [i for i in 1:n_params if (tmle_results[i] !== missing) && (pvalue(OneSampleZTest(tmle_results[i].tmle)) <= pval_threshold)]
             if size(mask, 1) > 0
                 at_least_one_sieve = true
                 sample_ids = TargetedEstimation.get_sample_ids(dataset, vcat(target, non_target_columns))
