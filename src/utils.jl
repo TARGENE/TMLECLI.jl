@@ -151,6 +151,7 @@ end
 #####################################################################
 #####                       JLD2 OUTPUT                          ####
 #####################################################################
+
 no_slash(x) = replace(string(x), "/" => "_OR_")
 
 restore_slash(x) = replace(string(x), "_OR_" => "/")
@@ -178,8 +179,8 @@ end
 #####                 ADDITIONAL METHODS                         ####
 #####################################################################
 
-get_non_target_columns(parameter) =
-    vcat(keys(parameter.treatment)..., parameter.confounders, parameter.covariates)
+get_non_target_columns(treatment_cols, covariate_cols, confounder_cols) =
+    vcat(treatment_cols..., covariate_cols..., confounder_cols...)
 
 
 get_sample_ids(data, targets_columns) = dropmissing(data[!, [:SAMPLE_ID, targets_columns...]]).SAMPLE_ID
@@ -199,18 +200,28 @@ function nuisance_spec_from_target(tmle_spec, isbinary, cache)
     return NuisanceSpec(Q_spec, tmle_spec.G, cache=cache)
 end
 
-maybe_categorical(v) = categorical(v)
-maybe_categorical(v::CategoricalArray) = v
+function make_categorical!(dataset, colname::Union{String, Symbol}; infer_ordered=false)
+    ordered = false
+    if infer_ordered
+        ordered = eltype(dataset[!, colname]) <: Real
+    end
+    dataset[!, colname] = categorical(dataset[!, colname], ordered=ordered)
+end
 
-make_categorical!(dataset, colname::Union{String, Symbol}, isbinary::Bool) =
-    isbinary ? dataset[!, colname] = maybe_categorical(dataset[!, colname]) : nothing
-
-function make_categorical!(dataset, colnames::Tuple, isbinary::Bool)
+function make_categorical!(dataset, colnames; infer_ordered=false)
     for colname in colnames
-        make_categorical!(dataset, colname, isbinary)
+        make_categorical!(dataset, colname;infer_ordered=infer_ordered)
     end
 end
 
+make_float!(dataset, colname::Union{String, Symbol}) = 
+    dataset[!, colname] = float(dataset[!, colname])
+
+function make_float!(dataset, colnames)
+    for colname in colnames
+        make_float!(dataset, colname)
+    end
+end
 
 function try_tmle!(cache, Ψ, η_spec; verbosity=1, threshold=1e-8)
     try

@@ -8,14 +8,24 @@ function tmle_estimation(parsed_args)
     outprefix = parsed_args["outprefix"]
     pval_threshold = parsed_args["pval-threshold"]
     save_ic = parsed_args["save-ic"]
-
+    # Load dataset
     dataset = TargetedEstimation.instantiate_dataset(parsed_args["data"])
+    # Read parameter files
     parameters = parameters_from_yaml(parsed_args["param-file"], dataset)
-    non_target_columns = TargetedEstimation.get_non_target_columns(first(parameters))
     parameters_df = DataFrame(TARGET=[p.target for p in parameters], PARAMETER=parameters)
+    # Get covariate, confounder and treatment columns
+    treatment_cols = keys(first(parameters).treatment)
+    covariate_cols = first(parameters).covariates
+    confounder_cols = first(parameters).confounders
+    non_target_columns = TargetedEstimation.get_non_target_columns(treatment_cols, covariate_cols, confounder_cols)
 
-    TargetedEstimation.make_categorical!(dataset, keys(first(parameters).treatment), true)
+    # Treatment columns are converted to categorical
+    TargetedEstimation.make_categorical!(dataset, treatment_cols, infer_ordered=true)
     
+    # Confounders and Covariates are converted to Float64
+    TargetedEstimation.make_float!(dataset, vcat(covariate_cols, confounder_cols))
+    
+    # Retrieve TMLE specifications
     tmle_spec = TargetedEstimation.tmle_spec_from_yaml(parsed_args["estimator-file"])
 
     at_least_one_sieve = false
@@ -27,7 +37,7 @@ function tmle_estimation(parsed_args)
         target = target_key.TARGET
         verbosity >= 1 && @info string("Targeted Estimation for target: ", target)
         targetisbinary = TargetedEstimation.isbinarytarget(dataset[!, target])
-        TargetedEstimation.make_categorical!(dataset, target, targetisbinary)
+        targetisbinary && make_categorical!(dataset, target)
         η_spec = TargetedEstimation.nuisance_spec_from_target(tmle_spec, targetisbinary, tmle_spec.cache)
         n_params = size(target_parameters[!, :PARAMETER], 1)
         tmle_results = Vector{Union{TMLE.TMLEResult, Missing}}(undef, n_params)

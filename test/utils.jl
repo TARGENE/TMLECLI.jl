@@ -7,6 +7,7 @@ using TMLE
 using DataFrames
 using CSV
 using MLJBase
+using CategoricalArrays
 
 @testset "Test AdaptiveCV" begin
     # Continuous target
@@ -104,6 +105,33 @@ end
         end
     end
     rm("test.csv")
+
+end
+
+@testset "Test make_categorical! and make_float!" begin
+    dataset = DataFrame(
+        T₁ = [1, 1, 0, 0],
+        T₂ = ["AA", "AC", "CC", "CC"],
+    )
+    TargetedEstimation.make_categorical!(dataset, (:T₁, :T₂))
+    @test dataset.T₁ isa CategoricalVector
+    @test dataset.T₁.pool.ordered == false
+    @test dataset.T₂ isa CategoricalVector
+    @test dataset.T₂.pool.ordered == false
+
+    dataset = DataFrame(
+        T₁ = [1, 1, 0, 0],
+        T₂ = ["AA", "AC", "CC", "CC"],
+        C₁ = [1, 2, 3, 4],
+    )
+    TargetedEstimation.make_categorical!(dataset, (:T₁, :T₂), infer_ordered=true)
+    @test dataset.T₁ isa CategoricalVector
+    @test dataset.T₁.pool.ordered == true
+    @test dataset.T₂ isa CategoricalVector
+    @test dataset.T₂.pool.ordered == false
+
+    TargetedEstimation.make_float!(dataset, [:C₁])
+    @test eltype(dataset.C₁) == Float64
 
 end
 
