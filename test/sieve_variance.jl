@@ -124,11 +124,11 @@ end
     io = jldopen(string(outprefix_1, ".hdf5"))
     continuous_results = io["results"]["CONTINUOUS, TARGET"]["tmle_results"]
     for i in 1:3
-        @test convert(Vector{Float32}, continuous_results[i].IC) == influence_curves[i, :]
+        @test convert(Vector{Float32}, continuous_results[i].tmle.IC) == influence_curves[i, :]
     end
     binary_results = io["results"]["BINARY_OR_TARGET"]["tmle_results"]
     for i in 1:3
-        @test convert(Vector{Float32}, vcat(0, binary_results[i].IC)) == influence_curves[i+3, :]
+        @test convert(Vector{Float32}, vcat(0, binary_results[i].tmle.IC)) == influence_curves[i+3, :]
     end
     # Check output
     some_expected_cols = DataFrame(

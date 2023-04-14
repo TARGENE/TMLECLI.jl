@@ -62,11 +62,16 @@ csv_headers(;size=0) = DataFrame(
     CONFOUNDERS=Vector{String}(undef, size), 
     COVARIATES=Vector{Union{Missing, String}}(undef, size), 
     INITIAL_ESTIMATE=Vector{Union{Missing, Float64}}(undef, size), 
-    ESTIMATE=Vector{Union{Missing, Float64}}(undef, size),
-    STD=Vector{Union{Missing, Float64}}(undef, size),
-    PVALUE=Vector{Union{Missing, Float64}}(undef, size),
-    LWB=Vector{Union{Missing, Float64}}(undef, size),
-    UPB=Vector{Union{Missing, Float64}}(undef, size),
+    TMLE_ESTIMATE=Vector{Union{Missing, Float64}}(undef, size),
+    TMLE_STD=Vector{Union{Missing, Float64}}(undef, size),
+    TMLE_PVALUE=Vector{Union{Missing, Float64}}(undef, size),
+    TMLE_LWB=Vector{Union{Missing, Float64}}(undef, size),
+    TMLE_UPB=Vector{Union{Missing, Float64}}(undef, size),
+    ONESTEP_ESTIMATE=Vector{Union{Missing, Float64}}(undef, size),
+    ONESTEP_STD=Vector{Union{Missing, Float64}}(undef, size),
+    ONESTEP_PVALUE=Vector{Union{Missing, Float64}}(undef, size),
+    ONESTEP_LWB=Vector{Union{Missing, Float64}}(undef, size),
+    ONESTEP_UPB=Vector{Union{Missing, Float64}}(undef, size),
     LOG=Vector{Union{Missing, String}}(undef, size)
 )
 
@@ -101,18 +106,28 @@ function initialize_csv_io(outprefix)
     return filename
 end
 
-
-function statistics_from_result(result)
-    Ψ̂ = estimate(result)
-    std = √(var(result))
-    testresult = OneSampleTTest(result)
+function statistics_from_estimator(estimator)
+    Ψ̂ = estimate(estimator)
+    std = √(var(estimator))
+    testresult = OneSampleTTest(estimator)
     pval = pvalue(testresult)
-    lw, up = confint(testresult)
-    return Ψ̂, std, pval, lw, up
+    l, u = confint(testresult)
+    return (Ψ̂, std, pval, l, u)
+end
+
+function statistics_from_result(result::TMLE.TMLEResult)
+    Ψ̂₀ = result.initial
+    # TMLE stats
+    tmle_stats = statistics_from_estimator(result.tmle) 
+    # OneStep stats
+    onestep_stats = statistics_from_estimator(result.onestep)
+    return Ψ̂₀, tmle_stats, onestep_stats
 end
 
 statistics_from_result(result::Missing) = 
-    missing, missing, missing, missing, missing
+    missing, 
+    (missing, missing, missing, missing, missing), 
+    (missing, missing, missing, missing, missing)
 
 function append_csv(filename, target_parameters, tmle_results, logs)
     data = csv_headers(size=size(tmle_results, 1))
@@ -123,10 +138,11 @@ function append_csv(filename, target_parameters, tmle_results, logs)
         control = control_string(Ψ)
         confounders = confounders_string(Ψ)
         covariates = covariates_string(Ψ)
-        Ψ̂₀ = initial_estimate(result)
-        Ψ̂, std, pval, lw, up = statistics_from_result(result)
-        row = (param_type, treatments, case, control, string(Ψ.target), confounders, covariates, Ψ̂₀, Ψ̂, std, pval, lw, up, log)
-        data[i, :] = row
+        Ψ̂₀, tmle_stats, onestep_stats = statistics_from_result(result)
+        data[i, :] = (
+            param_type, treatments, case, control, string(Ψ.target), confounders, covariates, 
+            Ψ̂₀, tmle_stats..., onestep_stats..., log
+        )
     end
     CSV.write(filename, data, append=true)
 end
@@ -135,6 +151,7 @@ end
 #####################################################################
 #####                       JLD2 OUTPUT                          ####
 #####################################################################
+
 no_slash(x) = replace(string(x), "/" => "_OR_")
 
 restore_slash(x) = replace(string(x), "_OR_" => "/")
@@ -162,8 +179,8 @@ end
 #####                 ADDITIONAL METHODS                         ####
 #####################################################################
 
-get_non_target_columns(parameter) =
-    vcat(keys(parameter.treatment)..., parameter.confounders, parameter.covariates)
+get_non_target_columns(treatment_cols, covariate_cols, confounder_cols) =
+    vcat(treatment_cols..., covariate_cols..., confounder_cols...)
 
 
 get_sample_ids(data, targets_columns) = dropmissing(data[!, [:SAMPLE_ID, targets_columns...]]).SAMPLE_ID
@@ -183,18 +200,28 @@ function nuisance_spec_from_target(tmle_spec, isbinary, cache)
     return NuisanceSpec(Q_spec, tmle_spec.G, cache=cache)
 end
 
-maybe_categorical(v) = categorical(v)
-maybe_categorical(v::CategoricalArray) = v
+function make_categorical!(dataset, colname::Union{String, Symbol}; infer_ordered=false)
+    ordered = false
+    if infer_ordered
+        ordered = eltype(dataset[!, colname]) <: Real
+    end
+    dataset[!, colname] = categorical(dataset[!, colname], ordered=ordered)
+end
 
-make_categorical!(dataset, colname::Union{String, Symbol}, isbinary::Bool) =
-    isbinary ? dataset[!, colname] = maybe_categorical(dataset[!, colname]) : nothing
-
-function make_categorical!(dataset, colnames::Tuple, isbinary::Bool)
+function make_categorical!(dataset, colnames; infer_ordered=false)
     for colname in colnames
-        make_categorical!(dataset, colname, isbinary)
+        make_categorical!(dataset, colname;infer_ordered=infer_ordered)
     end
 end
 
+make_float!(dataset, colname::Union{String, Symbol}) = 
+    dataset[!, colname] = float(dataset[!, colname])
+
+function make_float!(dataset, colnames)
+    for colname in colnames
+        make_float!(dataset, colname)
+    end
+end
 
 function try_tmle!(cache, Ψ, η_spec; verbosity=1, threshold=1e-8)
     try
@@ -205,9 +232,6 @@ function try_tmle!(cache, Ψ, η_spec; verbosity=1, threshold=1e-8)
         return missing, string(e)
     end
 end
-
-TMLE.estimate(e::Missing) = missing
-TMLE.initial_estimate(e::Missing) = missing
 
 
 function treatment_values(Ψ::Union{IATE, ATE}, treatment_names, treatment_types)

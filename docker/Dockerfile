@@ -1,4 +1,4 @@
-FROM julia:1.8.3-bullseye
+FROM julia:1.8.5-bullseye
 
 ARG DEBIAN_FRONTEND=noninteractive
 
