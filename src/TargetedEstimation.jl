@@ -19,6 +19,7 @@ using CategoricalArrays
 using GLMNet
 using MLJModels
 using Mmap
+using Serialization
 
 include("utils.jl")
 include("estimators.jl")

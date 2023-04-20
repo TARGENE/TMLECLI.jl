@@ -11,14 +11,32 @@ using CategoricalArrays
 using DataFrames
 using CSV
 
-function test_parameters(params, expected_params)
-    for (param, expected_param) in zip(params, expected_params)
-        @test param.target == expected_param.target
-        @test param.treatment == expected_param.treatment
-        @test param.confounders == expected_param.confounders
-        @test param.covariates == expected_param.covariates
-        @test typeof(param) == typeof(expected_param)
+function test_tmle_output(param_index, jldio, data, expected_param, sample_ids_idx)
+    jld2_res = jldio[string(param_index)]
+    csv_row = data[param_index, :]
+    Ψ = jld2_res["parameter"]
+    @test Ψ == expected_param
+    @test jld2_res["sample_ids_idx"] == sample_ids_idx
+    sample_ids = jldio[string(jld2_res["sample_ids_idx"])]["sample_ids"]
+    if expected_param.target == Symbol("BINARY/TARGET")
+        @test sample_ids == 2:1000
+    else
+        @test sample_ids == 1:1000
     end
+    @test jld2_res["log"] === missing
+    @test jld2_res["result"] isa TMLE.TMLEResult
+
+    if csv_row.COVARIATES === missing
+        @test TargetedEstimation.covariates_string(Ψ) === csv_row.COVARIATES
+    else
+        @test TargetedEstimation.covariates_string(Ψ) == csv_row.COVARIATES
+    end
+    @test TargetedEstimation.param_string(Ψ) == csv_row.PARAMETER_TYPE
+    @test TargetedEstimation.case_string(Ψ) == csv_row.CASE
+    @test TargetedEstimation.control_string(Ψ) == csv_row.CONTROL
+    @test TargetedEstimation.treatment_string(Ψ) == csv_row.TREATMENTS
+    @test TargetedEstimation.confounders_string(Ψ) == csv_row.CONFOUNDERS
+    @test csv_row.TMLE_ESTIMATE == jld2_res["result"].tmle.Ψ̂
 end
 
 """
@@ -65,187 +83,108 @@ function build_dataset(;n=1000, format="csv")
 end
 
 
-@testset "Test tmle_run with: no extra covariate, influence curve no threshold, super learning" begin
+@testset "Test tmle_estimation" begin
     build_dataset(;n=1000, format="csv")
-    # Only one continuous phenotype / machines not saved / no adaptive cv
     parsed_args = Dict(
-        "data" => "data.csv",
-        "param-file" => joinpath("config", "parameters_no_extra_covariate.yaml"),
-        "estimator-file" => joinpath("config", "tmle_config.yaml"),
-        "outprefix" => "output",
-        "verbosity" => 0,
-        "save-ic" => true,
-        "pval-threshold" => 1.
-    )
+                "data" => "data.csv",
+                "param-file" => nothing,
+                "estimator-file" => joinpath("config", "tmle_config.yaml"),
+                "csv-out" => "output.csv",
+                "verbosity" => 0,
+                "jld2-out" => "output.hdf5",
+                "pval-threshold" => 1.,
+                "chunksize" => nothing
+            )
+    for param_file in ("parameters.yaml", "parameters.bin")
+        for chunksize in (4, 10)
+            # Only one continuous phenotype / machines not saved / no adaptive cv
+            parsed_args["param-file"] = joinpath("config", param_file)
+            parsed_args["chunksize"] = chunksize
 
-    tmle_estimation(parsed_args)
+            tmle_estimation(parsed_args)
 
-    ## Check HDF5 file
-    hdf5file = string(parsed_args["outprefix"], ".hdf5")
-    io = jldopen(hdf5file)
-    # Parameters are saved only for the first target to save memory
-    expected_params = [
-        IATE(
-            Symbol("CONTINUOUS, TARGET"), 
-            (T2 = (case = 1, control = 0), T1 = (case = 1, control = 0)), 
-            [:W1, :W2], 
-            Symbol[]
-        ),
-        IATE(
-            Symbol("CONTINUOUS, TARGET"),  
-            (T2 = (case = 0, control = 1), T1 = (case = 1, control = 0)),
-            [:W1, :W2],
-            Symbol[]
-        ),
-        ATE(
-            Symbol("CONTINUOUS, TARGET"), 
-            (T2 = (case = 1, control = 0), T1 = (case = 1, control = 0)),
-            [:W1, :W2], 
-            Symbol[]
-        )
-    ]
-    test_parameters(io["parameters"], expected_params)
-    
-    # results for CONTINUOUS_TARGET
-    continuous_results = io["results"]["CONTINUOUS, TARGET"]
-    @test continuous_results["sample_ids"] == 1:1000
-    @test all(continuous_results["logs"] .=== [missing, missing, missing])
-    tmles = continuous_results["tmle_results"]
-    for i in 1:3
-        @test TMLE.estimate(tmles[i].tmle) isa Float64
-        @test tmles[i].initial isa Float64
-        tmles[i].tmle.IC isa Vector{Float64}
+            # Given the threshold is 1, all
+            # estimation results will make the threshold
+            jldio = jldopen(parsed_args["jld2-out"])
+            data = CSV.read(parsed_args["csv-out"], DataFrame)
+
+            expected_parameters = [
+                ATE(Symbol("CONTINUOUS, TARGET"), (T1 = (case = true, control = false),), [:W1, :W2], Symbol[]),
+                IATE(Symbol("BINARY/TARGET"), (T1 = (case = true, control = false), T2 = (case = true, control = false)), [:W1, :W2], [:C1]),
+                IATE(Symbol("BINARY/TARGET"), (T1 = (case = true, control = false), T2 = (case = false, control = true)), [:W1, :W2], [:C1]),
+                IATE(Symbol("CONTINUOUS, TARGET"), (T1 = (case = true, control = false), T2 = (case = false, control = true)), [:W1, :W2], Symbol[]),
+                IATE(Symbol("CONTINUOUS, TARGET"), (T1 = (case = true, control = false), T2 = (case = true, control = false)), [:W1, :W2], [:C1]),
+                ATE(Symbol("CONTINUOUS, TARGET"), (T1 = (case = true, control = false), T2 = (case = true, control = false)), [:W1, :W2], [:C1])
+            ]
+            expected_param_sample_ids_idx = [1, 2, 2, 4, 5, 5]
+            for (param_index, (Ψ, sample_ids_idx)) in enumerate(zip(expected_parameters, expected_param_sample_ids_idx))
+                test_tmle_output(param_index, jldio, data, Ψ, sample_ids_idx)
+            end
+            # Clean
+            rm(parsed_args["csv-out"])
+            rm(parsed_args["jld2-out"])
+        end
     end
-    
-    # results for BINARY_TARGET
-    binary_results = io["results"]["BINARY_OR_TARGET"]
-    @test binary_results["sample_ids"] == 2:1000
-    @test all(binary_results["logs"] .=== [missing, missing, missing])
-    tmles = binary_results["tmle_results"]
-    for i in 1:3
-        @test size(tmles[i].tmle.IC, 1) == 999
-        @test TMLE.estimate(tmles[i].tmle) isa Float64
-        @test tmles[i].initial isa Float64
-    end
-
-    close(io)
-
-    ## Check CSV file
-    csvfile = string(parsed_args["outprefix"], ".csv")
-    data = CSV.read(csvfile, DataFrame)
-    @test data.PARAMETER_TYPE == ["IATE", "IATE", "ATE", "IATE", "IATE", "ATE"]
-    @test data.TARGET == ["CONTINUOUS, TARGET", "CONTINUOUS, TARGET", "CONTINUOUS, TARGET",
-                        "BINARY/TARGET", "BINARY/TARGET", "BINARY/TARGET"]
-    @test data.TREATMENTS == fill("T2_&_T1", 6)
-    @test data.CONFOUNDERS == fill("W1_&_W2", 6)
-    @test data.CASE == ["true_&_true", "false_&_true", "true_&_true", "true_&_true", "false_&_true", "true_&_true"]
-    @test data.CONTROL == ["false_&_false", "true_&_false", "false_&_false", "false_&_false", "true_&_false", "false_&_false"]
-    
-    
-    for col in [:INITIAL_ESTIMATE, :TMLE_ESTIMATE, :TMLE_STD, :TMLE_PVALUE, :TMLE_LWB, :TMLE_UPB,
-        :ONESTEP_ESTIMATE, :ONESTEP_STD, :ONESTEP_PVALUE, :ONESTEP_LWB, :ONESTEP_UPB]
-        @test data[!, col] isa Vector{Float64}
-    end
-
-    # Clean
-    rm(csvfile)
-    rm(hdf5file)
     rm(parsed_args["data"])
 end
 
-@testset "Test tmle_run with: no extra covariate, influence curve 0.01 threshold, super learning" begin
+@testset "Test tmle_estimation: No hdf5 file" begin
     build_dataset(;n=1000, format="csv")
     # Only one continuous phenotype / machines not saved / no adaptive cv
+    param_file = "parameters.yaml"
     parsed_args = Dict(
         "data" => "data.csv",
-        "param-file" => joinpath("config", "parameters_no_extra_covariate.yaml"),
+        "param-file" => joinpath("config", param_file),
         "estimator-file" => joinpath("config", "tmle_config.yaml"),
-        "outprefix" => "output",
+        "csv-out" => "output.csv",
         "verbosity" => 0,
-        "save-ic" => true,
-        "pval-threshold" => 0.01
+        "jld2-out" => nothing,
+        "pval-threshold" => 1.,
+        "chunksize" => 10
     )
 
     tmle_estimation(parsed_args)
 
-    ## Check HDF5 file
-    hdf5file = string(parsed_args["outprefix"], ".hdf5")
-    io = jldopen(hdf5file)
-    continuous = io["results"]["CONTINUOUS, TARGET"]
-    @test size(continuous["tmle_results"], 1) == 2
-    @test size(continuous["logs"], 1) == 2
-
-    @test !haskey(io["results"], "BINARY/TARGET")
-
     ## Check CSV file
-    csvfile = string(parsed_args["outprefix"], ".csv")
-    data = CSV.read(csvfile, DataFrame)
+    data = CSV.read(parsed_args["csv-out"], DataFrame)
+    @test names(TargetedEstimation.csv_headers()) == names(data)
     @test size(data) == (6, 19)
-
+    all(x === missing for x in data.LOG)
     # Clean
-    rm(csvfile)
-    rm(hdf5file)
+    rm(parsed_args["csv-out"])
     rm(parsed_args["data"])
-
 end
 
 
-@testset "Test tmle_run with: extra covariate, no influence curve, classifier simple models" begin
+@testset "Test tmle_estimation: lower p-value threhsold" begin
     build_dataset(;n=1000, format="csv")
     parsed_args = Dict(
         "data" => "data.csv",
-        "param-file" => joinpath("config", "parameters_extra_covariate.yaml"),
-        "estimator-file" => joinpath("config", "tmle_config_2.yaml"),
-        "outprefix" => "output",
+        "param-file" => joinpath("config", "parameters.yaml"),
+        "estimator-file" => joinpath("config", "tmle_config.yaml"),
+        "csv-out" => "output.csv",
         "verbosity" => 0,
-        "save-ic" => false,
-        "pval-threshold" => 1.
+        "jld2-out" => "output.hdf5",
+        "pval-threshold" => 1e-10,
+        "chunksize" => 10
     )
 
     tmle_estimation(parsed_args)
     
     # Essential results
-    out = CSV.read(string(parsed_args["outprefix"], ".csv"), DataFrame)
-    some_expected_col_values = DataFrame(
-        PARAMETER_TYPE=["IATE", "IATE", "ATE", "IATE", "IATE", "ATE"], 
-        TREATMENTS=["T2_&_T1", "T2_&_T1", "T2_&_T1", "T2_&_T1", "T2_&_T1", "T2_&_T1"], 
-        CASE=["true_&_true", "false_&_true", "true_&_true", "true_&_true", "false_&_true", "true_&_true"],
-        CONTROL=["false_&_false", "true_&_false", "false_&_false", "false_&_false", "true_&_false", "false_&_false"], 
-        TARGET=["CONTINUOUS, TARGET", "CONTINUOUS, TARGET", "CONTINUOUS, TARGET", "BINARY/TARGET", "BINARY/TARGET", "BINARY/TARGET"], 
-        CONFOUNDERS=["W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2"], 
-        COVARIATES=["C1", "C1", "C1", "C1", "C1", "C1"]
-    )
-    
-    @test some_expected_col_values ==
-        out[!, [:PARAMETER_TYPE, :TREATMENTS, :CASE, :CONTROL, :TARGET, :CONFOUNDERS, :COVARIATES]]
-    for col in [:INITIAL_ESTIMATE, :TMLE_ESTIMATE, :TMLE_STD, :TMLE_PVALUE, :TMLE_LWB, :TMLE_UPB,
-        :ONESTEP_ESTIMATE, :ONESTEP_STD, :ONESTEP_PVALUE, :ONESTEP_LWB, :ONESTEP_UPB]
-        @test out[!, col] isa Vector{Float64}
-    end
+    data = CSV.read(parsed_args["csv-out"], DataFrame)
+    jldio = jldopen(parsed_args["jld2-out"])
+    @test !haskey(jldio, "2")
+    @test !haskey(jldio, "3")
+    @test !haskey(jldio, "4")
+
+    @test jldio["1"]["result"].tmle.Ψ̂ == data[1, :TMLE_ESTIMATE]
+    @test jldio["5"]["result"].tmle.Ψ̂ == data[5, :TMLE_ESTIMATE]
+    @test jldio["6"]["result"].tmle.Ψ̂ == data[6, :TMLE_ESTIMATE]
 
     rm(parsed_args["data"])
-    rm(string(parsed_args["outprefix"], ".csv"))
-end
-
-@testset "Test tmle_run with: extra covariate, influence curve but none passes threshold" begin
-    # Nop HDF5 file should be output if no parameter makes the threhsold
-    build_dataset(;n=1000, format="csv")
-    parsed_args = Dict(
-        "data" => "data.csv",
-        "param-file" => joinpath("config", "parameters_extra_covariate.yaml"),
-        "estimator-file" => joinpath("config", "tmle_config_2.yaml"),
-        "outprefix" => "output",
-        "verbosity" => 0,
-        "save-ic" => true,
-        "pval-threshold" => -1
-    )
-
-    tmle_estimation(parsed_args)
-    
-    @test !isfile(string(parsed_args["outprefix"], ".hdf5"))
-
-    rm(parsed_args["data"])
-    rm(string(parsed_args["outprefix"], ".csv"))
+    rm(parsed_args["csv-out"])
+    rm(parsed_args["jld2-out"])
 end
 
 
