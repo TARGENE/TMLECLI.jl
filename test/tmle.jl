@@ -91,7 +91,7 @@ end
                 "estimator-file" => joinpath("config", "tmle_config.yaml"),
                 "csv-out" => "output.csv",
                 "verbosity" => 0,
-                "jld2-out" => "output.hdf5",
+                "hdf5-out" => "output.hdf5",
                 "pval-threshold" => 1.,
                 "chunksize" => nothing
             )
@@ -105,7 +105,7 @@ end
 
             # Given the threshold is 1, all
             # estimation results will make the threshold
-            jldio = jldopen(parsed_args["jld2-out"])
+            jldio = jldopen(parsed_args["hdf5-out"])
             data = CSV.read(parsed_args["csv-out"], DataFrame)
 
             expected_parameters = [
@@ -122,7 +122,7 @@ end
             end
             # Clean
             rm(parsed_args["csv-out"])
-            rm(parsed_args["jld2-out"])
+            rm(parsed_args["hdf5-out"])
         end
     end
     rm(parsed_args["data"])
@@ -138,7 +138,7 @@ end
         "estimator-file" => joinpath("config", "tmle_config.yaml"),
         "csv-out" => "output.csv",
         "verbosity" => 0,
-        "jld2-out" => nothing,
+        "hdf5-out" => nothing,
         "pval-threshold" => 1.,
         "chunksize" => 10
     )
@@ -164,7 +164,7 @@ end
         "estimator-file" => joinpath("config", "tmle_config.yaml"),
         "csv-out" => "output.csv",
         "verbosity" => 0,
-        "jld2-out" => "output.hdf5",
+        "hdf5-out" => "output.hdf5",
         "pval-threshold" => 1e-10,
         "chunksize" => 10
     )
@@ -173,7 +173,7 @@ end
     
     # Essential results
     data = CSV.read(parsed_args["csv-out"], DataFrame)
-    jldio = jldopen(parsed_args["jld2-out"])
+    jldio = jldopen(parsed_args["hdf5-out"])
     @test !haskey(jldio, "2")
     @test !haskey(jldio, "3")
     @test !haskey(jldio, "4")
@@ -184,7 +184,7 @@ end
 
     rm(parsed_args["data"])
     rm(parsed_args["csv-out"])
-    rm(parsed_args["jld2-out"])
+    rm(parsed_args["hdf5-out"])
 end
 
 

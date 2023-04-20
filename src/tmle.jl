@@ -14,7 +14,7 @@ function tmle_estimation(parsed_args)
     estimatorfile = parsed_args["estimator-file"]
     verbosity = parsed_args["verbosity"]
     csv_file = parsed_args["csv-out"]
-    jld2_file = parsed_args["jld2-out"]
+    jld2_file = parsed_args["hdf5-out"]
     pval_threshold = parsed_args["pval-threshold"]
     chunksize = parsed_args["chunksize"]
 

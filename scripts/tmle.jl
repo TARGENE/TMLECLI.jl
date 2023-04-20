@@ -18,13 +18,12 @@ function parse_commandline()
         "estimator-file"
             help = "A file (.yaml format) describing the tmle estimator to use, README.md"
             required = true
-        "outprefix"
-            help = "Prefix to output files. A `.csv` file is always generated. If the `--save-id` flag"*
-                   "is set, an additional .hdf5 file is generated. See `--save-ic` and `--pval-threshold`."
+        "csv-out"
+            help = "Path to output `.csv` file"
             required = true
-        "--save-ic"
-            help = "If the influence curves also need to be stored"
-            default = false
+        "--hdf5-out"
+            help = "If the influence curves also need to be stored (see also: --pval-threshold)"
+            default = true
             arg_type = Bool
             action = :store_true
         "--pval-threshold"
