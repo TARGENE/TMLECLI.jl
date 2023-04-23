@@ -1,10 +1,14 @@
+struct MissingTMLEResult
+    parameter::TMLE.Parameter
+end
+
 function try_tmle!(cache; verbosity=1, threshold=1e-8)
     try
         tmle_result, _ = tmle!(cache; verbosity=verbosity, threshold=threshold)
         return tmle_result, missing
     catch e
         @warn string("Failed to run Targeted Estimation for parameter:", cache.Ψ)
-        return missing, string(e)
+        return MissingTMLEResult(cache.Ψ), string(e)
     end
 end
 

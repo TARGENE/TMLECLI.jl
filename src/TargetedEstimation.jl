@@ -22,9 +22,10 @@ using MLJModels
 using Mmap
 using Serialization
 
-include("utils.jl")
+
 include("estimators.jl")
 include("tmle.jl")
+include("utils.jl")
 include("sieve_variance.jl")
 include("merge.jl")
 include(joinpath("models", "glmnet.jl"))

@@ -163,10 +163,9 @@ end
         confounders=[:W₁, :W₂],
         covariates=[:C₁]
     )]
-    tmle_results = [missing]
-    initial_estimates = [missing]
+    tmle_results = [TargetedEstimation.MissingTMLEResult(parameters[1])]
     logs = ["Error X"]
-    TargetedEstimation.append_csv(filename, parameters, tmle_results, logs)
+    TargetedEstimation.append_csv(filename, tmle_results, logs)
     out = CSV.read(filename, DataFrame)
     expected_out = ["CM", "T₁_&_T₂", "1_&_AC", missing, "Y", "W₁_&_W₂", "C₁", 
         missing, missing, missing, missing, missing, missing,

@@ -123,9 +123,10 @@ end
     # Check influence curves
     io = jldopen(string(outprefix_1, ".hdf5"))
     for key in keys(io)
-        IC = io[key]["result"].tmle.IC
+        result = io[key]["result"]
+        IC = result.tmle.IC
         # missing sample
-        if io[key]["parameter"].target == Symbol("BINARY/TARGET")
+        if result.parameter.target == Symbol("BINARY/TARGET")
             IC = vcat(0, IC)
         end
         @test convert(Vector{Float32}, IC) == influence_curves[parse(Int, key), :]

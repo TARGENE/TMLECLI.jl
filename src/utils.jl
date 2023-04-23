@@ -98,6 +98,7 @@ control_string(Ψ::TMLE.Parameter; join_string="_&_") =
 treatment_string(Ψ; join_string="_&_") = join(keys(Ψ.treatment), join_string)
 confounders_string(Ψ; join_string="_&_") = join(Ψ.confounders, join_string)
 
+
 function statistics_from_estimator(estimator)
     Ψ̂ = estimate(estimator)
     std = √(var(estimator))
@@ -116,7 +117,7 @@ function statistics_from_result(result::TMLE.TMLEResult)
     return Ψ̂₀, tmle_stats, onestep_stats
 end
 
-statistics_from_result(result::Missing) = 
+statistics_from_result(result::MissingTMLEResult) = 
     missing, 
     (missing, missing, missing, missing, missing), 
     (missing, missing, missing, missing, missing)

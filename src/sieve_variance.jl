@@ -85,8 +85,8 @@ function build_work_list(prefix, grm_ids)
             # results = io["results"]
             for key in keys(io)
                 result_group = io[key]
-                Ψ = result_group["parameter"]
                 tmleresult = io[key]["result"]
+                Ψ = tmleresult.parameter
                 sample_ids = haskey(result_group, "sample_ids") ? result_group["sample_ids"] :
                     io[string(result_group["sample_ids_idx"])]["sample_ids"]
                 sample_ids = string.(sample_ids)
