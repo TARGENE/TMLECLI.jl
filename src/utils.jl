@@ -136,7 +136,7 @@ function append_csv(filename, parameters, tmle_results, logs)
             Ψ̂₀, tmle_stats..., onestep_stats..., log
         )
     end
-    CSV.write(filename, data, append=true, writeheader=!isfile(filename))
+    CSV.write(filename, data, append=true, header=!isfile(filename))
 end
 
 
