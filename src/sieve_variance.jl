@@ -34,7 +34,8 @@ sieve_dataframe() = DataFrame(
     TMLE_ESTIMATE=Float64[],
 )
 
-function push_sieveless!(output, Ψ, Ψ̂, target)
+function push_sieveless!(output, Ψ, Ψ̂)
+    target = string(Ψ.target)
     param_type = param_string(Ψ)
     treatments = treatment_string(Ψ)
     case = case_string(Ψ)
@@ -42,7 +43,7 @@ function push_sieveless!(output, Ψ, Ψ̂, target)
     confounders = confounders_string(Ψ)
     covariates = covariates_string(Ψ)
     push!(output, (
-        param_type, treatments, case, control, restore_slash(target), confounders, covariates, Ψ̂
+        param_type, treatments, case, control, target, confounders, covariates, Ψ̂
     ))
 end
 
@@ -80,19 +81,20 @@ function build_work_list(prefix, grm_ids)
     sieve_df = sieve_dataframe()
     for hdf5file in hdf5files
         jldopen(hdf5file) do io
-            templateΨs = io["parameters"]
-            results = io["results"]
-            for target in keys(results)
-                targetresults = results[target]
-                sample_ids = string.(targetresults["sample_ids"])
-                for index in eachindex(targetresults["tmle_results"])
-                    templateΨ = templateΨs[index]
-                    tmleresult = targetresults["tmle_results"][index]
-                    Ψ̂ = TMLE.estimate(tmleresult.tmle)
-                    push!(influence_curves, align_ic(tmleresult.tmle.IC, sample_ids, grm_ids))
-                    push!(n_obs, size(sample_ids, 1))
-                    push_sieveless!(sieve_df, templateΨ, Ψ̂, target)
-                end
+            # templateΨs = io["parameters"]
+            # results = io["results"]
+            for key in keys(io)
+                result_group = io[key]
+                Ψ = result_group["parameter"]
+                tmleresult = io[key]["result"]
+                sample_ids = haskey(result_group, "sample_ids") ? result_group["sample_ids"] :
+                    io[string(result_group["sample_ids_idx"])]["sample_ids"]
+                sample_ids = string.(sample_ids)
+                Ψ̂ = TMLE.estimate(tmleresult.tmle)
+
+                push!(influence_curves, align_ic(tmleresult.tmle.IC, sample_ids, grm_ids))
+                push!(n_obs, size(sample_ids, 1))
+                push_sieveless!(sieve_df, Ψ, Ψ̂)
             end
         end
     end

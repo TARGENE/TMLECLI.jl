@@ -30,6 +30,10 @@ function parse_commandline()
             help = "Only those parameters passing the threshold will have their influence curve saved."
             default = 1.
             arg_type = Float64
+        "--chunksize"
+            help = "Results will be appended to outfiles every chunk"
+            default = 100
+            arg_type = Int
         "--verbosity", "-v"
             help = "Verbosity level"
             arg_type = Int

@@ -230,7 +230,6 @@ end
 #####                 ADDITIONAL METHODS                         ####
 #####################################################################
 
-
 function get_sample_ids(data, variables)
     cols = [:SAMPLE_ID, variables.target, variables.treatments..., variables.confounders..., variables.covariates...]
     return dropmissing(data[!, cols]).SAMPLE_ID

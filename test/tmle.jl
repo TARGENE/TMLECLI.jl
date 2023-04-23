@@ -82,6 +82,24 @@ function build_dataset(;n=1000, format="csv")
     CSV.write("data.csv", dataset)
 end
 
+@testset "Test partition_tmle!" begin
+    build_dataset(;n=1000, format="csv")
+    dataset = TargetedEstimation.instantiate_dataset("data.csv")
+    parameters = TargetedEstimation.read_parameters(joinpath("config", "parameters.bin"), dataset)
+    variables = TargetedEstimation.variables(parameters, dataset)
+    TargetedEstimation.coerce_types!(dataset, variables)
+    tmle_spec = TargetedEstimation.tmle_spec_from_yaml(joinpath("config", "tmle_config.yaml"))
+    cache = TMLECache(dataset)
+
+    tmle_results = Vector{Union{TMLE.TMLEResult, Missing}}(undef, 3)
+    logs = Vector{Union{String, Missing}}(undef, 3)
+    part = 4:6
+    TargetedEstimation.partition_tmle!(cache, tmle_results, logs, part, tmle_spec, parameters, variables; verbosity=0)
+    @test [x.tmle.Ψ̂ for x in tmle_results] isa Vector{Float64}
+    @test [x.onestep.Ψ̂ for x in tmle_results] isa Vector{Float64}
+    @test all(x === missing for x in logs)
+    rm("data.csv")
+end
 
 @testset "Test tmle_estimation" begin
     build_dataset(;n=1000, format="csv")
@@ -107,6 +125,8 @@ end
             # estimation results will make the threshold
             jldio = jldopen(parsed_args["hdf5-out"])
             data = CSV.read(parsed_args["csv-out"], DataFrame)
+
+            @test all(data[i, :TMLE_ESTIMATE] != data[j, :TMLE_ESTIMATE] for i in 1:5 for j in i+1:6)
 
             expected_parameters = [
                 ATE(Symbol("CONTINUOUS, TARGET"), (T1 = (case = true, control = false),), [:W1, :W2], Symbol[]),

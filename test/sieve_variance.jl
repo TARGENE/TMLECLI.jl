@@ -51,10 +51,11 @@ function build_tmle_output_file(sample_ids, param_file, outprefix)
         "data" => "data.csv",
         "param-file" => param_file,
         "estimator-file" => joinpath("config", "tmle_config.yaml"),
-        "outprefix" => outprefix,
+        "csv-out" => string(outprefix, ".csv"),
         "verbosity" => 0,
-        "save-ic" => true,
-        "pval-threshold" => 1.
+        "hdf5-out" => string(outprefix, ".hdf5"),
+        "pval-threshold" => 1.,
+        "chunksize" => 100
     )
 
     TargetedEstimation.tmle_estimation(parsed_args)
@@ -101,7 +102,6 @@ function test_initial_output(output, expected_output)
     end
 end
 
-
 @testset "Test readGRM" begin
     prefix = joinpath("data", "grm", "test.grm")
     GRM, ids = TargetedEstimation.readGRM(prefix)
@@ -119,24 +119,25 @@ end
     build_tmle_output_file(grm_ids.SAMPLE_ID, param_file_1, outprefix_1)
     # Since pval = 1., all parameters are considered for sieve variance
     sieve_df, influence_curves, n_obs = TargetedEstimation.build_work_list(prefix, grm_ids)
-    @test n_obs == [194, 194, 194, 193, 193, 193]
+    @test n_obs == [193, 193, 193, 194, 194, 194]
     # Check influence curves
     io = jldopen(string(outprefix_1, ".hdf5"))
-    continuous_results = io["results"]["CONTINUOUS, TARGET"]["tmle_results"]
-    for i in 1:3
-        @test convert(Vector{Float32}, continuous_results[i].tmle.IC) == influence_curves[i, :]
+    for key in keys(io)
+        IC = io[key]["result"].tmle.IC
+        # missing sample
+        if io[key]["parameter"].target == Symbol("BINARY/TARGET")
+            IC = vcat(0, IC)
+        end
+        @test convert(Vector{Float32}, IC) == influence_curves[parse(Int, key), :]
     end
-    binary_results = io["results"]["BINARY_OR_TARGET"]["tmle_results"]
-    for i in 1:3
-        @test convert(Vector{Float32}, vcat(0, binary_results[i].tmle.IC)) == influence_curves[i+3, :]
-    end
+    close(io)
     # Check output
     some_expected_cols = DataFrame(
         PARAMETER_TYPE = ["IATE", "IATE", "ATE", "IATE", "IATE", "ATE"],
-        TREATMENTS = ["T2_&_T1", "T2_&_T1", "T2_&_T1", "T2_&_T1", "T2_&_T1", "T2_&_T1"],
-        CASE=["true_&_true", "false_&_true", "true_&_true", "true_&_true", "false_&_true", "true_&_true"],
-        CONTROL=["false_&_false", "true_&_false", "false_&_false", "false_&_false", "true_&_false", "false_&_false"],
-        TARGET = ["CONTINUOUS, TARGET", "CONTINUOUS, TARGET", "CONTINUOUS, TARGET", "BINARY/TARGET", "BINARY/TARGET", "BINARY/TARGET"],
+        TREATMENTS = ["T1_&_T2", "T1_&_T2", "T1_&_T2", "T1_&_T2", "T1_&_T2", "T1_&_T2"],
+        CASE=["true_&_true", "true_&_false", "true_&_true", "true_&_true", "true_&_false", "true_&_true"],
+        CONTROL=["false_&_false", "false_&_true", "false_&_false", "false_&_false", "false_&_true", "false_&_false"],
+        TARGET = ["BINARY/TARGET", "BINARY/TARGET", "BINARY/TARGET", "CONTINUOUS, TARGET", "CONTINUOUS, TARGET", "CONTINUOUS, TARGET"],
         CONFOUNDERS = ["W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2"],
         COVARIATES = ["C1", "C1", "C1", "C1", "C1", "C1"]
     )
@@ -149,15 +150,15 @@ end
     # This p-value filters the influence curves for the binary outcome
     sieve_df, influence_curves, n_obs = TargetedEstimation.build_work_list(prefix, grm_ids)
     @test size(influence_curves) == (8, 194)
-    @test n_obs == [194, 194, 194, 193, 193, 193, 194, 194]
+    @test n_obs == [193, 193, 193, 194, 194, 194, 194, 194]
 
     # Check output
     some_expected_cols = DataFrame(
         PARAMETER_TYPE = ["IATE", "IATE", "ATE", "IATE", "IATE", "ATE", "ATE", "CM"],
-        TREATMENTS = ["T2_&_T1", "T2_&_T1", "T2_&_T1", "T2_&_T1", "T2_&_T1", "T2_&_T1", "T1", "T1"],
-        CASE = ["true_&_true", "false_&_true", "true_&_true", "true_&_true", "false_&_true", "true_&_true", "true", "false"],
-        CONTROL = ["false_&_false", "true_&_false", "false_&_false", "false_&_false", "true_&_false", "false_&_false", "false", missing],
-        TARGET = ["CONTINUOUS, TARGET", "CONTINUOUS, TARGET", "CONTINUOUS, TARGET", "BINARY/TARGET", "BINARY/TARGET", "BINARY/TARGET", "CONTINUOUS, TARGET", "CONTINUOUS, TARGET"],
+        TREATMENTS = ["T1_&_T2", "T1_&_T2", "T1_&_T2", "T1_&_T2", "T1_&_T2", "T1_&_T2", "T1", "T1"],
+        CASE = ["true_&_true", "true_&_false", "true_&_true", "true_&_true", "true_&_false", "true_&_true", "true", "false"],
+        CONTROL = ["false_&_false", "false_&_true", "false_&_false", "false_&_false", "false_&_true", "false_&_false", "false", missing],
+        TARGET = ["BINARY/TARGET", "BINARY/TARGET", "BINARY/TARGET", "CONTINUOUS, TARGET", "CONTINUOUS, TARGET", "CONTINUOUS, TARGET", "CONTINUOUS, TARGET", "CONTINUOUS, TARGET"],
         CONFOUNDERS = ["W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2", "W1", "W1"],
         COVARIATES = ["C1", "C1", "C1", "C1", "C1", "C1", missing, missing]
     )
@@ -314,10 +315,10 @@ end
     output = CSV.read(string(outprefix, ".csv"), DataFrame)
     some_expected_cols = DataFrame(
         PARAMETER_TYPE = ["IATE", "IATE", "ATE", "IATE", "IATE", "ATE", "ATE", "CM"],
-        TREATMENTS = ["T2_&_T1", "T2_&_T1", "T2_&_T1", "T2_&_T1", "T2_&_T1", "T2_&_T1", "T1", "T1"],
-        CASE = ["true_&_true", "false_&_true", "true_&_true", "true_&_true", "false_&_true", "true_&_true", "true", "false"],
-        CONTROL = ["false_&_false", "true_&_false", "false_&_false", "false_&_false", "true_&_false", "false_&_false", "false", missing],
-        TARGET = ["CONTINUOUS, TARGET", "CONTINUOUS, TARGET", "CONTINUOUS, TARGET", "BINARY/TARGET", "BINARY/TARGET", "BINARY/TARGET", "CONTINUOUS, TARGET", "CONTINUOUS, TARGET"],
+        TREATMENTS = ["T1_&_T2", "T1_&_T2", "T1_&_T2", "T1_&_T2", "T1_&_T2", "T1_&_T2", "T1", "T1"],
+        CASE = ["true_&_true", "true_&_false", "true_&_true", "true_&_true", "true_&_false", "true_&_true", "true", "false"],
+        CONTROL = ["false_&_false", "false_&_true", "false_&_false", "false_&_false", "false_&_true", "false_&_false", "false", missing],
+        TARGET = ["BINARY/TARGET", "BINARY/TARGET", "BINARY/TARGET", "CONTINUOUS, TARGET", "CONTINUOUS, TARGET", "CONTINUOUS, TARGET", "CONTINUOUS, TARGET", "CONTINUOUS, TARGET"],
         CONFOUNDERS = ["W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2", "W1", "W1"],
         COVARIATES = ["C1", "C1", "C1", "C1", "C1", "C1", missing, missing]
     )

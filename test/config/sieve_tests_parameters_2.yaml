@@ -1,16 +1,9 @@
-W:
-  - W1
-
-T:
-  - T1
-
-Y:
-  - CONTINUOUS, TARGET
-  
 Parameters:
-  - name: ATE
-    T1:
-      control: 0
-      case: 1
-  - name: CM
-    T1: 0
+  - type: ATE
+    target: CONTINUOUS, TARGET
+    treatment: (T1 = (control = 0, case = 1),)
+    confounders: [W1]
+  - type: CM
+    target: CONTINUOUS, TARGET
+    treatment: (T1 = 0,)
+    confounders: [W1]

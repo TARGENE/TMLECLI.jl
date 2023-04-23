@@ -3,8 +3,38 @@ function try_tmle!(cache; verbosity=1, threshold=1e-8)
         tmle_result, _ = tmle!(cache; verbosity=verbosity, threshold=threshold)
         return tmle_result, missing
     catch e
-        @warn string("Failed to run Targeted Estimation for parameter:", Ψ)
+        @warn string("Failed to run Targeted Estimation for parameter:", cache.Ψ)
         return missing, string(e)
+    end
+end
+
+
+function partition_tmle!(
+    cache, 
+    tmle_results, 
+    logs, 
+    partition,
+    tmle_spec,
+    parameters,
+    variables; 
+    verbosity=0)
+    for (partition_index, param_index) in enumerate(partition)
+        previous_target_is_binary = isdefined(cache, :Ψ) ? cache.Ψ.target ∈ variables.binarytargets : nothing
+        Ψ = parameters[param_index]
+        # Update cache with new Ψ
+        update!(cache, Ψ)
+        # Maybe update cache with new η_spec
+        target_is_binary = Ψ.target ∈ variables.binarytargets
+        if !isdefined(cache, :η_spec) || !(target_is_binary === previous_target_is_binary)
+            Q_spec = target_is_binary ? tmle_spec.Q_binary : tmle_spec.Q_continuous
+            η_spec = NuisanceSpec(Q_spec, tmle_spec.G, cache=tmle_spec.cache)
+            update!(cache, η_spec)
+        end
+        # Run TMLE
+        tmle_result, log = TargetedEstimation.try_tmle!(cache; verbosity=verbosity, threshold=tmle_spec.threshold)
+        # Update results
+        tmle_results[partition_index] = tmle_result
+        logs[partition_index] = log
     end
 end
 
@@ -32,33 +62,12 @@ function tmle_estimation(parsed_args)
     tmle_spec = TargetedEstimation.tmle_spec_from_yaml(estimatorfile)
 
     cache = TMLECache(dataset)
-    
-    previous_is_binary = nothing
     nparams = size(parameters, 1)
     for partition in Iterators.partition(1:nparams, chunksize)
         partition_size = size(partition, 1)
         tmle_results = Vector{Union{TMLE.TMLEResult, Missing}}(undef, partition_size)
         logs = Vector{Union{String, Missing}}(undef, partition_size)
-        for (partition_index, param_index) in enumerate(partition)
-            Ψ = parameters[param_index]
-            # Update cache with new Ψ
-            update!(cache, Ψ)
-            # Maybe update cache with new η_spec
-            current_is_binary = Ψ.target ∈ variables.binarytargets
-            if previous_is_binary !== current_is_binary
-                Q_spec = current_is_binary ? tmle_spec.Q_binary : tmle_spec.Q_continuous
-                η_spec = NuisanceSpec(Q_spec, tmle_spec.G, cache=tmle_spec.cache)
-                update!(cache, η_spec)
-            end
-            # Run TMLE
-            tmle_result, log = try_tmle!(cache; verbosity=verbosity, threshold=tmle_spec.threshold)
-            # Update results
-            tmle_results[partition_index] = tmle_result
-            logs[partition_index] = log
-            
-            # Update memory
-            previous_is_binary = current_is_binary
-        end
+        partition_tmle!(cache, tmle_results, logs, partition, tmle_spec, parameters, variables; verbosity=verbosity)
         # Append CSV result with partition
         append_csv(csv_file, parameters[partition], tmle_results, logs)
         # Append HDF5 result if save-ic is true
