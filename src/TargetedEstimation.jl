@@ -8,6 +8,7 @@ using DataFrames
 using MLJBase
 using MLJ
 using CSV
+using Arrow
 using TMLE
 using HighlyAdaptiveLasso
 using EvoTrees

@@ -241,7 +241,7 @@ end
 Returns a DataFrame wrapper around a dataset, either in CSV format.
 """
 instantiate_dataset(path::String) =
-    CSV.read(path, DataFrame, ntasks=1)
+    endswith(path, ".csv") ? CSV.read(path, DataFrame, ntasks=1) : DataFrame(Arrow.Table(path))
 
 isbinary(col, dataset) = Set(unique(skipmissing(dataset[!, col]))) == Set([0, 1])
 

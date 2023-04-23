@@ -10,6 +10,7 @@ using LogExpFunctions
 using CategoricalArrays
 using DataFrames
 using CSV
+using Arrow
 
 function test_tmle_output(param_index, jldio, data, expected_param, sample_ids_idx)
     jld2_res = jldio[string(param_index)]
@@ -79,7 +80,7 @@ function build_dataset(;n=1000, format="csv")
     # Slash in name
     dataset[!, "BINARY/TARGET"] = categorical(y₂)
 
-    CSV.write("data.csv", dataset)
+    format == "csv" ? CSV.write("data.csv", dataset) : Arrow.write("data.arrow", dataset)
 end
 
 @testset "Test partition_tmle!" begin
@@ -102,50 +103,53 @@ end
 end
 
 @testset "Test tmle_estimation" begin
-    build_dataset(;n=1000, format="csv")
-    parsed_args = Dict(
-                "data" => "data.csv",
-                "param-file" => nothing,
-                "estimator-file" => joinpath("config", "tmle_config.yaml"),
-                "csv-out" => "output.csv",
-                "verbosity" => 0,
-                "hdf5-out" => "output.hdf5",
-                "pval-threshold" => 1.,
-                "chunksize" => nothing
-            )
-    for param_file in ("parameters.yaml", "parameters.bin")
-        for chunksize in (4, 10)
-            # Only one continuous phenotype / machines not saved / no adaptive cv
-            parsed_args["param-file"] = joinpath("config", param_file)
-            parsed_args["chunksize"] = chunksize
+    # Run tests over CSV and Arrow data formats
+    for format in ("csv", "arrow")
+        build_dataset(;n=1000, format=format)
+        parsed_args = Dict(
+                    "data" => string("data.", format),
+                    "param-file" => nothing,
+                    "estimator-file" => joinpath("config", "tmle_config.yaml"),
+                    "csv-out" => "output.csv",
+                    "verbosity" => 0,
+                    "hdf5-out" => "output.hdf5",
+                    "pval-threshold" => 1.,
+                    "chunksize" => nothing
+                )
+        for param_file in ("parameters.yaml", "parameters.bin")
+            for chunksize in (4, 10)
+                # Only one continuous phenotype / machines not saved / no adaptive cv
+                parsed_args["param-file"] = joinpath("config", param_file)
+                parsed_args["chunksize"] = chunksize
 
-            tmle_estimation(parsed_args)
+                tmle_estimation(parsed_args)
 
-            # Given the threshold is 1, all
-            # estimation results will make the threshold
-            jldio = jldopen(parsed_args["hdf5-out"])
-            data = CSV.read(parsed_args["csv-out"], DataFrame)
+                # Given the threshold is 1, all
+                # estimation results will make the threshold
+                jldio = jldopen(parsed_args["hdf5-out"])
+                data = CSV.read(parsed_args["csv-out"], DataFrame)
 
-            @test all(data[i, :TMLE_ESTIMATE] != data[j, :TMLE_ESTIMATE] for i in 1:5 for j in i+1:6)
+                @test all(data[i, :TMLE_ESTIMATE] != data[j, :TMLE_ESTIMATE] for i in 1:5 for j in i+1:6)
 
-            expected_parameters = [
-                ATE(Symbol("CONTINUOUS, TARGET"), (T1 = (case = true, control = false),), [:W1, :W2], Symbol[]),
-                IATE(Symbol("BINARY/TARGET"), (T1 = (case = true, control = false), T2 = (case = true, control = false)), [:W1, :W2], [:C1]),
-                IATE(Symbol("BINARY/TARGET"), (T1 = (case = true, control = false), T2 = (case = false, control = true)), [:W1, :W2], [:C1]),
-                IATE(Symbol("CONTINUOUS, TARGET"), (T1 = (case = true, control = false), T2 = (case = false, control = true)), [:W1, :W2], Symbol[]),
-                IATE(Symbol("CONTINUOUS, TARGET"), (T1 = (case = true, control = false), T2 = (case = true, control = false)), [:W1, :W2], [:C1]),
-                ATE(Symbol("CONTINUOUS, TARGET"), (T1 = (case = true, control = false), T2 = (case = true, control = false)), [:W1, :W2], [:C1])
-            ]
-            expected_param_sample_ids_idx = [1, 2, 2, 4, 5, 5]
-            for (param_index, (Ψ, sample_ids_idx)) in enumerate(zip(expected_parameters, expected_param_sample_ids_idx))
-                test_tmle_output(param_index, jldio, data, Ψ, sample_ids_idx)
+                expected_parameters = [
+                    ATE(Symbol("CONTINUOUS, TARGET"), (T1 = (case = true, control = false),), [:W1, :W2], Symbol[]),
+                    IATE(Symbol("BINARY/TARGET"), (T1 = (case = true, control = false), T2 = (case = true, control = false)), [:W1, :W2], [:C1]),
+                    IATE(Symbol("BINARY/TARGET"), (T1 = (case = true, control = false), T2 = (case = false, control = true)), [:W1, :W2], [:C1]),
+                    IATE(Symbol("CONTINUOUS, TARGET"), (T1 = (case = true, control = false), T2 = (case = false, control = true)), [:W1, :W2], Symbol[]),
+                    IATE(Symbol("CONTINUOUS, TARGET"), (T1 = (case = true, control = false), T2 = (case = true, control = false)), [:W1, :W2], [:C1]),
+                    ATE(Symbol("CONTINUOUS, TARGET"), (T1 = (case = true, control = false), T2 = (case = true, control = false)), [:W1, :W2], [:C1])
+                ]
+                expected_param_sample_ids_idx = [1, 2, 2, 4, 5, 5]
+                for (param_index, (Ψ, sample_ids_idx)) in enumerate(zip(expected_parameters, expected_param_sample_ids_idx))
+                    test_tmle_output(param_index, jldio, data, Ψ, sample_ids_idx)
+                end
+                # Clean
+                rm(parsed_args["csv-out"])
+                rm(parsed_args["hdf5-out"])
             end
-            # Clean
-            rm(parsed_args["csv-out"])
-            rm(parsed_args["hdf5-out"])
         end
+        rm(parsed_args["data"])
     end
-    rm(parsed_args["data"])
 end
 
 @testset "Test tmle_estimation: No hdf5 file" begin
