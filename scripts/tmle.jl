@@ -10,13 +10,13 @@ function parse_commandline()
 
     @add_arg_table s begin
         "data"
-            help = "Path to dataset file (.csv)"
+            help = "Path to dataset file (.csv|.arrow)"
             required = true
         "param-file"
-            help = "A file (.yaml format) see README.md"
+            help = "A file (.yaml|.bin) listing all parameters to estimate."
             required = true
         "estimator-file"
-            help = "A file (.yaml format) describing the tmle estimator to use, README.md"
+            help = "A file (.yaml) describing the tmle estimator to use, README.md"
             required = true
         "csv-out"
             help = "Path to output `.csv` file"

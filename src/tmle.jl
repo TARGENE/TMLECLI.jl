@@ -69,9 +69,9 @@ function tmle_estimation(parsed_args)
         logs = Vector{Union{String, Missing}}(undef, partition_size)
         partition_tmle!(cache, tmle_results, logs, partition, tmle_spec, parameters, variables; verbosity=verbosity)
         # Append CSV result with partition
-        append_csv(csv_file, parameters[partition], tmle_results, logs)
+        append_csv(csv_file, tmle_results, logs)
         # Append HDF5 result if save-ic is true
-        update_jld2_output(jld2_file, parameters, partition, tmle_results, logs, dataset; pval_threshold=pval_threshold)
+        update_jld2_output(jld2_file, partition, tmle_results, dataset; pval_threshold=pval_threshold)
     end
 
     verbosity >= 1 && @info "Done."

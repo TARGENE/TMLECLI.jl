@@ -15,7 +15,9 @@ using Arrow
 function test_tmle_output(param_index, jldio, data, expected_param, sample_ids_idx)
     jld2_res = jldio[string(param_index)]
     csv_row = data[param_index, :]
-    Ψ = jld2_res["parameter"]
+    Ψ = jld2_res["result"].parameter
+    @test jld2_res["result"] isa TMLE.TMLEResult
+    @test jld2_res["result"].tmle.Ψ̂ isa Float64
     @test Ψ == expected_param
     @test jld2_res["sample_ids_idx"] == sample_ids_idx
     sample_ids = jldio[string(jld2_res["sample_ids_idx"])]["sample_ids"]
@@ -24,7 +26,6 @@ function test_tmle_output(param_index, jldio, data, expected_param, sample_ids_i
     else
         @test sample_ids == 1:1000
     end
-    @test jld2_res["log"] === missing
     @test jld2_res["result"] isa TMLE.TMLEResult
 
     if csv_row.COVARIATES === missing
@@ -97,12 +98,22 @@ end
     part = 4:6
     TargetedEstimation.partition_tmle!(cache, tmle_results, logs, part, tmle_spec, parameters, variables; verbosity=0)
     @test [x.tmle.Ψ̂ for x in tmle_results] isa Vector{Float64}
+    @test [x.parameter for x in tmle_results] == parameters[part]
     @test [x.onestep.Ψ̂ for x in tmle_results] isa Vector{Float64}
     @test all(x === missing for x in logs)
     rm("data.csv")
 end
 
 @testset "Test tmle_estimation" begin
+    expected_parameters = [
+        ATE(Symbol("CONTINUOUS, TARGET"), (T1 = (case = true, control = false),), [:W1, :W2], Symbol[]),
+        IATE(Symbol("BINARY/TARGET"), (T1 = (case = true, control = false), T2 = (case = true, control = false)), [:W1, :W2], [:C1]),
+        IATE(Symbol("BINARY/TARGET"), (T1 = (case = true, control = false), T2 = (case = false, control = true)), [:W1, :W2], [:C1]),
+        IATE(Symbol("CONTINUOUS, TARGET"), (T1 = (case = true, control = false), T2 = (case = false, control = true)), [:W1, :W2], Symbol[]),
+        IATE(Symbol("CONTINUOUS, TARGET"), (T1 = (case = true, control = false), T2 = (case = true, control = false)), [:W1, :W2], [:C1]),
+        ATE(Symbol("CONTINUOUS, TARGET"), (T1 = (case = true, control = false), T2 = (case = true, control = false)), [:W1, :W2], [:C1])
+    ]
+    expected_param_sample_ids_idx = [1, 2, 2, 4, 5, 5]
     # Run tests over CSV and Arrow data formats
     for format in ("csv", "arrow")
         build_dataset(;n=1000, format=format)
@@ -131,15 +142,6 @@ end
 
                 @test all(data[i, :TMLE_ESTIMATE] != data[j, :TMLE_ESTIMATE] for i in 1:5 for j in i+1:6)
 
-                expected_parameters = [
-                    ATE(Symbol("CONTINUOUS, TARGET"), (T1 = (case = true, control = false),), [:W1, :W2], Symbol[]),
-                    IATE(Symbol("BINARY/TARGET"), (T1 = (case = true, control = false), T2 = (case = true, control = false)), [:W1, :W2], [:C1]),
-                    IATE(Symbol("BINARY/TARGET"), (T1 = (case = true, control = false), T2 = (case = false, control = true)), [:W1, :W2], [:C1]),
-                    IATE(Symbol("CONTINUOUS, TARGET"), (T1 = (case = true, control = false), T2 = (case = false, control = true)), [:W1, :W2], Symbol[]),
-                    IATE(Symbol("CONTINUOUS, TARGET"), (T1 = (case = true, control = false), T2 = (case = true, control = false)), [:W1, :W2], [:C1]),
-                    ATE(Symbol("CONTINUOUS, TARGET"), (T1 = (case = true, control = false), T2 = (case = true, control = false)), [:W1, :W2], [:C1])
-                ]
-                expected_param_sample_ids_idx = [1, 2, 2, 4, 5, 5]
                 for (param_index, (Ψ, sample_ids_idx)) in enumerate(zip(expected_parameters, expected_param_sample_ids_idx))
                     test_tmle_output(param_index, jldio, data, Ψ, sample_ids_idx)
                 end

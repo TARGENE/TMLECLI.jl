@@ -121,9 +121,10 @@ statistics_from_result(result::Missing) =
     (missing, missing, missing, missing, missing), 
     (missing, missing, missing, missing, missing)
 
-function append_csv(filename, parameters, tmle_results, logs)
+function append_csv(filename, tmle_results, logs)
     data = csv_headers(size=size(tmle_results, 1))
-    for (i, (Ψ, result, log)) in enumerate(zip(parameters, tmle_results, logs))
+    for (i, (result, log)) in enumerate(zip(tmle_results, logs))
+        Ψ = result.parameter
         param_type = param_string(Ψ)
         treatments = treatment_string(Ψ)
         case = case_string(Ψ)
@@ -144,31 +145,26 @@ end
 #####                       JLD2 OUTPUT                          ####
 #####################################################################
 
-update_jld2_output(jld2_file::Nothing, parameters, partition, tmle_results, logs, dataset; pval_threshold=0.05) = nothing
+update_jld2_output(jld2_file::Nothing, partition, tmle_results, dataset; pval_threshold=0.05) = nothing
 
-function update_jld2_output(jld2_file::String, parameters, partition, tmle_results, logs, dataset; pval_threshold=0.05)
+function update_jld2_output(jld2_file::String, partition, tmle_results, dataset; pval_threshold=0.05)
     if jld2_file !== nothing
         jldopen(jld2_file, "a+", compress=true) do io
         # Append only with results passing the threshold
             previous_variables = nothing
             sample_ids_idx = nothing
-            partition_variables = [variables(parameters[index]) for index ∈ partition]
 
             for (partition_index, param_index) in enumerate(partition)
-                Ψ = parameters[param_index]
                 r = tmle_results[partition_index]
-                log = logs[partition_index]
                 if (r !== missing) && (pvalue(OneSampleZTest(r.tmle)) <= pval_threshold)
-                    current_variables = partition_variables[partition_index]
+                    current_variables = variables(r.parameter)
                     if previous_variables != current_variables
                         sample_ids = TargetedEstimation.get_sample_ids(dataset, current_variables)
                         io["$param_index/sample_ids"] = sample_ids
                         sample_ids_idx = param_index
                     end
                     io["$param_index/result"] = r
-                    io["$param_index/log"] = log
                     io["$param_index/sample_ids_idx"] = sample_ids_idx
-                    io["$param_index/parameter"] = Ψ
 
                     previous_variables = current_variables
                 end
