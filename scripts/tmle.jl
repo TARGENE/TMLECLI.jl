@@ -23,9 +23,8 @@ function parse_commandline()
             required = true
         "--hdf5-out"
             help = "If the influence curves also need to be stored (see also: --pval-threshold)"
-            default = true
-            arg_type = Bool
-            action = :store_true
+            arg_type = String
+            default = nothing
         "--pval-threshold"
             help = "Only those parameters passing the threshold will have their influence curve saved."
             default = 1.
