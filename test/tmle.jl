@@ -80,6 +80,7 @@ function build_dataset(;n=1000, format="csv")
     dataset[!, "CONTINUOUS, TARGET"] = categorical(y₁)
     # Slash in name
     dataset[!, "BINARY/TARGET"] = categorical(y₂)
+    dataset[!, "EXTREME_BINARY"] = categorical(vcat(0, ones(n-1)))
 
     format == "csv" ? CSV.write("data.csv", dataset) : Arrow.write("data.arrow", dataset)
 end
@@ -87,7 +88,7 @@ end
 @testset "Test partition_tmle!" begin
     build_dataset(;n=1000, format="csv")
     dataset = TargetedEstimation.instantiate_dataset("data.csv")
-    parameters = TargetedEstimation.read_parameters(joinpath("config", "parameters.bin"), dataset)
+    parameters = TargetedEstimation.read_parameters(joinpath("config", "parameters.yaml"), dataset)
     variables = TargetedEstimation.variables(parameters, dataset)
     TargetedEstimation.coerce_types!(dataset, variables)
     tmle_spec = TargetedEstimation.tmle_spec_from_yaml(joinpath("config", "tmle_config.yaml"))
@@ -140,6 +141,9 @@ end
                 jldio = jldopen(parsed_args["hdf5-out"])
                 data = CSV.read(parsed_args["csv-out"], DataFrame)
 
+                # The last parameter corresponds to a highly unbalanced target that will fail
+                @test data[end, :TMLE_ESTIMATE] === missing
+
                 @test all(data[i, :TMLE_ESTIMATE] != data[j, :TMLE_ESTIMATE] for i in 1:5 for j in i+1:6)
 
                 for (param_index, (Ψ, sample_ids_idx)) in enumerate(zip(expected_parameters, expected_param_sample_ids_idx))
@@ -174,8 +178,8 @@ end
     ## Check CSV file
     data = CSV.read(parsed_args["csv-out"], DataFrame)
     @test names(TargetedEstimation.csv_headers()) == names(data)
-    @test size(data) == (6, 19)
-    all(x === missing for x in data.LOG)
+    @test size(data) == (7, 19)
+    all(x === missing for x in data.LOG[1:6])
     # Clean
     rm(parsed_args["csv-out"])
     rm(parsed_args["data"])

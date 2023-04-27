@@ -157,7 +157,7 @@ function update_jld2_output(jld2_file::String, partition, tmle_results, dataset;
 
             for (partition_index, param_index) in enumerate(partition)
                 r = tmle_results[partition_index]
-                if (r !== missing) && (pvalue(OneSampleZTest(r.tmle)) <= pval_threshold)
+                if (r isa TMLE.TMLEResult) && (pvalue(OneSampleZTest(r.tmle)) <= pval_threshold)
                     current_variables = variables(r.parameter)
                     if previous_variables != current_variables
                         sample_ids = TargetedEstimation.get_sample_ids(dataset, current_variables)
