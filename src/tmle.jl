@@ -69,7 +69,7 @@ function tmle_estimation(parsed_args)
     nparams = size(parameters, 1)
     for partition in Iterators.partition(1:nparams, chunksize)
         partition_size = size(partition, 1)
-        tmle_results = Vector{Union{TMLE.TMLEResult, Missing}}(undef, partition_size)
+        tmle_results = Vector{Union{TMLE.TMLEResult, MissingTMLEResult}}(undef, partition_size)
         logs = Vector{Union{String, Missing}}(undef, partition_size)
         partition_tmle!(cache, tmle_results, logs, partition, tmle_spec, parameters, variables; verbosity=verbosity)
         # Append CSV result with partition
