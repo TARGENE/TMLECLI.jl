@@ -1296,11 +1296,9 @@ uuid = "4607b0f0-06f3-5cda-b6b1-a6196a1729e9"
 
 [[deps.TMLE]]
 deps = ["AbstractDifferentiation", "CategoricalArrays", "Configurations", "Distributions", "GLM", "HypothesisTests", "LogExpFunctions", "MLJBase", "MLJGLMInterface", "MLJModels", "Missings", "PrettyTables", "Statistics", "TableOperations", "Tables", "YAML", "Zygote"]
-git-tree-sha1 = "c3db69755cb21fe93a635f49092b3bbc46e0741e"
-repo-rev = "79eea195661160ac15b44770cdd50ac7aa6e5975"
-repo-url = "https://github.com/TARGENE/TMLE.jl"
+git-tree-sha1 = "cd8e0284a7d805d8a1ea749a9290d6799dfc19fe"
 uuid = "8afdd2fb-6e73-43df-8b62-b1650cd9c8cf"
-version = "0.10.0"
+version = "0.11.0"
 
 [[deps.TOML]]
 deps = ["Dates"]
