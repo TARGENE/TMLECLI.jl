@@ -141,9 +141,6 @@ end
                 jldio = jldopen(parsed_args["hdf5-out"])
                 data = CSV.read(parsed_args["csv-out"], DataFrame)
 
-                # The last parameter corresponds to a highly unbalanced target that will fail
-                @test data[end, :TMLE_ESTIMATE] === missing
-
                 @test all(data[i, :TMLE_ESTIMATE] != data[j, :TMLE_ESTIMATE] for i in 1:5 for j in i+1:6)
 
                 for (param_index, (Ψ, sample_ids_idx)) in enumerate(zip(expected_parameters, expected_param_sample_ids_idx))
@@ -178,8 +175,8 @@ end
     ## Check CSV file
     data = CSV.read(parsed_args["csv-out"], DataFrame)
     @test names(TargetedEstimation.csv_headers()) == names(data)
-    @test size(data) == (7, 19)
-    all(x === missing for x in data.LOG[1:6])
+    @test size(data) == (6, 19)
+    all(x === missing for x in data.LOG)
     # Clean
     rm(parsed_args["csv-out"])
     rm(parsed_args["data"])
@@ -217,6 +214,30 @@ end
     rm(parsed_args["hdf5-out"])
 end
 
+@testset "Test tmle_estimation: Failing parameters" begin
+    build_dataset(;n=1000, format="csv")
+    parsed_args = Dict(
+        "data" => "data.csv",
+        "param-file" => joinpath("config", "failing_parameters.yaml"),
+        "estimator-file" => joinpath("config", "tmle_config.yaml"),
+        "csv-out" => "output.csv",
+        "verbosity" => 0,
+        "hdf5-out" => nothing,
+        "pval-threshold" => 1e-10,
+        "chunksize" => 10
+    )
+
+    tmle_estimation(parsed_args)
+
+    # Essential results
+    data = CSV.read(parsed_args["csv-out"], DataFrame)
+    @test size(data) == (1, 19)
+    @test data[1, :TMLE_ESTIMATE] === missing
+
+    rm(parsed_args["data"])
+    rm(parsed_args["csv-out"])
+
+end
 
 end;
 
