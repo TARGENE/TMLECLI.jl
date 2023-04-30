@@ -220,7 +220,7 @@ function read_parameters(param_file, dataset)
             covariates = Ψ.covariates
         )
     end
-    return parameters
+    return collect(parameters)
 end
 
 #####################################################################
