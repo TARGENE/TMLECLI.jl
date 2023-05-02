@@ -100,7 +100,7 @@ confounders_string(Ψ; join_string="_&_") = join(Ψ.confounders, join_string)
 
 
 function statistics_from_estimator(estimator)
-    Ψ̂ = estimate(estimator)
+    Ψ̂ = TMLE.estimate(estimator)
     std = √(var(estimator))
     testresult = OneSampleTTest(estimator)
     pval = pvalue(testresult)
