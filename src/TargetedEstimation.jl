@@ -21,7 +21,7 @@ using GLMNet
 using MLJModels
 using Mmap
 using Serialization
-
+using MultipleTesting
 
 include("estimators.jl")
 include("tmle.jl")

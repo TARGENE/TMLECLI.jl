@@ -37,6 +37,19 @@ function merge_csv_files(parsed_args)
         data = leftjoin(data, sieve_data, on=joining_keys(), matchmissing=:equal)
     end
 
+    # Pvalue Adjustment by Target
+    for gp in groupby(data, :TARGET)
+        pvalues = collect(skipmissing(gp.TMLE_PVALUE))
+        adjusted_pvalues = adjust(pvalues, BenjaminiHochberg())
+        gp.TRAIT_ADJUSTED_TMLE_PVALUE = gp[:, :TMLE_PVALUE]
+        adjusted_pval_index = 1
+        for index in eachindex(gp.TRAIT_ADJUSTED_TMLE_PVALUE)
+            gp.TRAIT_ADJUSTED_TMLE_PVALUE[index] === missing && continue
+            gp.TRAIT_ADJUSTED_TMLE_PVALUE[index] = adjusted_pvalues[adjusted_pval_index]
+            adjusted_pval_index += 1
+        end
+    end
+
     # Write to output file
     CSV.write(parsed_args["out"], data)
 

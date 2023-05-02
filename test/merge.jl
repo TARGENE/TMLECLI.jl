@@ -19,9 +19,18 @@ using DataFrames
         "COVARIATES", "INITIAL_ESTIMATE", 
         "TMLE_ESTIMATE", "TMLE_STD", "TMLE_PVALUE", "TMLE_LWB", "TMLE_UPB",
         "ONESTEP_ESTIMATE", "ONESTEP_STD", "ONESTEP_PVALUE", "ONESTEP_LWB", "ONESTEP_UPB", 
-        "LOG"
+        "LOG", "TRAIT_ADJUSTED_TMLE_PVALUE"
     ]
     @test size(output, 1) == 8
+
+    for (pval, adjusted_pval) in zip(output.TMLE_PVALUE, output.TRAIT_ADJUSTED_TMLE_PVALUE)
+        if pval === missing
+            @test adjusted_pval === missing
+        else
+            @test pval <= adjusted_pval
+        end
+    end
+
     @test output.PARAMETER_TYPE == [
         "IATE", "IATE", "ATE",
         "IATE", "IATE", "ATE",
@@ -31,25 +40,13 @@ using DataFrames
 end
 
 @testset "Test merge_csv_files, sieve file" begin
-    # df = CSV.read("data/merge/sieve_output_1.csv", DataFrame)
-    # rename!(df, [:ESTIMATE => :TMLE_ESTIMATE, :STD => :TMLE_STD, :PVALUE => :TMLE_PVALUE, :LWB => :TMLE_LWB, :UPB => :TMLE_UPB])
-    # ext = DataFrame(
-    #     ONESTEP_ESTIMATE = rand(2),
-    #     ONESTEP_STD = rand(2),
-    #     ONESTEP_PVALUE = rand(2),
-    #     ONESTEP_LWB = rand(2),
-    #     ONESTEP_UPB = rand(2),
-    #     LOG = df.LOG,
-    #     )
-    # new_df = hcat(select!(df, Not(:LOG)), ext)
-    # CSV.write("data/merge/tmle_output_2.csv", new_df)
     sieve_colnames = [
         "PARAMETER_TYPE", "TREATMENTS", "CASE",
         "CONTROL", "TARGET", "CONFOUNDERS",
         "COVARIATES", "INITIAL_ESTIMATE", 
         "TMLE_ESTIMATE", "TMLE_STD", "TMLE_PVALUE", "TMLE_LWB", "TMLE_UPB", 
         "ONESTEP_ESTIMATE", "ONESTEP_STD", "ONESTEP_PVALUE", "ONESTEP_LWB", "ONESTEP_UPB",
-        "LOG", "SIEVE_STD", "SIEVE_PVALUE", "SIEVE_LWB", "SIEVE_UPB"
+        "LOG", "SIEVE_STD", "SIEVE_PVALUE", "SIEVE_LWB", "SIEVE_UPB", "TRAIT_ADJUSTED_TMLE_PVALUE"
     ]
     parsed_args = Dict(
         "tmle-prefix" => joinpath("data", "merge", "tmle"),
