@@ -10,27 +10,29 @@ function parse_commandline()
 
     @add_arg_table s begin
         "data"
-            help = "Path to dataset file (.csv)"
+            help = "Path to dataset file (.csv|.arrow)"
             required = true
         "param-file"
-            help = "A file (.yaml format) see README.md"
+            help = "A file (.yaml|.bin) listing all parameters to estimate."
             required = true
         "estimator-file"
-            help = "A file (.yaml format) describing the tmle estimator to use, README.md"
+            help = "A file (.yaml) describing the tmle estimator to use, README.md"
             required = true
-        "outprefix"
-            help = "Prefix to output files. A `.csv` file is always generated. If the `--save-id` flag"*
-                   "is set, an additional .hdf5 file is generated. See `--save-ic` and `--pval-threshold`."
+        "csv-out"
+            help = "Path to output `.csv` file"
             required = true
-        "--save-ic"
-            help = "If the influence curves also need to be stored"
-            default = false
-            arg_type = Bool
-            action = :store_true
+        "--hdf5-out"
+            help = "If the influence curves also need to be stored (see also: --pval-threshold)"
+            arg_type = String
+            default = nothing
         "--pval-threshold"
             help = "Only those parameters passing the threshold will have their influence curve saved."
             default = 1.
             arg_type = Float64
+        "--chunksize"
+            help = "Results will be appended to outfiles every chunk"
+            default = 100
+            arg_type = Int
         "--verbosity", "-v"
             help = "Verbosity level"
             arg_type = Int

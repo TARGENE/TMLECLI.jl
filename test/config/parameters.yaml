@@ -5,7 +5,20 @@ Parameters:
     confounders: [W1, W2]
     covariates: [C1]
   - type: IATE
+    target: "BINARY/TARGET"
+    treatment: (T1 = (control = 0, case = 1), T2 = (control = 0, case = 1))
+    confounders: [W1, W2]
+    covariates: [C1]
+  - type: ATE
     target: CONTINUOUS, TARGET
+    treatment: (T1 = (control = 0, case = 1),)
+    confounders: [W1, W2]
+  - type: IATE
+    target: CONTINUOUS, TARGET
+    treatment: (T1 = (control = 0, case = 1), T2 = (control = 1, case = 0))
+    confounders: [W1, W2]
+  - type: IATE
+    target: "BINARY/TARGET"
     treatment: (T1 = (control = 0, case = 1), T2 = (control = 1, case = 0))
     confounders: [W1, W2]
     covariates: [C1]
@@ -14,19 +27,3 @@ Parameters:
     treatment: (T1 = (control = 0, case = 1), T2 = (control = 0, case = 1))
     confounders: [W1, W2]
     covariates: [C1]
-  - type: IATE
-    target: "BINARY/TARGET"
-    treatment: (T1 = (control = 0, case = 1), T2 = (control = 0, case = 1))
-    confounders: [W1, W2]
-    covariates: [C1]
-  - type: IATE
-    target: "BINARY/TARGET"
-    treatment: (T1 = (control = 0, case = 1), T2 = (control = 1, case = 0))
-    confounders: [W1, W2]
-    covariates: [C1]
-  - type: ATE
-    target: "BINARY/TARGET"
-    treatment: (T1 = (control = 0, case = 1), T2 = (control = 0, case = 1))
-    confounders: [W1, W2]
-    covariates: [C1]
-  

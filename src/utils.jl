@@ -98,16 +98,9 @@ control_string(Ψ::TMLE.Parameter; join_string="_&_") =
 treatment_string(Ψ; join_string="_&_") = join(keys(Ψ.treatment), join_string)
 confounders_string(Ψ; join_string="_&_") = join(Ψ.confounders, join_string)
 
-function initialize_csv_io(outprefix)
-    filename = string(outprefix, ".csv")
-    open(filename, "w") do io
-        CSV.write(io, csv_headers())
-    end
-    return filename
-end
 
 function statistics_from_estimator(estimator)
-    Ψ̂ = estimate(estimator)
+    Ψ̂ = TMLE.estimate(estimator)
     std = √(var(estimator))
     testresult = OneSampleTTest(estimator)
     pval = pvalue(testresult)
@@ -124,14 +117,15 @@ function statistics_from_result(result::TMLE.TMLEResult)
     return Ψ̂₀, tmle_stats, onestep_stats
 end
 
-statistics_from_result(result::Missing) = 
+statistics_from_result(result::MissingTMLEResult) = 
     missing, 
     (missing, missing, missing, missing, missing), 
     (missing, missing, missing, missing, missing)
 
-function append_csv(filename, target_parameters, tmle_results, logs)
+function append_csv(filename, tmle_results, logs)
     data = csv_headers(size=size(tmle_results, 1))
-    for (i, (Ψ, result, log)) in enumerate(zip(target_parameters.PARAMETER, tmle_results, logs))
+    for (i, (result, log)) in enumerate(zip(tmle_results, logs))
+        Ψ = result.parameter
         param_type = param_string(Ψ)
         treatments = treatment_string(Ψ)
         case = case_string(Ψ)
@@ -144,7 +138,7 @@ function append_csv(filename, target_parameters, tmle_results, logs)
             Ψ̂₀, tmle_stats..., onestep_stats..., log
         )
     end
-    CSV.write(filename, data, append=true)
+    CSV.write(filename, data, append=true, header=!isfile(filename))
 end
 
 
@@ -152,38 +146,91 @@ end
 #####                       JLD2 OUTPUT                          ####
 #####################################################################
 
-no_slash(x) = replace(string(x), "/" => "_OR_")
+update_jld2_output(jld2_file::Nothing, partition, tmle_results, dataset; pval_threshold=0.05) = nothing
 
-restore_slash(x) = replace(string(x), "_OR_" => "/")
+function update_jld2_output(jld2_file::String, partition, tmle_results, dataset; pval_threshold=0.05)
+    if jld2_file !== nothing
+        jldopen(jld2_file, "a+", compress=true) do io
+        # Append only with results passing the threshold
+            previous_variables = nothing
+            sample_ids_idx = nothing
 
-function initialize_jld_io(outprefix, gpd_parameters, save_ic)
-    if save_ic
-        filename = string(outprefix, ".hdf5")
-        jldopen(filename, "w", compress=true) do io
-            io["parameters"] = first(gpd_parameters)[!, "PARAMETER"]
+            for (partition_index, param_index) in enumerate(partition)
+                r = tmle_results[partition_index]
+                if (r isa TMLE.TMLEResult) && (pvalue(OneSampleZTest(r.tmle)) <= pval_threshold)
+                    current_variables = variables(r.parameter)
+                    if previous_variables != current_variables
+                        sample_ids = TargetedEstimation.get_sample_ids(dataset, current_variables)
+                        io["$param_index/sample_ids"] = sample_ids
+                        sample_ids_idx = param_index
+                    end
+                    io["$param_index/result"] = r
+                    io["$param_index/sample_ids_idx"] = sample_ids_idx
+
+                    previous_variables = current_variables
+                end
+            end
         end
-        return filename
     end
-    return nothing
 end
 
-function append_hdf5(filename, target, tmle_results, logs, sample_ids, mask)
-    jldopen(filename, "a+", compress=true) do io
-        io["results/$target/tmle_results"] = tmle_results[mask]
-        io["results/$target/sample_ids"] = sample_ids
-        io["results/$target/logs"] = logs[mask]
+#####################################################################
+#####                    Read Parameters                         ####
+#####################################################################
+
+
+function treatment_values(Ψ::Union{IATE, ATE}, treatment_names, treatment_types)
+    return [(
+        case = convert(treatment_types[tn], Ψ.treatment[tn].case), 
+        control = convert(treatment_types[tn], Ψ.treatment[tn].control)
+    ) 
+        for tn in treatment_names]
+end
+
+treatment_values(Ψ::CM, treatment_names, treatment_types) = 
+    [convert(treatment_types[tn], Ψ.treatment[tn]) for tn in treatment_names]
+
+"""
+    parameters_from_yaml(param_file, dataset)
+
+Reads parameters from file and ensures that the parameters treatment in the config file
+respect the treatment types in the dataset.
+"""
+function read_parameters(param_file, dataset)
+    parameters = if any(endswith(param_file, ext) for ext in ("yaml", "yml"))
+        parameters_from_yaml(param_file)
+    else
+        deserialize(param_file)
     end
+
+    treatment_types = Dict()
+    for index in eachindex(parameters)
+        Ψ = parameters[index]
+        treatment_names = keys(Ψ.treatment)
+        for tn in treatment_names
+            haskey(treatment_types, tn) ? nothing : treatment_types[tn] = eltype(dataset[!, tn])
+        end
+        new_treatment = NamedTuple{treatment_names}(
+            treatment_values(Ψ, treatment_names, treatment_types)
+        )
+        parameters[index] = typeof(Ψ)(
+            target = Ψ.target,
+            treatment = new_treatment,
+            confounders = Ψ.confounders,
+            covariates = Ψ.covariates
+        )
+    end
+    return collect(parameters)
 end
 
 #####################################################################
 #####                 ADDITIONAL METHODS                         ####
 #####################################################################
 
-get_non_target_columns(treatment_cols, covariate_cols, confounder_cols) =
-    vcat(treatment_cols..., covariate_cols..., confounder_cols...)
-
-
-get_sample_ids(data, targets_columns) = dropmissing(data[!, [:SAMPLE_ID, targets_columns...]]).SAMPLE_ID
+function get_sample_ids(data, variables)
+    cols = [:SAMPLE_ID, variables.target, variables.treatments..., variables.confounders..., variables.covariates...]
+    return dropmissing(data[!, cols]).SAMPLE_ID
+end
 
 """
     instantiate_dataset(path::String)
@@ -191,14 +238,10 @@ get_sample_ids(data, targets_columns) = dropmissing(data[!, [:SAMPLE_ID, targets
 Returns a DataFrame wrapper around a dataset, either in CSV format.
 """
 instantiate_dataset(path::String) =
-    CSV.read(path, DataFrame, ntasks=1)
+    endswith(path, ".csv") ? CSV.read(path, DataFrame, ntasks=1) : DataFrame(Arrow.Table(path))
 
-isbinarytarget(y::AbstractVector) = Set(unique(skipmissing(y))) == Set([0, 1])
+isbinary(col, dataset) = Set(unique(skipmissing(dataset[!, col]))) == Set([0, 1])
 
-function nuisance_spec_from_target(tmle_spec, isbinary, cache)
-    Q_spec = isbinary ? tmle_spec.Q_binary : tmle_spec.Q_continuous
-    return NuisanceSpec(Q_spec, tmle_spec.G, cache=cache)
-end
 
 function make_categorical!(dataset, colname::Union{String, Symbol}; infer_ordered=false)
     ordered = false
@@ -223,51 +266,40 @@ function make_float!(dataset, colnames)
     end
 end
 
-function try_tmle!(cache, Ψ, η_spec; verbosity=1, threshold=1e-8)
-    try
-        tmle_result, _ = tmle!(cache, Ψ, η_spec; verbosity=verbosity, threshold=threshold)
-        return tmle_result, missing
-    catch e
-        @warn string("Failed to run Targeted Estimation for parameter:", Ψ)
-        return missing, string(e)
+function coerce_types!(dataset, variables)
+    # Treatment columns are converted to categorical
+    make_categorical!(dataset, variables.treatments, infer_ordered=true)
+    # Confounders and Covariates are converted to Float64
+    make_float!(dataset, vcat(variables.confounders, variables.covariates))
+    # Binary targets are converted to categorical
+    make_categorical!(dataset, variables.binarytargets, infer_ordered=false)
+end
+
+variables(Ψ::TMLE.Parameter) = (
+    target = Ψ.target, 
+    covariates = Ψ.covariates, 
+    confounders = Ψ.confounders,
+    treatments = keys(Ψ.treatment)
+    )
+
+function variables(parameters::Vector{<:TMLE.Parameter}, dataset)
+    treatments = Set{Symbol}()
+    confounders = Set{Symbol}()
+    covariates = Set{Symbol}()
+    binarytargets = Set{Symbol}()
+    continuoustargets = Set{Symbol}()
+    for Ψ in parameters
+        push!(treatments, keys(Ψ.treatment)...)
+        push!(confounders, Ψ.confounders...)
+        length(Ψ.covariates) > 0 && push!(covariates, Ψ.covariates...)
+        isbinary(Ψ.target, dataset) ? push!(binarytargets, Ψ.target) : push!(continuoustargets, Ψ.target)
     end
+    return (
+        treatments=treatments, 
+        confounders=confounders, 
+        covariates=covariates, 
+        binarytargets=binarytargets,
+        continuoustargets
+    )
 end
 
-
-function treatment_values(Ψ::Union{IATE, ATE}, treatment_names, treatment_types)
-    return [(
-        case = convert(treatment_types[j], Ψ.treatment[tn].case), 
-        control = convert(treatment_types[j], Ψ.treatment[tn].control)
-    ) 
-        for (j, tn) in enumerate(treatment_names)]
-end
-
-treatment_values(Ψ::CM, treatment_names, treatment_types) = 
-    [convert(treatment_types[j], Ψ.treatment[tn]) for (j, tn) in enumerate(treatment_names)]
-
-"""
-    parameters_from_yaml(param_file, dataset)
-
-Extends `parameters_from_yaml` so that the parameters treatment in the config file
-respect the treatment types in the dataset.
-"""
-function TMLE.parameters_from_yaml(param_file, dataset)
-    params = parameters_from_yaml(param_file)
-    n_params = size(params, 1)
-    params_respecting_dataset_type = Vector{TMLE.Parameter}(undef, n_params)
-    treatment_names = keys(first(params).treatment)
-    dataset_treatment_types = [eltype(dataset[!, tn]) for tn in treatment_names]
-    for i in 1:n_params
-        param = params[i]
-        new_treatment = NamedTuple{treatment_names}(
-            treatment_values(param, treatment_names, dataset_treatment_types)
-        )
-        params_respecting_dataset_type[i] = typeof(param)(
-            target = param.target,
-            treatment = new_treatment,
-            confounders = param.confounders,
-            covariates = param.covariates
-        )
-    end
-    return params_respecting_dataset_type
-end

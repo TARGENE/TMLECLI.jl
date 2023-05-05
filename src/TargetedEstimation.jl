@@ -8,6 +8,7 @@ using DataFrames
 using MLJBase
 using MLJ
 using CSV
+using Arrow
 using TMLE
 using HighlyAdaptiveLasso
 using EvoTrees
@@ -19,10 +20,12 @@ using CategoricalArrays
 using GLMNet
 using MLJModels
 using Mmap
+using Serialization
+using MultipleTesting
 
-include("utils.jl")
 include("estimators.jl")
 include("tmle.jl")
+include("utils.jl")
 include("sieve_variance.jl")
 include("merge.jl")
 include(joinpath("models", "glmnet.jl"))
