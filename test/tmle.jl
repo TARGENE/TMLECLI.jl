@@ -94,7 +94,7 @@ end
     tmle_spec = TargetedEstimation.tmle_spec_from_yaml(joinpath("config", "tmle_config.yaml"))
     cache = TMLECache(dataset)
 
-    tmle_results = Vector{Union{TMLE.TMLEResult, Missing}}(undef, 3)
+    tmle_results = Vector{Union{TMLE.TMLEResult, TargetedEstimation.MissingTMLEResult}}(undef, 3)
     logs = Vector{Union{String, Missing}}(undef, 3)
     part = 4:6
     TargetedEstimation.partition_tmle!(cache, tmle_results, logs, part, tmle_spec, parameters, variables; verbosity=0)
@@ -192,7 +192,7 @@ end
         "csv-out" => "output.csv",
         "verbosity" => 0,
         "hdf5-out" => "output.hdf5",
-        "pval-threshold" => 1e-10,
+        "pval-threshold" => 1e-15,
         "chunksize" => 10
     )
 
@@ -204,10 +204,10 @@ end
     @test !haskey(jldio, "2")
     @test !haskey(jldio, "3")
     @test !haskey(jldio, "4")
+    @test !haskey(jldio, "5")
+    @test !haskey(jldio, "6")
 
     @test jldio["1"]["result"].tmle.Ψ̂ == data[1, :TMLE_ESTIMATE]
-    @test jldio["5"]["result"].tmle.Ψ̂ == data[5, :TMLE_ESTIMATE]
-    @test jldio["6"]["result"].tmle.Ψ̂ == data[6, :TMLE_ESTIMATE]
 
     rm(parsed_args["data"])
     rm(parsed_args["csv-out"])

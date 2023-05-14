@@ -49,7 +49,37 @@ end
     mach = machine(net, X, y)
     fit!(mach, verbosity=0)
     @test predict(mach) isa MLJ.UnivariateFiniteVector
+end
 
+@testset "Test RestrictedInteractionGLMNet" begin
+    # Regression
+    rng = StableRNG(123)
+    n, p = 1000, 5
+    X, y = make_regression(n, p, rng=rng)
+    net = TargetedEstimation.RestrictedInteractionGLMNetRegressor(
+        order=3, 
+        primary_patterns=["x1"],
+        nfolds=3
+    )
+    mach = machine(net, X, y)
+    fit!(mach, verbosity=0)
+    fp = fitted_params(mach).interaction_transformer.fitresult
+    @test fp == [
+        [:x1, :x2],
+        [:x1, :x3],
+        [:x1, :x4],
+        [:x1, :x5]
+    ]
+    @test predict(mach) isa Vector{Float64}
+    # Classification
+    rng = StableRNG(123)
+    X, y = make_blobs(n, rng=rng)
+    net = TargetedEstimation.RestrictedInteractionGLMNetClassifier(order=2, rng=rng, cache=true)
+    mach = machine(net, X, y)
+    fit!(mach, verbosity=0)
+    @test predict(mach) isa MLJ.UnivariateFiniteVector
+    fp = fitted_params(mach).interaction_transformer.fitresult
+    @test fp == []
 end
 
 end

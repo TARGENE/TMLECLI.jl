@@ -56,8 +56,10 @@ using EvoTrees
     @test Q_continuous.EvoTreeRegressor_1.nrounds == 10
     @test Q_continuous.EvoTreeRegressor_2.nrounds == 20
     ## Checking Qstack Interaction Linear model
-    @test Q_continuous.InteractionGLMNetRegressor_1 isa MLJ.DeterministicPipeline
-    @test Q_continuous.InteractionGLMNetRegressor_1.interaction_transformer.order == 3
+    @test Q_continuous.RestrictedInteractionGLMNetRegressor_1 isa MLJ.DeterministicPipeline
+    @test Q_continuous.RestrictedInteractionGLMNetRegressor_1.interaction_transformer.order == 3
+    @test Q_continuous.RestrictedInteractionGLMNetRegressor_1.interaction_transformer.primary_variables == []
+    @test Q_continuous.RestrictedInteractionGLMNetRegressor_1.interaction_transformer.primary_variables_patterns == [r"^rs[0-9]+"]
     ## Checking Qstack HAL model
     @test Q_continuous.HALRegressor_1.lambda == 10
     @test Q_continuous.HALRegressor_1.smoothness_orders == 1
@@ -74,7 +76,9 @@ using EvoTrees
     @test G.resampling isa StratifiedCV
     @test G.resampling.nfolds == 2
     ## Checking Gstack models
-    @test G.InteractionGLMNetClassifier_1.interaction_transformer.order == 2
+    @test G.RestrictedInteractionGLMNetClassifier_1.interaction_transformer.order == 2
+    @test G.RestrictedInteractionGLMNetClassifier_1.interaction_transformer.primary_variables == [:T1, :T2]
+    @test G.RestrictedInteractionGLMNetClassifier_1.interaction_transformer.primary_variables_patterns == [r"C"]
     @test G.EvoTreeClassifier_1.nrounds == 10
 
     @test tmle_spec.cache == false

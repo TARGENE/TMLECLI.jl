@@ -9,7 +9,7 @@ Q_continuous:
     nfolds: 2
   # List all models and hyperparameters
   models: 
-    - type: InteractionGLMNetRegressor
+    - type: RestrictedInteractionGLMNetRegressor
       order: 3
 
     - type: EvoTreeRegressor
@@ -63,7 +63,9 @@ G:
     nfolds: 2
     # List all models and hyperparameters
   models:
-    - type: InteractionGLMNetClassifier
+    - type: RestrictedInteractionGLMNetClassifier
+      primary_columns: [[T1, T2]]
+      primary_patterns: [["C"]]
     - type: ConstantClassifier
     - type: EvoTreeClassifier
       nrounds: 10
