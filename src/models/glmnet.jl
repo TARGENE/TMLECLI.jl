@@ -61,3 +61,38 @@ function InteractionGLMNetClassifier(;order=2, cache=false, params...)
         cache=cache
     )
 end
+
+
+function RestrictedInteractionGLMNetRegressor(;
+    order=2,
+    primary_columns=Symbol[],
+    primary_patterns=["^rs[0-9]+"], 
+    cache=false, 
+    params...)
+    return Pipeline(
+        interaction_transformer=RestrictedInteractionTransformer(;
+            order=order,
+            primary_variables=Symbol.(primary_columns),
+            primary_variables_patterns=[Regex(x) for x in primary_patterns]
+            ),
+        glmnet=GLMNetRegressor(;params...),
+        cache=cache
+    )
+end
+
+function RestrictedInteractionGLMNetClassifier(;
+    order=2,
+    primary_columns=Symbol[],
+    primary_patterns=["^rs[0-9]+"], 
+    cache=false, 
+    params...)
+    return Pipeline(
+        interaction_transformer=RestrictedInteractionTransformer(;
+            order=order,
+            primary_variables=Symbol.(primary_columns),
+            primary_variables_patterns=[Regex(x) for x in primary_patterns]
+            ),
+        glmnet=GLMNetClassifier(;params...),
+        cache=cache
+    )
+end

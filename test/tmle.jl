@@ -94,7 +94,7 @@ end
     tmle_spec = TargetedEstimation.tmle_spec_from_yaml(joinpath("config", "tmle_config.yaml"))
     cache = TMLECache(dataset)
 
-    tmle_results = Vector{Union{TMLE.TMLEResult, Missing}}(undef, 3)
+    tmle_results = Vector{Union{TMLE.TMLEResult, TargetedEstimation.MissingTMLEResult}}(undef, 3)
     logs = Vector{Union{String, Missing}}(undef, 3)
     part = 4:6
     TargetedEstimation.partition_tmle!(cache, tmle_results, logs, part, tmle_spec, parameters, variables; verbosity=0)
@@ -192,7 +192,7 @@ end
         "csv-out" => "output.csv",
         "verbosity" => 0,
         "hdf5-out" => "output.hdf5",
-        "pval-threshold" => 1e-10,
+        "pval-threshold" => 1e-8,
         "chunksize" => 10
     )
 
