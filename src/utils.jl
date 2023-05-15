@@ -273,6 +273,8 @@ function coerce_types!(dataset, variables)
     make_float!(dataset, vcat(variables.confounders, variables.covariates))
     # Binary targets are converted to categorical
     make_categorical!(dataset, variables.binarytargets, infer_ordered=false)
+    # Continuous targets are converted to Float64
+    make_float!(dataset, variables.continuoustargets)
 end
 
 variables(Ψ::TMLE.Parameter) = (

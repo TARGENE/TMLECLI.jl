@@ -39,6 +39,12 @@ function partition_tmle!(
         # Update results
         tmle_results[partition_index] = tmle_result
         logs[partition_index] = log
+
+        # Try clean C memory
+        GC.gc()
+        if Sys.islinux()
+            ccall(:malloc_trim, Cvoid, (Cint,), 0)
+        end
     end
 end
 
