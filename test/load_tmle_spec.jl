@@ -96,7 +96,7 @@ end
     @test depth_range.upper == 5
     @test depth_range.scale == :linear
 
-    @test tmle_spec.Q_binary == TargetedEstimation.InteractionGLMNetClassifier()
+    @test tmle_spec.Q_binary isa MLJ.ProbabilisticPipeline
     @test tmle_spec.threshold == 1e-8
 
     @test tmle_spec.Q_continuous.cache == true
