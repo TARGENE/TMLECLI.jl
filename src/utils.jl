@@ -305,3 +305,7 @@ function variables(parameters::Vector{<:TMLE.Parameter}, dataset)
     )
 end
 
+function load_tmle_spec(file)
+    include(file)
+    return tmle_spec
+end

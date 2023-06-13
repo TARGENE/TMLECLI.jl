@@ -91,7 +91,7 @@ end
     parameters = TargetedEstimation.read_parameters(joinpath("config", "parameters.yaml"), dataset)
     variables = TargetedEstimation.variables(parameters, dataset)
     TargetedEstimation.coerce_types!(dataset, variables)
-    tmle_spec = TargetedEstimation.tmle_spec_from_yaml(joinpath("config", "tmle_config.yaml"))
+    tmle_spec = TargetedEstimation.load_tmle_spec(joinpath("config", "tmle_config.jl"))
     cache = TMLECache(dataset)
 
     tmle_results = Vector{Union{TMLE.TMLEResult, TargetedEstimation.MissingTMLEResult}}(undef, 3)
@@ -121,7 +121,7 @@ end
         parsed_args = Dict(
                     "data" => string("data.", format),
                     "param-file" => nothing,
-                    "estimator-file" => joinpath("config", "tmle_config.yaml"),
+                    "estimator-file" => joinpath("config", "tmle_config.jl"),
                     "csv-out" => "output.csv",
                     "verbosity" => 0,
                     "hdf5-out" => "output.hdf5",
@@ -162,7 +162,7 @@ end
     parsed_args = Dict(
         "data" => "data.csv",
         "param-file" => joinpath("config", param_file),
-        "estimator-file" => joinpath("config", "tmle_config.yaml"),
+        "estimator-file" => joinpath("config", "tmle_config.jl"),
         "csv-out" => "output.csv",
         "verbosity" => 0,
         "hdf5-out" => nothing,
@@ -188,7 +188,7 @@ end
     parsed_args = Dict(
         "data" => "data.csv",
         "param-file" => joinpath("config", "parameters.yaml"),
-        "estimator-file" => joinpath("config", "tmle_config.yaml"),
+        "estimator-file" => joinpath("config", "tmle_config.jl"),
         "csv-out" => "output.csv",
         "verbosity" => 0,
         "hdf5-out" => "output.hdf5",
@@ -219,7 +219,7 @@ end
     parsed_args = Dict(
         "data" => "data.csv",
         "param-file" => joinpath("config", "failing_parameters.yaml"),
-        "estimator-file" => joinpath("config", "tmle_config.yaml"),
+        "estimator-file" => joinpath("config", "tmle_config.jl"),
         "csv-out" => "output.csv",
         "verbosity" => 0,
         "hdf5-out" => nothing,
