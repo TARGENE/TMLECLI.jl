@@ -1,14 +1,16 @@
 mutable struct GLMNetRegressor <: Deterministic
+    resampling::ResamplingStrategy
     params::Dict
 end
 
-GLMNetRegressor(;params...) = GLMNetRegressor(Dict(params))
+GLMNetRegressor(;resampling=CV(), params...) = GLMNetRegressor(resampling, Dict(params))
 
 mutable struct GLMNetClassifier <: Probabilistic
+    resampling::ResamplingStrategy
     params::Dict
 end
 
-GLMNetClassifier(;params...) = GLMNetClassifier(Dict(params))
+GLMNetClassifier(;resampling=StratifiedCV(), params...) = GLMNetClassifier(resampling, Dict(params))
 
 GLMNetModel = Union{GLMNetRegressor, GLMNetClassifier}
 
@@ -20,14 +22,23 @@ MLJBase.reformat(::GLMNetModel, X) = (MLJBase.matrix(X),)
 MLJBase.selectrows(::GLMNetModel, I, Xmatrix, y) = (view(Xmatrix, I, :), view(y, I))
 MLJBase.selectrows(::GLMNetModel, I, Xmatrix) = (view(Xmatrix, I, :),)
 
+function getfolds(resampling, X, y)
+    n = size(y, 1)
+    folds = Vector{Int}(undef, n)
+    for (split_index, (_, val_indices)) in enumerate(MLJBase.train_test_pairs(resampling, 1:n, X, y))
+        folds[val_indices] .= split_index
+    end
+    return folds
+end
+
 function MLJBase.fit(model::GLMNetModel, verbosity::Int, Xmatrix, y)
-    res = glmnetcv(Xmatrix, y; model.params...)
+    folds = getfolds(model.resampling, Xmatrix, y)
+    res = glmnetcv(Xmatrix, y; folds=folds, model.params...)
     return make_fitresult(model, res, y), nothing, nothing
 end
 
 MLJBase.predict(::GLMNetRegressor, fitresult, Xmatrix) =
     GLMNet.predict(fitresult.glmnetcv, Xmatrix)
-
 
 function MLJBase.predict(::GLMNetClassifier, fitresult, Xmatrix)
     raw_probs = GLMNet.predict(fitresult.glmnetcv, Xmatrix, outtype=:prob)
