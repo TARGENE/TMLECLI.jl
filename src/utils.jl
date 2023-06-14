@@ -90,7 +90,7 @@ case(nt::NamedTuple) = nt.case
 case(x) = x
 case_string(Ψ; join_string="_&_") = join((case(x) for x in values(Ψ.treatment)), join_string)
 
-control_string(t::Tuple{Vararg{<:NamedTuple}}; join_string="_&_") = 
+control_string(t::Tuple{Vararg{NamedTuple}}; join_string="_&_") = 
     join((val.control for val in t), join_string)
 
 control_string(t; join_string="_&_") = missing
