@@ -1,7 +1,7 @@
 # Models
 
 ```@meta
-CurrentModule = Example
+CurrentModule = TargetedEstimation
 ```
 
 Because [TMLE.jl](https://targene.github.io/TMLE.jl/stable/) is based on top of [MLJ](https://alan-turing-institute.github.io/MLJ.jl/dev/), we can support any model respecting the MLJ interface. At the moment, we readily support all models from the following packages:
@@ -38,7 +38,7 @@ GLMNetClassifier(;resampling=StratifiedCV(), params...)
 This transformer generates interaction terms based on a set of primary variables in order to limit the combinatorial explosion.
 
 ```@docs
-RestrictedInteractionTransformer(;order=2, primary_variables=Symbol[], primary_variables_patterns=Regex[])
+RestrictedInteractionTransformer
 ```
 
 ## Additional Resampling Strategies
@@ -46,5 +46,5 @@ RestrictedInteractionTransformer(;order=2, primary_variables=Symbol[], primary_v
 We also provide an additional adaptive `ResamplingStrategy` that will determine the number of cross-validation folds adaptively based on the available data.
 
 ```@docs
-AdaptiveCV(;resampling=CV()::Union{CV, StratifiedCV})
+AdaptiveCV
 ```
