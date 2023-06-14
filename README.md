@@ -1,7 +1,8 @@
 # TargetedEstimation
 
+[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://targene.github.io/TargetedEstimation.jl/stable/)
 ![GitHub Workflow Status (with branch)](https://img.shields.io/github/actions/workflow/status/TARGENE/TargetedEstimation.jl/CI.yml?branch=main)
-![Codecov branch](https://img.shields.io/codecov/c/github/TARGENE/TargetedEstimation.jl/main?label=Coverage%20main)
+![Codecov](https://img.shields.io/codecov/c/github/TARGENE/TargetedEstimation.jl/main)
 ![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/TARGENE/TargetedEstimation.jl)
 
 This package provides two command line interfaces used mainly in the context of TarGene:
