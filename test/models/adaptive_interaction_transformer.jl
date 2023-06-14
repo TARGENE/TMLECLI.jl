@@ -22,6 +22,8 @@ using Tables
         order=3, 
         primary_variables=[:rs1234, :sex],
     )
+    @test input_scitype(model) == Table(Continuous)
+    @test output_scitype(model) == Table(Continuous)
     mach = machine(model, X)
     fit!(mach, verbosity=0)
     interactions = fitted_params(mach).fitresult
@@ -117,7 +119,7 @@ using Tables
         order=2,
         primary_variables=[:A, :B],
     )
-    mach = machine(model, X)
+    mach = machine(model, X, scitype_check_level=0)
     @test_throws TargetedEstimation.InvalidColumnError("A") fit!(mach, verbosity=0)
 end
 

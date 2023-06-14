@@ -1,5 +1,5 @@
 """
-    RestrictedInteractionTransformerBis(;order=2, primary_variables=nothing, primary_variables_patterns=[r"^rs[0-9]+"])
+    RestrictedInteractionTransformer(;order=2, primary_variables=Symbol[], primary_variables_patterns=Regex[])
 
 # Definition
 
@@ -79,8 +79,5 @@ function MLJBase.transform(model::RestrictedInteractionTransformer, fitresult, X
     return merge(Tables.columntable(X), interaction_table)
 end
 
-metadata_model(RestrictedInteractionTransformer,
-    input_scitype   = Table(Continuous),
-    output_scitype = Table(Continuous),
-    human_name = "adaptive interaction transformer",
-    load_path    = "TargetedEstimation.RestrictedInteractionTransformer")
+MLJBase.input_scitype(::Type{<:RestrictedInteractionTransformer}) = Table(Continuous)
+MLJBase.output_scitype(::Type{<:RestrictedInteractionTransformer}) = Table(Continuous)

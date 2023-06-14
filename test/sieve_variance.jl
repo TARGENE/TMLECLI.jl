@@ -50,7 +50,7 @@ function build_tmle_output_file(sample_ids, param_file, outprefix)
     parsed_args = Dict(
         "data" => "data.csv",
         "param-file" => param_file,
-        "estimator-file" => joinpath("config", "tmle_config.yaml"),
+        "estimator-file" => joinpath("config", "tmle_config.jl"),
         "csv-out" => string(outprefix, ".csv"),
         "verbosity" => 0,
         "hdf5-out" => string(outprefix, ".hdf5"),

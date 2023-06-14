@@ -16,7 +16,7 @@ function parse_commandline()
             help = "A file (.yaml|.bin) listing all parameters to estimate."
             required = true
         "estimator-file"
-            help = "A file (.yaml) describing the tmle estimator to use, README.md"
+            help = "A file (.jl) describing the tmle estimator to use, README.md"
             required = true
         "csv-out"
             help = "Path to output `.csv` file"

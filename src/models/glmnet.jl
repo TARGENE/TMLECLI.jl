@@ -1,14 +1,60 @@
 mutable struct GLMNetRegressor <: Deterministic
+    resampling::ResamplingStrategy
     params::Dict
 end
 
-GLMNetRegressor(;params...) = GLMNetRegressor(Dict(params))
+"""
+    GLMNetRegressor(;resampling=CV(), params...)
+
+A GLMNet regressor for continuous outcomes based on the `glmnetcv` function from the [GLMNet.jl](https://github.com/JuliaStats/GLMNet.jl) 
+package.
+
+# Arguments:
+
+- resampling: A MLJ `ResamplingStrategy`, see [MLJ resampling strategies](https://alan-turing-institute.github.io/MLJ.jl/dev/evaluating_model_performance/#Built-in-resampling-strategies)
+- params: Additional parameters to the `glmnetcv` function
+
+# Examples:
+
+A glmnet with `alpha=0`.
+
+```julia
+
+model = GLMNetRegressor(resampling=CV(nfolds=3), alpha=0)
+mach = machine(model, X, y)
+fit!(mach, verbosity=0)
+```
+"""
+GLMNetRegressor(;resampling=CV(), params...) = GLMNetRegressor(resampling, Dict(params))
 
 mutable struct GLMNetClassifier <: Probabilistic
+    resampling::ResamplingStrategy
     params::Dict
 end
 
-GLMNetClassifier(;params...) = GLMNetClassifier(Dict(params))
+"""
+    GLMNetClassifier(;resampling=StratifiedCV(), params...)
+
+A GLMNet classifier for binary/multinomial outcomes based on the `glmnetcv` function from the [GLMNet.jl](https://github.com/JuliaStats/GLMNet.jl) 
+package.
+
+# Arguments:
+
+- resampling: A MLJ `ResamplingStrategy`, see [MLJ resampling strategies](https://alan-turing-institute.github.io/MLJ.jl/dev/evaluating_model_performance/#Built-in-resampling-strategies)
+- params: Additional parameters to the `glmnetcv` function
+
+# Examples:
+
+A glmnet with `alpha=0`.
+
+```julia
+
+model = GLMNetClassifier(resampling=StratifiedCV(nfolds=3), alpha=0)
+mach = machine(model, X, y)
+fit!(mach, verbosity=0)
+```
+"""
+GLMNetClassifier(;resampling=StratifiedCV(), params...) = GLMNetClassifier(resampling, Dict(params))
 
 GLMNetModel = Union{GLMNetRegressor, GLMNetClassifier}
 
@@ -20,14 +66,23 @@ MLJBase.reformat(::GLMNetModel, X) = (MLJBase.matrix(X),)
 MLJBase.selectrows(::GLMNetModel, I, Xmatrix, y) = (view(Xmatrix, I, :), view(y, I))
 MLJBase.selectrows(::GLMNetModel, I, Xmatrix) = (view(Xmatrix, I, :),)
 
+function getfolds(resampling, X, y)
+    n = size(y, 1)
+    folds = Vector{Int}(undef, n)
+    for (split_index, (_, val_indices)) in enumerate(MLJBase.train_test_pairs(resampling, 1:n, X, y))
+        folds[val_indices] .= split_index
+    end
+    return folds
+end
+
 function MLJBase.fit(model::GLMNetModel, verbosity::Int, Xmatrix, y)
-    res = glmnetcv(Xmatrix, y; model.params...)
+    folds = getfolds(model.resampling, Xmatrix, y)
+    res = glmnetcv(Xmatrix, y; folds=folds, model.params...)
     return make_fitresult(model, res, y), nothing, nothing
 end
 
 MLJBase.predict(::GLMNetRegressor, fitresult, Xmatrix) =
     GLMNet.predict(fitresult.glmnetcv, Xmatrix)
-
 
 function MLJBase.predict(::GLMNetClassifier, fitresult, Xmatrix)
     raw_probs = GLMNet.predict(fitresult.glmnetcv, Xmatrix, outtype=:prob)
@@ -45,54 +100,3 @@ MLJBase.input_scitype(::Type{<:GLMNetModel}) = Table{<:AbstractVector{<:Continuo
 MLJBase.target_scitype(::Type{<:GLMNetRegressor}) = AbstractVector{<:Continuous}
 MLJBase.target_scitype(::Type{<:GLMNetClassifier}) = AbstractVector{<:Finite}
 
-
-function InteractionGLMNetRegressor(;order=2, cache=false, params...)
-    return Pipeline(
-        interaction_transformer=InteractionTransformer(;order=order),
-        glmnet=GLMNetRegressor(;params...),
-        cache=cache
-    )
-end
-
-function InteractionGLMNetClassifier(;order=2, cache=false, params...)
-    return Pipeline(
-        interaction_transformer=InteractionTransformer(;order=order),
-        glmnet=GLMNetClassifier(;params...),
-        cache=cache
-    )
-end
-
-
-function RestrictedInteractionGLMNetRegressor(;
-    order=2,
-    primary_columns=Symbol[],
-    primary_patterns=["^rs[0-9]+"], 
-    cache=false, 
-    params...)
-    return Pipeline(
-        interaction_transformer=RestrictedInteractionTransformer(;
-            order=order,
-            primary_variables=Symbol.(primary_columns),
-            primary_variables_patterns=[Regex(x) for x in primary_patterns]
-            ),
-        glmnet=GLMNetRegressor(;params...),
-        cache=cache
-    )
-end
-
-function RestrictedInteractionGLMNetClassifier(;
-    order=2,
-    primary_columns=Symbol[],
-    primary_patterns=["^rs[0-9]+"], 
-    cache=false, 
-    params...)
-    return Pipeline(
-        interaction_transformer=RestrictedInteractionTransformer(;
-            order=order,
-            primary_variables=Symbol.(primary_columns),
-            primary_variables_patterns=[Regex(x) for x in primary_patterns]
-            ),
-        glmnet=GLMNetClassifier(;params...),
-        cache=cache
-    )
-end

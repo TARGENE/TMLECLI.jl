@@ -69,7 +69,7 @@ function tmle_estimation(parsed_args)
     TargetedEstimation.coerce_types!(dataset, variables)
     
     # Retrieve TMLE specifications
-    tmle_spec = TargetedEstimation.tmle_spec_from_yaml(estimatorfile)
+    tmle_spec = TargetedEstimation.load_tmle_spec(estimatorfile)
 
     cache = TMLECache(dataset)
     nparams = size(parameters, 1)
