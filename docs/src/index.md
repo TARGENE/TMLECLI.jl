@@ -1,6 +1,6 @@
 # TargetedEstimation.jl
 
-The goal for this package, eventually, is to provide a standalone executable to run Targeted Minimum Loss-based Estimation. It is based on the companion [TMLE.jl](https://targene.github.io/TMLE.jl/stable/).
+The goal of this package, eventually, is to provide a standalone executable to run Targeted Minimum Loss-based Estimation (TMLE). It is based on the companion [TMLE.jl](https://targene.github.io/TMLE.jl/stable/).
 
 ## Running TMLE
 

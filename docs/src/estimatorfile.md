@@ -7,7 +7,7 @@ TMLE is an adaptive procedure that depends on the specification of learning algo
 
 ## Description of the file
 
-In order to provide maximum flexibility as to the choice of learning algorithms, the estimator file is a plain [Julia](https://julialang.org/) file. It merely must define a [NamedTuple](https://docs.julialang.org/en/v1/base/base/#Core.NamedTuple) called `tmle_spec` with 5 fields as follows:
+In order to provide maximum flexibility as to the choice of learning algorithms, the estimator file is a plain [Julia](https://julialang.org/) file. It must define a [NamedTuple](https://docs.julialang.org/en/v1/base/base/#Core.NamedTuple) called `tmle_spec` with 5 fields as follows:
 
 ```julia
 
@@ -28,7 +28,7 @@ where:
 - `threshold`: is the minimum value the propensity score `G` is allowed to take.
 - `cache`: controls caching of data by [MLJ machines](https://alan-turing-institute.github.io/MLJ.jl/dev/machines/). Setting it to `true` may result in faster runtime but higher memory usage.
 
-Typically, only `Q_continuous`, `Q_binary` and `threshold` will be adjusted.
+Typically, only `Q_continuous`, `Q_binary` and `G` will be adjusted.
 
 ## Ready to use estimator files
 
