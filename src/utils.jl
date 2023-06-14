@@ -6,14 +6,17 @@ countuniques(v::AbstractVector) = [count(==(u), v) for u in unique(v)]
 countuniques(table) = 
     countuniques([values(x) for x in Tables.namedtupleiterator(table)])
 
-"""
-    AdaptiveCV(cv::Union{CV, StratifiedCV})
-
-Implements the rule of thum given here: https://www.youtube.com/watch?v=WYnjja8DKPg&t=4s
-"""
 mutable struct AdaptiveCV <: MLJ.ResamplingStrategy
     cv::Union{CV, StratifiedCV}
 end
+
+"""
+    AdaptiveCV(;resampling=CV()::Union{CV, StratifiedCV})
+
+Determines the number of folds adaptively based on the rule of thum described 
+[here](https://www.youtube.com/watch?v=WYnjja8DKPg&t=4s).
+"""
+AdaptiveCV(;resampling=CV()::Union{CV, StratifiedCV}) = AdaptiveCV(resampling)
 
 
 function MLJBase.train_test_pairs(cv::AdaptiveCV, rows, y)

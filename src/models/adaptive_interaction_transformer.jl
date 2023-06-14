@@ -1,5 +1,5 @@
 """
-    RestrictedInteractionTransformerBis(;order=2, primary_variables=nothing, primary_variables_patterns=[r"^rs[0-9]+"])
+    RestrictedInteractionTransformer(;order=2, primary_variables=Symbol[], primary_variables_patterns=Regex[])
 
 # Definition
 

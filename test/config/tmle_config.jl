@@ -1,7 +1,7 @@
 evotree = EvoTreeClassifier(nrounds=10)
 
 tmle_spec = (
-  # Controls caching of data by MLJ machines: turning to `true`` may result in faster execution but higher memory usage
+  # Controls caching of data by MLJ machines: turning to `true` may result in faster execution but higher memory usage
   cache=false,
   # Propensity score threshold
   threshold    = 0.001,

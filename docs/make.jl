@@ -1,15 +1,28 @@
 using Documenter
 using TargetedEstimation
 
+DocMeta.setdocmeta!(TargetedEstimation, :DocTestSetup, :(using TargetedEstimation); recursive=true)
+
 makedocs(
-    sitename = "TargetedEstimation",
-    format = Documenter.HTML(),
-    modules = [TargetedEstimation]
+    authors="Olivier Labayle",
+    repo="https://github.com/TARGENE/TargetedEstimation.jl/blob/{commit}{path}#{line}",
+    sitename = "TargetedEstimation.jl",
+    format = Documenter.HTML(;
+        prettyurls=get(ENV, "CI", "false") == "true",
+        canonical="https://TARGENE.github.io/TargetedEstimation.jl",
+        assets=String["assets/logo.ico"],
+    ),
+    modules = [TargetedEstimation],
+    pages=[
+        "Home" => "index.md",
+        "Models" => "models.md",
+        "Estimator File" => "estimatorfile.md"
+    ]
 )
 
-# Documenter can also automatically deploy documentation to gh-pages.
-# See "Hosting Documentation" and deploydocs() in the Documenter manual
-# for more information.
-#=deploydocs(
-    repo = "<repository url>"
-)=#
+@info "Deploying docs..."
+deploydocs(;
+    repo="github.com/TARGENE/TargetedEstimation.jl",
+    devbranch="main",
+    push_preview=true
+)
