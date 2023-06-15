@@ -15,7 +15,6 @@ using EvoTrees
 using MLJXGBoostInterface
 using MLJLinearModels
 using JLD2
-using YAML
 using CategoricalArrays
 using GLMNet
 using MLJModels
