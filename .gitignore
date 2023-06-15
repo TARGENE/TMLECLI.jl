@@ -19,3 +19,5 @@ docs/site/
 
 test/Manifest.toml
 sysimage/Manifest.toml
+
+Manifest.toml
