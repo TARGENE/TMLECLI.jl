@@ -308,7 +308,16 @@ function variables(parameters::Vector{<:TMLE.Parameter}, dataset)
     )
 end
 
+load_tmle_spec(file::Nothing) = (
+    cache        = false,
+    weighted_fluctuation = false,
+    threshold    = 1e-8,
+    Q_continuous = LinearRegressor(),
+    Q_binary = LogisticClassifier(lambda=0.),
+    G = LogisticClassifier(lambda=0.)
+  )
+
 function load_tmle_spec(file)
     include(abspath(file))
-    return tmle_spec
+    return merge(load_tmle_spec(nothing), tmle_spec::NamedTuple)
 end

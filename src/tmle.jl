@@ -2,9 +2,9 @@ struct MissingTMLEResult
     parameter::TMLE.Parameter
 end
 
-function try_tmle!(cache; verbosity=1, threshold=1e-8)
+function try_tmle!(cache; verbosity=1, threshold=1e-8, weighted_fluctuation=false)
     try
-        tmle_result, _ = tmle!(cache; verbosity=verbosity, threshold=threshold)
+        tmle_result, _ = tmle!(cache; verbosity=verbosity, threshold=threshold, weighted_fluctuation=weighted_fluctuation)
         return tmle_result, missing
     catch e
         @warn string("Failed to run Targeted Estimation for parameter:", cache.Ψ)
@@ -35,7 +35,12 @@ function partition_tmle!(
             update!(cache, η_spec)
         end
         # Run TMLE
-        tmle_result, log = TargetedEstimation.try_tmle!(cache; verbosity=verbosity, threshold=tmle_spec.threshold)
+        tmle_result, log = TargetedEstimation.try_tmle!(
+            cache; 
+            verbosity=verbosity, 
+            threshold=tmle_spec.threshold, 
+            weighted_fluctuation=tmle_spec.weighted_fluctuation
+        )
         # Update results
         tmle_results[partition_index] = tmle_result
         logs[partition_index] = log
