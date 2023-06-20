@@ -11,6 +11,7 @@ using EvoTrees
     tmle_spec = TargetedEstimation.load_tmle_spec(joinpath("config", "tmle_config.jl"))
 
     @test tmle_spec.threshold == 0.001
+    @test tmle_spec.weighted_fluctuation == false
     # Test binary target TMLE's Qstack
     Q_binary = tmle_spec.Q_binary
     @test Q_binary.cache == false
@@ -84,6 +85,7 @@ end
 @testset "Test tmle_spec_from_yaml: Simple models and GridSearch" begin
     tmle_spec = TargetedEstimation.load_tmle_spec(joinpath("config", "tmle_config_2.jl"))
     @test tmle_spec.G.cache == true
+    @test tmle_spec.weighted_fluctuation == true
     @test tmle_spec.G.measure isa LogLoss
     @test tmle_spec.G.tuning.goal == 5
     @test tmle_spec.G.model.nrounds == 10

@@ -162,7 +162,7 @@ end
     parsed_args = Dict(
         "data" => "data.csv",
         "param-file" => joinpath("config", param_file),
-        "estimator-file" => joinpath("config", "tmle_config.jl"),
+        "estimator-file" => joinpath("config", "tmle_config_2.jl"),
         "csv-out" => "output.csv",
         "verbosity" => 0,
         "hdf5-out" => nothing,

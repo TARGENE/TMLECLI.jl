@@ -15,12 +15,13 @@ function parse_commandline()
         "param-file"
             help = "A file (.yaml|.bin) listing all parameters to estimate."
             required = true
-        "estimator-file"
-            help = "A file (.jl) describing the tmle estimator to use, README.md"
-            required = true
         "csv-out"
             help = "Path to output `.csv` file"
             required = true
+        "--estimator-file"
+            help = "A file (.jl) describing the tmle estimator to use, README.md"
+            arg_type= String
+            required = false
         "--hdf5-out"
             help = "If the influence curves also need to be stored (see also: --pval-threshold)"
             arg_type = String

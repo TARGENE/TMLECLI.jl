@@ -7,16 +7,17 @@ TMLE is an adaptive procedure that depends on the specification of learning algo
 
 ## Description of the file
 
-In order to provide maximum flexibility as to the choice of learning algorithms, the estimator file is a plain [Julia](https://julialang.org/) file. It must define a [NamedTuple](https://docs.julialang.org/en/v1/base/base/#Core.NamedTuple) called `tmle_spec` with 5 fields as follows:
+In order to provide maximum flexibility as to the choice of learning algorithms, the estimator file is a plain [Julia](https://julialang.org/) file. This file is optional and omitting it defaults to using generalized linear models. If provided, it must define a [NamedTuple](https://docs.julialang.org/en/v1/base/base/#Core.NamedTuple) called `tmle_spec` containing any of the following fields as follows (default configuration):
 
 ```julia
 
 tmle_spec = (
   Q_continuous = LinearRegressor(),
-  Q_binary     = LogisticClassifier(),
-  G            = LogisticClassifier(),
+  Q_binary     = LogisticClassifier(lambda=0.),
+  G            = LogisticClassifier(lambda=0.),
   threshold    = 1e-8,
   cache        = false,
+  weighted_fluctuation = false
 )
 ```
 
@@ -27,8 +28,9 @@ where:
 - `G`: is a MLJ model used for the estimation of `p(T|W)`.
 - `threshold`: is the minimum value the propensity score `G` is allowed to take.
 - `cache`: controls caching of data by [MLJ machines](https://alan-turing-institute.github.io/MLJ.jl/dev/machines/). Setting it to `true` may result in faster runtime but higher memory usage.
+- `weighted_fluctuation`: controls whether the fluctuation for `Q` is a weighted glm or not.
 
-Typically, only `Q_continuous`, `Q_binary` and `G` will be adjusted.
+Typically, `Q_continuous`, `Q_binary` and `G` will be adjusted and other fields can be left unspecified.
 
 ## Ready to use estimator files
 
