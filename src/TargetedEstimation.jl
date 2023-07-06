@@ -22,6 +22,7 @@ using Mmap
 using Serialization
 using MultipleTesting
 using Combinatorics
+using Tables
 
 import MLJModelInterface
 
@@ -31,9 +32,10 @@ include("sieve_variance.jl")
 include("merge.jl")
 include(joinpath("models", "glmnet.jl"))
 include(joinpath("models", "adaptive_interaction_transformer.jl"))
+include(joinpath("models", "biallelic_snp_encoder.jl"))
 
 export tmle_estimation, sieve_variance_plateau, merge_csv_files
 export GLMNetRegressor, GLMNetClassifier
-export RestrictedInteractionTransformer
+export RestrictedInteractionTransformer, BiAllelicSNPEncoder
 
 end
