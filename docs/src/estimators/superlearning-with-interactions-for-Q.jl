@@ -52,7 +52,7 @@ tmle_spec = (
     ),
     tuned_xgboost      = TunedModel(
         model = xgboost_classifier,
-        resampling = CV(nfolds=3),
+        resampling = StratifiedCV(nfolds=3),
         tuning = Grid(goal=20),
         range = [
             range(xgboost_classifier, :max_depth, lower=3, upper=7), 
@@ -71,7 +71,7 @@ tmle_spec = (
     lr                 = LogisticClassifier(lambda=0.),
     tuned_xgboost      = TunedModel(
         model = xgboost_classifier,
-        resampling = CV(nfolds=3),
+        resampling = StratifiedCV(nfolds=3),
         tuning = Grid(goal=20),
         range = [
             range(xgboost_classifier, :max_depth, lower=3, upper=7), 
