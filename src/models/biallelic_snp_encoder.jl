@@ -12,8 +12,8 @@ end
 
 BiAllelicSNPEncoder(;patterns=[]) = BiAllelicSNPEncoder(patterns)
 
-isok_eltype(::Type{<:CategoricalValue{String,}}) = true
-isok_eltype(::Type{<:Union{Missing, <:CategoricalValue{String,}}}) = true
+isok_eltype(::Type{<:CategoricalValue{<:AbstractString,}}) = true
+isok_eltype(::Type{<:Union{Missing, <:CategoricalValue{<:AbstractString,}}}) = true
 isok_eltype(v) = false
 
 function MLJModelInterface.fit(model::BiAllelicSNPEncoder, verbosity::Int, X)
