@@ -34,7 +34,9 @@ function merge_csv_files(parsed_args)
             ".csv"
         )
         sieve_data = load_csv_files(sieve_files)
-        data = leftjoin(data, sieve_data, on=joining_keys(), matchmissing=:equal)
+        if size(sieve_data, 1) > 0
+            data = leftjoin(data, sieve_data, on=joining_keys(), matchmissing=:equal)
+        end
     end
 
     # Pvalue Adjustment by Target

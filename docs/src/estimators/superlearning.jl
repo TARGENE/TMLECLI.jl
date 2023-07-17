@@ -23,7 +23,7 @@ tmle_spec = (
             range(xgboost_regressor, :max_depth, lower=3, upper=7), 
             range(xgboost_regressor, :lambda, lower=1e-5, upper=10, scale=:log)
             ],
-        measure = log_loss,
+        measure = rmse,
         cache=false
         )
     ),
@@ -36,7 +36,7 @@ tmle_spec = (
     lr                 = LogisticClassifier(lambda=0.),
     tuned_xgboost      = TunedModel(
         model = xgboost_classifier,
-        resampling = CV(nfolds=3),
+        resampling = StratifiedCV(nfolds=3),
         tuning = Grid(goal=20),
         range = [
             range(xgboost_classifier, :max_depth, lower=3, upper=7), 
@@ -55,7 +55,7 @@ tmle_spec = (
     lr                 = LogisticClassifier(lambda=0.),
     tuned_xgboost      = TunedModel(
         model = xgboost_classifier,
-        resampling = CV(nfolds=3),
+        resampling = StratifiedCV(nfolds=3),
         tuning = Grid(goal=20),
         range = [
             range(xgboost_classifier, :max_depth, lower=3, upper=7), 

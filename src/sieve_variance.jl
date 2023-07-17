@@ -98,7 +98,8 @@ function build_work_list(prefix, grm_ids)
             end
         end
     end
-    return sieve_df, reduce(vcat, transpose(influence_curves)), n_obs
+    influence_curves = length(influence_curves) > 0 ? reduce(vcat, transpose(influence_curves)) : Matrix{Float32}(undef, 0, 0)
+    return sieve_df, influence_curves, n_obs
 end
 
 
@@ -196,7 +197,7 @@ end
 corrected_stderrors(variances, n_obs) =
     sqrt.(view(maximum(variances, dims=1), 1, :) ./ n_obs)
 
-function update_sieve_df!(df, stds, n_obs)
+function update_sieve_df!(df, stds)
     n = size(stds, 1)
     df.SIEVE_STD = Vector{Float64}(undef, n)
     df.SIEVE_PVALUE = Vector{Float64}(undef, n)
@@ -206,7 +207,7 @@ function update_sieve_df!(df, stds, n_obs)
     for index in 1:n
         std = stds[index]
         estimate = df.TMLE_ESTIMATE[index]
-        testresult = OneSampleZTest(estimate, std, n_obs[index])
+        testresult = OneSampleZTest(estimate, std, 1)
         lwb, upb = confint(testresult)
         df.SIEVE_STD[index] = std
         df.SIEVE_PVALUE[index] = pvalue(testresult)
@@ -227,11 +228,14 @@ function sieve_variance_plateau(parsed_args)
     verbosity > 0 && @info "Preparing work list."
     sieve_df, influence_curves, n_obs = build_work_list(prefix, grm_ids)
 
-    verbosity > 0 && @info "Computing variance estimates."
-
-    variances = compute_variances(influence_curves, grm, τs, n_obs)
-    std_errors = corrected_stderrors(variances, n_obs)
-    update_sieve_df!(sieve_df, std_errors, n_obs)
+    if length(influence_curves) > 0
+        verbosity > 0 && @info "Computing variance estimates."
+        variances = compute_variances(influence_curves, grm, τs, n_obs)
+        std_errors = corrected_stderrors(variances, n_obs)
+        update_sieve_df!(sieve_df, std_errors)
+    else
+        variances = Float32[]
+    end
     save_results(outprefix, sieve_df, τs, variances)
 
     verbosity > 0 && @info "Done."
