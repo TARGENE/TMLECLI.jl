@@ -48,11 +48,3 @@ This transformer, mostly useful for genetic studies, converts bi-allelic single 
 ```@docs
 BiAllelicSNPEncoder
 ```
-
-## Additional Resampling Strategies
-
-We also provide an additional adaptive `ResamplingStrategy` that will determine the number of cross-validation folds adaptively based on the available data.
-
-```@docs
-AdaptiveCV
-```

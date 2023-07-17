@@ -1,6 +1,11 @@
 # TargetedEstimation.jl
 
-The goal of this package, eventually, is to provide a standalone executable to run Targeted Minimum Loss-based Estimation (TMLE). It is based on the companion [TMLE.jl](https://targene.github.io/TMLE.jl/stable/).
+The goal of this package, eventually, is to provide a standalone executable to run Targeted Minimum Loss-based Estimation (TMLE) on tabular datasets. It is based on the companion [TMLE.jl](https://targene.github.io/TMLE.jl/stable/) package.
+
+We also provide extensions to the [MLJ](https://alan-turing-institute.github.io/MLJ.jl/dev/) universe that are particularly useful in genetics (but not restricted to):
+
+- Additional [Models](@ref)
+- Additional [Resampling Strategies](@ref)
 
 ## Running TMLE
 

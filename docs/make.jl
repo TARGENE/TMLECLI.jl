@@ -16,6 +16,7 @@ makedocs(
     pages=[
         "Home" => "index.md",
         "Models" => "models.md",
+        "Resampling" => "resampling.md",
         "Estimator File" => "estimatorfile.md"
     ]
 )
