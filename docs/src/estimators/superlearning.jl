@@ -23,7 +23,7 @@ tmle_spec = (
             range(xgboost_regressor, :max_depth, lower=3, upper=7), 
             range(xgboost_regressor, :lambda, lower=1e-5, upper=10, scale=:log)
             ],
-        measure = log_loss,
+        measure = rmse,
         cache=false
         )
     ),
