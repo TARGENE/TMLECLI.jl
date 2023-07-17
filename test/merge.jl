@@ -78,6 +78,33 @@ end
     rm(parsed_args["out"])
 end
 
+@testset "Test merge_csv_files, empty sieve file" begin
+    parsed_args = Dict(
+        "tmle-prefix" => joinpath("data", "merge", "tmle"),
+        "sieve-prefix" => joinpath("data", "merge", "empty"),
+        "out" => "output.csv"
+    )
+    merge_csv_files(parsed_args)
+    output = CSV.read(parsed_args["out"], DataFrame)
+    @test names(output) == [
+        "PARAMETER_TYPE", "TREATMENTS", "CASE",
+        "CONTROL", "TARGET", "CONFOUNDERS",
+        "COVARIATES", "INITIAL_ESTIMATE", 
+        "TMLE_ESTIMATE", "TMLE_STD", "TMLE_PVALUE", "TMLE_LWB", "TMLE_UPB",
+        "ONESTEP_ESTIMATE", "ONESTEP_STD", "ONESTEP_PVALUE", "ONESTEP_LWB", "ONESTEP_UPB", 
+        "LOG", "TRAIT_ADJUSTED_TMLE_PVALUE"
+    ]
+    @test size(output, 1) == 8
+    @test output.PARAMETER_TYPE == [
+        "IATE", "IATE", "ATE",
+        "IATE", "IATE", "ATE",
+        "ATE", "CM"
+    ]
+
+    rm(parsed_args["out"])
+end
+
+
 end
 
 true
