@@ -17,7 +17,8 @@ makedocs(
         "Home" => "index.md",
         "Models" => "models.md",
         "Resampling" => "resampling.md",
-        "Estimator File" => "estimatorfile.md"
+        "Estimator File" => "estimatorfile.md",
+        "Runtime" => "runtime.md"
     ]
 )
 
