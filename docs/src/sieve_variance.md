@@ -4,7 +4,7 @@ If the i.i.d. (independent and identically distributed) hypothesis is not satisf
 
 ## Usage
 
-At the moment, this script is restricted to the analysis of population genetics datasets mostly in the context of [TarGene](https://targene.github.io/targene-pipeline/stable/sieve_variance/). It can be run in the docker container described in [Run Environment](@ref) with the following command:
+At the moment, this script is restricted to the analysis of population genetics datasets mostly in the context of [TarGene](https://targene.github.io/targene-pipeline/stable/sieve_variance/). It can be run with the following command:
 
 ```bash
 julia scripts/sieve_variance.jl PREFIX GRM_PREFIX OUT_PREFIX

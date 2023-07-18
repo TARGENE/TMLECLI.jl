@@ -4,8 +4,8 @@ The goal of this package, eventually, is to provide a standalone executable to r
 
 The various command line interfaces are described in the following sections:
 
-- [Targeted Minimum Loss Based Estimation](@ref): the main command line provided in this project to run TMLE.
-- [Sieve Variance Plateau Estimation](@ref): variance correction for non i.i.d. data.
+- [Targeted Minimum Loss Based Estimation](@ref): The main command line interface provided in this project to run TMLE.
+- [Sieve Variance Plateau Estimation](@ref): Variance correction for non i.i.d. data.
 
 We also provide extensions to the [MLJ](https://alan-turing-institute.github.io/MLJ.jl/dev/) universe that are particularly useful in statistical genetics (but not restricted to it):
 
