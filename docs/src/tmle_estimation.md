@@ -1,8 +1,81 @@
-# Runtime
+# Targeted Minimum Loss Based Estimation
+
+This is the main script in this package, it provides a command line interface for the estimation of statistical parameters using targeted Learning. 
+
+## Usage
+
+Provided you have the package and all dependencies installed or in the provided docker container, you can run TMLE via the following command:
+
+```bash
+julia scripts/tmle.jl DATAFILE PARAMFILE OUTFILE
+        --estimator-file=docs/estimators/glmnet.jl
+        --hdf5-out=output.hdf5
+        --pval-threshold=0.05
+        --chunksize=100
+        --verbosity=1
+```
+
+where:
+
+- `DATAFILE`: A CSV (.csv) or Arrow (.arrow) file containing the tabular data. The format will be deduced from the extension.
+- `PARAMFILE`: A serialized [YAML](https://targene.github.io/TMLE.jl/stable/user_guide/#Reading-Parameters-from-YAML-files) or [bin](https://docs.julialang.org/en/v1/stdlib/Serialization/) file containing the estimands to be estimated. The YAML file can be written by hand or programmatically using the [TMLE.parameters_to_yaml](https://targene.github.io/TMLE.jl/stable/api/#TMLE.parameters_to_yaml-Tuple{Any,%20Any}) function.
+- `OUTFILE`: The output .csv file
+- `--estimator-file`: A Julia file describing the TMLE specifications (see [Estimator File](@ref)).
+- `--hdf5-out`: if provided, a path to a file to save the influence curves.
+- `--pval-threshold`: Only "significant" (< this threshold) estimates will actually have their influence curves stored in the previous file.
+- `--chunksize`: To manage memory, the results are appended to the output files in batches the size of which can be controlled via this option.
+- `--verbosity`: The verbosity level.
+
+## Estimator File
+
+TMLE is an adaptive procedure that depends on the specification of learning algorithms for the estimation of the nuisance parameters (see [TMLE.jl](https://targene.github.io/TMLE.jl/stable/) for a description of the assumed setting). In our case, there are two nuisance parameters for which we need to specify learning algorithms:
+
+- `E[Y|T, W, C]`: The mean outcome given the treatment, confounders and extra covariates. It is commonly denoted by `Q` in the Targeted Learning litterature.
+- `p(T|W)`: The propensity score. It is commonly denoted by `G` in the Targeted Learning litterature.
+
+### Description of the file
+
+In order to provide maximum flexibility as to the choice of learning algorithms, the estimator file is a plain [Julia](https://julialang.org/) file. This file is optional and omitting it defaults to using generalized linear models. If provided, it must define a [NamedTuple](https://docs.julialang.org/en/v1/base/base/#Core.NamedTuple) called `tmle_spec` containing any of the following fields as follows (default configuration):
+
+```julia
+
+tmle_spec = (
+  Q_continuous = LinearRegressor(),
+  Q_binary     = LogisticClassifier(lambda=0.),
+  G            = LogisticClassifier(lambda=0.),
+  threshold    = 1e-8,
+  cache        = false,
+  weighted_fluctuation = false
+)
+```
+
+where:
+
+- `Q_continuous`: is a MLJ model used for the estimation of `E[Y|T, W, C]` when the outcome `Y` is continuous.
+- `Q_binary`: is a MLJ model used for the estimation of `E[Y|T, W, C]` when the outcome `Y` is binary.
+- `G`: is a MLJ model used for the estimation of `p(T|W)`.
+- `threshold`: is the minimum value the propensity score `G` is allowed to take.
+- `cache`: controls caching of data by [MLJ machines](https://alan-turing-institute.github.io/MLJ.jl/dev/machines/). Setting it to `true` may result in faster runtime but higher memory usage.
+- `weighted_fluctuation`: controls whether the fluctuation for `Q` is a weighted glm or not.
+
+Typically, `Q_continuous`, `Q_binary` and `G` will be adjusted and other fields can be left unspecified.
+
+### Ready to use estimator files
+
+We recognize not everyone will be familiar with [Julia](https://julialang.org/). We thus provide a set of ready to use estimator files that can be simplified or extended as needed:
+
+- Super Learning: [with](./estimators/superlearning-with-interactions-for-Q.jl) and [without](./estimators/superlearning.jl) interaction terms in the GLM models for Q.
+- Super Learning for G and GLMNet for Q: [here](./estimators/G-superlearning-Q-glmnet.jl).
+- Super Learning for G and GLM for Q: [here](./estimators/G-superlearning-Q-glm.jl).
+- GLMNet: [with](./estimators/glmnet-with-interactions-for-Q.jl) and [without](./estimators/glmnet.jl) interaction terms in the GLM models for Q.
+- GLM: [with](./estimators/glm-with-interactions-for-Q.jl) and [without](./estimators/glm.jl) interaction terms in the GLM models for Q.
+- XGBoost: [with tuning](./estimators/tuned-xgboost.jl).
+
+## Runtime
 
 Targeted Learning can quickly become computationally intensive compared to traditional parametric inference. Here, we illustrate typical runtimes using examples from population genetics. This is because population genetics is currently the main use case for this package, but it shouldn't be understood as the only scope. In fact, the two most prominent study designs in population genetics are perfect illustrations of the computational complexity associated with Targeted Learning.
 
-## Preliminary
+### Preliminary
 
 Remember that for each estimand of interest, Targeted Learning requires 3 main ingredients that drive computational complexity:
 
@@ -16,7 +89,7 @@ In what follows, `Y` is an outcome of interest, `W` a set of confounding variabl
 
 The various estimators used below are further described in [Ready to use estimator files](@ref)
 
-## Multiple treatment contrasts
+### Multiple treatment contrasts
 
 In a classic randomized control trial, the treatment variable can only take one of two levels: `treated` or `not treated`. In out example however, any genetic variation takes its values from three different levels. For instance, one could be any of `AA`, `AC` or `CC` at a given locus. As such, the `treated` and `not treated` levels need to be defined and any of the following contrasts can be of interest:
 
@@ -26,7 +99,7 @@ In a classic randomized control trial, the treatment variable can only take one 
 
 For a given outcome and genetic variation, for each contrast, both `G` and `Q` are actually the same. This shows a first level of reduction in computational complexity. **Both `G` and `Q` need to be fitted only once across multiple treatment contrasts and only the targeting step needs to be carried out again.**
 
-## The PheWAS study design
+### The PheWAS study design
 
 In a PheWAS, one is interested in the effect of a genetic variation across many outcomes (typically around 1000). Because the treatment variable is always the same, the propensity score `G` can be reused across all parameters, which drastically reduces computational complexity.
 
@@ -54,7 +127,7 @@ Finally, note that those runtime estimates should be interpreted as worse cases,
 - In the case where `G` only is a Super Learner, since the number of parameters is still relatively low, it is possible that the time to fit `G` still dominates the runtime.
 - Runtimes include precompilation which becomes negligible with the size of the study.
 
-## The GWAS study design
+### The GWAS study design
 
 In a GWAS, the outcome variable is held fixed and we are interested in the effects of very many genetic variations on this outcome (typically 800 000 for a genotyping array). The propensity score cannot be reused across parameters resulting in a more expensive run.
 
@@ -70,7 +143,7 @@ Again, we estimate the 3 Average Treatment Effects corresponding to the 3 possib
 | --- | :---: | :---: |
 | `docs/src/estimators/glm.jl` | 5.86 | 6.42 | 
 | `docs/src/estimators/glmnet.jl` | 17.55164408683777 | 22.34 |
-| `docs/src/estimators/G-superlearning-Q-glmnet.jl` | ? | ? |
+| `docs/src/estimators/G-superlearning-Q-glmnet.jl` | 435.95 | ? |
 | `docs/src/estimators/superlearning.jl` | ? | ? |
 
 It is thus quite unlikely that you will be able to use Super Learning for any of `P(V|W)` or `E[Y|V, W]` if you don't have access to a high performance computing platform. For practical purposes it might be necessary to use a GLM or GLMNet. As such, no double robustness guarantee will be satisfied in general. However, our estimate will still be targeted, which means that its bias will be reduced compared to classic inference using a parametric model.
