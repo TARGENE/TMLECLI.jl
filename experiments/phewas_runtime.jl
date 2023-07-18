@@ -10,7 +10,7 @@ using MLJBase
 
 function parse_commandline()
     s = ArgParseSettings(
-        description = "Runs TMLE for 100 SNPs, 1 binary and one continuous trait. Runtime will depend on the platform.",
+        description = "PheWAS Runtime estimation",
         commands_are_required = false)
 
     @add_arg_table s begin
@@ -19,7 +19,7 @@ function parse_commandline()
                    "/exports/igmm/datastore/ponting-lab/olivier/misc_datasets/sample_ukb_data.csv")
             required = true
             default = "/exports/igmm/datastore/ponting-lab/olivier/misc_datasets/sample_ukb_data.csv"
-        "--strategy"
+        "--estimator-file"
             arg_type = String
             help = "Either: glm/glmnet/xgboost/sl"
             required = false
