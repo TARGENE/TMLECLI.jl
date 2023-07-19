@@ -12,7 +12,7 @@ tmle_spec = (
   Q_continuous = Stack(
     metalearner        = LinearRegressor(fit_intercept=false),
     cache              = true,
-    resampling         = AdaptiveCV(CV(nfolds=2)),
+    resampling         = AdaptiveCV(),
     interaction_glmnet = Pipeline(
       interaction_transformer = InteractionTransformer(order=3),
       glmnet                  = GLMNetRegressor(),

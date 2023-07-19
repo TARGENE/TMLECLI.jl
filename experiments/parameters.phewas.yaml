@@ -1,0 +1,391 @@
+Parameters:
+  - target: ankylosing spondylitis
+    treatment: (rs7971418 = (case = "CA", control = "AA"),)
+    confounders:
+      - PC1
+      - PC2
+      - PC3
+      - PC4
+      - PC5
+      - PC6
+    covariates:
+      - Age-Assessment
+      - Genetic-Sex
+    type: ATE
+  - target: ankylosing spondylitis
+    treatment: (rs7971418 = (case = "CC", control = "CA"),)
+    confounders:
+      - PC1
+      - PC2
+      - PC3
+      - PC4
+      - PC5
+      - PC6
+    covariates:
+      - Age-Assessment
+      - Genetic-Sex
+    type: ATE
+  - target: ankylosing spondylitis
+    treatment: (rs7971418 = (case = "CC", control = "AA"),)
+    confounders:
+      - PC1
+      - PC2
+      - PC3
+      - PC4
+      - PC5
+      - PC6
+    covariates:
+      - Age-Assessment
+      - Genetic-Sex
+    type: ATE
+  - target: J32 Chronic sinusitis
+    treatment: (rs7971418 = (case = "CA", control = "AA"),)
+    confounders:
+      - PC1
+      - PC2
+      - PC3
+      - PC4
+      - PC5
+      - PC6
+    covariates:
+      - Age-Assessment
+      - Genetic-Sex
+    type: ATE
+  - target: J32 Chronic sinusitis
+    treatment: (rs7971418 = (case = "CC", control = "CA"),)
+    confounders:
+      - PC1
+      - PC2
+      - PC3
+      - PC4
+      - PC5
+      - PC6
+    covariates:
+      - Age-Assessment
+      - Genetic-Sex
+    type: ATE
+  - target: J32 Chronic sinusitis
+    treatment: (rs7971418 = (case = "CC", control = "AA"),)
+    confounders:
+      - PC1
+      - PC2
+      - PC3
+      - PC4
+      - PC5
+      - PC6
+    covariates:
+      - Age-Assessment
+      - Genetic-Sex
+    type: ATE
+  - target: Basophill percentage
+    treatment: (rs7971418 = (case = "CA", control = "AA"),)
+    confounders:
+      - PC1
+      - PC2
+      - PC3
+      - PC4
+      - PC5
+      - PC6
+    covariates:
+      - Age-Assessment
+      - Genetic-Sex
+    type: ATE
+  - target: Basophill percentage
+    treatment: (rs7971418 = (case = "CC", control = "CA"),)
+    confounders:
+      - PC1
+      - PC2
+      - PC3
+      - PC4
+      - PC5
+      - PC6
+    covariates:
+      - Age-Assessment
+      - Genetic-Sex
+    type: ATE
+  - target: Basophill percentage
+    treatment: (rs7971418 = (case = "CC", control = "AA"),)
+    confounders:
+      - PC1
+      - PC2
+      - PC3
+      - PC4
+      - PC5
+      - PC6
+    covariates:
+      - Age-Assessment
+      - Genetic-Sex
+    type: ATE
+  - target: Non-oily fish intake
+    treatment: (rs7971418 = (case = "CA", control = "AA"),)
+    confounders:
+      - PC1
+      - PC2
+      - PC3
+      - PC4
+      - PC5
+      - PC6
+    covariates:
+      - Age-Assessment
+      - Genetic-Sex
+    type: ATE
+  - target: Non-oily fish intake
+    treatment: (rs7971418 = (case = "CC", control = "CA"),)
+    confounders:
+      - PC1
+      - PC2
+      - PC3
+      - PC4
+      - PC5
+      - PC6
+    covariates:
+      - Age-Assessment
+      - Genetic-Sex
+    type: ATE
+  - target: Non-oily fish intake
+    treatment: (rs7971418 = (case = "CC", control = "AA"),)
+    confounders:
+      - PC1
+      - PC2
+      - PC3
+      - PC4
+      - PC5
+      - PC6
+    covariates:
+      - Age-Assessment
+      - Genetic-Sex
+    type: ATE
+  - target: H01 Other inflammation of eyelid
+    treatment: (rs7971418 = (case = "CA", control = "AA"),)
+    confounders:
+      - PC1
+      - PC2
+      - PC3
+      - PC4
+      - PC5
+      - PC6
+    covariates:
+      - Age-Assessment
+      - Genetic-Sex
+    type: ATE
+  - target: H01 Other inflammation of eyelid
+    treatment: (rs7971418 = (case = "CC", control = "CA"),)
+    confounders:
+      - PC1
+      - PC2
+      - PC3
+      - PC4
+      - PC5
+      - PC6
+    covariates:
+      - Age-Assessment
+      - Genetic-Sex
+    type: ATE
+  - target: H01 Other inflammation of eyelid
+    treatment: (rs7971418 = (case = "CC", control = "AA"),)
+    confounders:
+      - PC1
+      - PC2
+      - PC3
+      - PC4
+      - PC5
+      - PC6
+    covariates:
+      - Age-Assessment
+      - Genetic-Sex
+    type: ATE
+  - target: L55-L59 Radiation-related disorders of the skin and subcutaneous tissue
+    treatment: (rs7971418 = (case = "CA", control = "AA"),)
+    confounders:
+      - PC1
+      - PC2
+      - PC3
+      - PC4
+      - PC5
+      - PC6
+    covariates:
+      - Age-Assessment
+      - Genetic-Sex
+    type: ATE
+  - target: L55-L59 Radiation-related disorders of the skin and subcutaneous tissue
+    treatment: (rs7971418 = (case = "CC", control = "CA"),)
+    confounders:
+      - PC1
+      - PC2
+      - PC3
+      - PC4
+      - PC5
+      - PC6
+    covariates:
+      - Age-Assessment
+      - Genetic-Sex
+    type: ATE
+  - target: L55-L59 Radiation-related disorders of the skin and subcutaneous tissue
+    treatment: (rs7971418 = (case = "CC", control = "AA"),)
+    confounders:
+      - PC1
+      - PC2
+      - PC3
+      - PC4
+      - PC5
+      - PC6
+    covariates:
+      - Age-Assessment
+      - Genetic-Sex
+    type: ATE
+  - target: E70-E90 Metabolic disorders
+    treatment: (rs7971418 = (case = "CA", control = "AA"),)
+    confounders:
+      - PC1
+      - PC2
+      - PC3
+      - PC4
+      - PC5
+      - PC6
+    covariates:
+      - Age-Assessment
+      - Genetic-Sex
+    type: ATE
+  - target: E70-E90 Metabolic disorders
+    treatment: (rs7971418 = (case = "CC", control = "CA"),)
+    confounders:
+      - PC1
+      - PC2
+      - PC3
+      - PC4
+      - PC5
+      - PC6
+    covariates:
+      - Age-Assessment
+      - Genetic-Sex
+    type: ATE
+  - target: E70-E90 Metabolic disorders
+    treatment: (rs7971418 = (case = "CC", control = "AA"),)
+    confounders:
+      - PC1
+      - PC2
+      - PC3
+      - PC4
+      - PC5
+      - PC6
+    covariates:
+      - Age-Assessment
+      - Genetic-Sex
+    type: ATE
+  - target: D00-D09 In situ neoplasms
+    treatment: (rs7971418 = (case = "CA", control = "AA"),)
+    confounders:
+      - PC1
+      - PC2
+      - PC3
+      - PC4
+      - PC5
+      - PC6
+    covariates:
+      - Age-Assessment
+      - Genetic-Sex
+    type: ATE
+  - target: D00-D09 In situ neoplasms
+    treatment: (rs7971418 = (case = "CC", control = "CA"),)
+    confounders:
+      - PC1
+      - PC2
+      - PC3
+      - PC4
+      - PC5
+      - PC6
+    covariates:
+      - Age-Assessment
+      - Genetic-Sex
+    type: ATE
+  - target: D00-D09 In situ neoplasms
+    treatment: (rs7971418 = (case = "CC", control = "AA"),)
+    confounders:
+      - PC1
+      - PC2
+      - PC3
+      - PC4
+      - PC5
+      - PC6
+    covariates:
+      - Age-Assessment
+      - Genetic-Sex
+    type: ATE
+  - target: I95-I99 Other and unspecified disorders of the circulatory system
+    treatment: (rs7971418 = (case = "CA", control = "AA"),)
+    confounders:
+      - PC1
+      - PC2
+      - PC3
+      - PC4
+      - PC5
+      - PC6
+    covariates:
+      - Age-Assessment
+      - Genetic-Sex
+    type: ATE
+  - target: I95-I99 Other and unspecified disorders of the circulatory system
+    treatment: (rs7971418 = (case = "CC", control = "CA"),)
+    confounders:
+      - PC1
+      - PC2
+      - PC3
+      - PC4
+      - PC5
+      - PC6
+    covariates:
+      - Age-Assessment
+      - Genetic-Sex
+    type: ATE
+  - target: I95-I99 Other and unspecified disorders of the circulatory system
+    treatment: (rs7971418 = (case = "CC", control = "AA"),)
+    confounders:
+      - PC1
+      - PC2
+      - PC3
+      - PC4
+      - PC5
+      - PC6
+    covariates:
+      - Age-Assessment
+      - Genetic-Sex
+    type: ATE
+  - target: E50-E64 Other nutritional deficiencies
+    treatment: (rs7971418 = (case = "CA", control = "AA"),)
+    confounders:
+      - PC1
+      - PC2
+      - PC3
+      - PC4
+      - PC5
+      - PC6
+    covariates:
+      - Age-Assessment
+      - Genetic-Sex
+    type: ATE
+  - target: E50-E64 Other nutritional deficiencies
+    treatment: (rs7971418 = (case = "CC", control = "CA"),)
+    confounders:
+      - PC1
+      - PC2
+      - PC3
+      - PC4
+      - PC5
+      - PC6
+    covariates:
+      - Age-Assessment
+      - Genetic-Sex
+    type: ATE
+  - target: E50-E64 Other nutritional deficiencies
+    treatment: (rs7971418 = (case = "CC", control = "AA"),)
+    confounders:
+      - PC1
+      - PC2
+      - PC3
+      - PC4
+      - PC5
+      - PC6
+    covariates:
+      - Age-Assessment
+      - Genetic-Sex
+    type: ATE

@@ -15,8 +15,8 @@ makedocs(
     modules = [TargetedEstimation],
     pages=[
         "Home" => "index.md",
-        "Models" => "models.md",
-        "Estimator File" => "estimatorfile.md"
+        "Command Line Interfaces" => ["environment.md", "tmle_estimation.md", "sieve_variance.md", "merge.md"],
+        "MLJ Extensions" => ["models.md", "resampling.md"],
     ]
 )
 

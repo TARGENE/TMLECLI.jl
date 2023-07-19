@@ -9,7 +9,7 @@ Because [TMLE.jl](https://targene.github.io/TMLE.jl/stable/) is based on top of 
 - [MLJLinearModels](https://juliaai.github.io/MLJLinearModels.jl/stable/): Generalized Linear Models in Julia.
 - [XGBoost.jl](https://dmlc.github.io/XGBoost.jl/dev/): Julia wrapper of the famous [XGBoost](https://xgboost.readthedocs.io/en/stable/) package.
 - [EvoTrees.jl](https://evovest.github.io/EvoTrees.jl/stable/): A pure Julia implementation of histogram based gradient boosting trees (subset of XGBoost)
-- [GLMNet](https://github.com/JuliaStats/GLMNet.jl): A Julia wrapper of the [glmnet](https://glmnet.stanford.edu/articles/glmnet.html) package. See [GLMNet](@ref).
+- [GLMNet](https://github.com/JuliaStats/GLMNet.jl): A Julia wrapper of the [glmnet](https://glmnet.stanford.edu/articles/glmnet.html) package. See the [GLMNet](@ref) section.
 - [MLJModels](https://github.com/JuliaAI/MLJModels.jl): General utilities such as the `OneHotEncoder` or `InteractionTransformer`.
 - [HighlyAdaptiveLasso](https://github.com/olivierlabayle/HighlyAdaptiveLasso.jl): A Julia wrapper of the [HAL](https://tlverse.org/hal9001/) algorithm, experimental.
 
@@ -47,12 +47,4 @@ This transformer, mostly useful for genetic studies, converts bi-allelic single 
 
 ```@docs
 BiAllelicSNPEncoder
-```
-
-## Additional Resampling Strategies
-
-We also provide an additional adaptive `ResamplingStrategy` that will determine the number of cross-validation folds adaptively based on the available data.
-
-```@docs
-AdaptiveCV
 ```
