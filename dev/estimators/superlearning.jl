@@ -30,7 +30,7 @@ tmle_spec = (
   # For the estimation of E[Y|W, T]: binary target
   Q_binary = Stack(
     metalearner        = LogisticClassifier(lambda=0., fit_intercept=false),
-    resampling         = StratifiedCV(nfolds=2),
+    resampling         = StratifiedCV(nfolds=3),
     cache              = false,
     glmnet             = GLMNetClassifier(),
     lr                 = LogisticClassifier(lambda=0.),
@@ -49,7 +49,7 @@ tmle_spec = (
   # For the estimation of p(T| W)
   G = Stack(
     metalearner        = LogisticClassifier(lambda=0., fit_intercept=false),
-    resampling         = StratifiedCV(nfolds=2),
+    resampling         = StratifiedCV(nfolds=3),
     cache              = false,
     glmnet             = GLMNetClassifier(),
     lr                 = LogisticClassifier(lambda=0.),
