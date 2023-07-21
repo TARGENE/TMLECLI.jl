@@ -61,11 +61,6 @@ GLMNetModel = Union{GLMNetRegressor, GLMNetClassifier}
 make_fitresult(::GLMNetRegressor, res, y) = (glmnetcv=res, )
 make_fitresult(::GLMNetClassifier, res, y) = (glmnetcv=res, levels=sort(unique(y)))
 
-MLJBase.reformat(::GLMNetModel, X, y) = (MLJBase.matrix(X), y)
-MLJBase.reformat(::GLMNetModel, X) = (MLJBase.matrix(X),)
-MLJBase.selectrows(::GLMNetModel, I, Xmatrix, y) = (view(Xmatrix, I, :), view(y, I))
-MLJBase.selectrows(::GLMNetModel, I, Xmatrix) = (view(Xmatrix, I, :),)
-
 function getfolds(resampling, X, y)
     n = size(y, 1)
     folds = Vector{Int}(undef, n)
@@ -75,17 +70,17 @@ function getfolds(resampling, X, y)
     return folds
 end
 
-function MLJBase.fit(model::GLMNetModel, verbosity::Int, Xmatrix, y)
-    folds = getfolds(model.resampling, Xmatrix, y)
-    res = glmnetcv(Xmatrix, y; folds=folds, model.params...)
+function MLJBase.fit(model::GLMNetModel, verbosity::Int, X, y)
+    folds = getfolds(model.resampling, X, y)
+    res = glmnetcv(MLJBase.matrix(X), y; folds=folds, model.params...)
     return make_fitresult(model, res, y), nothing, nothing
 end
 
-MLJBase.predict(::GLMNetRegressor, fitresult, Xmatrix) =
-    GLMNet.predict(fitresult.glmnetcv, Xmatrix)
+MLJBase.predict(::GLMNetRegressor, fitresult, X) =
+    GLMNet.predict(fitresult.glmnetcv, MLJBase.matrix(X))
 
-function MLJBase.predict(::GLMNetClassifier, fitresult, Xmatrix)
-    raw_probs = GLMNet.predict(fitresult.glmnetcv, Xmatrix, outtype=:prob)
+function MLJBase.predict(::GLMNetClassifier, fitresult, X)
+    raw_probs = GLMNet.predict(fitresult.glmnetcv, MLJBase.matrix(X), outtype=:prob)
     levels = fitresult.levels
     if size(levels, 1) == 2
         probs = hcat(1 .- raw_probs, raw_probs)

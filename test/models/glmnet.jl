@@ -32,7 +32,7 @@ end
     X, y = make_moons(n, rng=rng)
     net = TargetedEstimation.GLMNetClassifier(rng=rng)
     mach = machine(net, X, y)
-    pe = evaluate!(mach, measure=log_loss, resampling=StratifiedCV(rng=rng), verbosity=0)
+    pe = evaluate!(mach, measure=log_loss, resampling=JointStratifiedCV(resampling=StratifiedCV(rng=rng)), verbosity=0)
     @test pe.measurement[1] < 0.180
 
     # Multivariate outcome
