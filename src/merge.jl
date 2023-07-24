@@ -9,10 +9,15 @@ function files_matching_prefix_and_suffix(prefix, suffix)
     return [joinpath(dirname_, x) for x in files]
 end
 
-function load_csv_files(files)
-    data = DataFrame()
+read_output_with_types(file) = 
+    CSV.read(file, DataFrame, types=Dict(key => String for key in joining_keys()))
+
+function load_csv_files(data, files)
     for file in files
-        data = vcat(data, CSV.read(file, DataFrame))
+        new_data = read_output_with_types(file)
+        if size(new_data, 1) > 0 
+            data = vcat(data, new_data)
+        end
     end
     return data
 end
@@ -25,7 +30,7 @@ function merge_csv_files(parsed_args)
         ".csv"
     )
     # Load tmle data
-    data = load_csv_files(tmle_files)
+    data = load_csv_files(empty_tmle_output(), tmle_files)
     # Load sieve data
     sieveprefix = parsed_args["sieve-prefix"]
     if sieveprefix !== nothing
@@ -33,7 +38,7 @@ function merge_csv_files(parsed_args)
             parsed_args["sieve-prefix"],
             ".csv"
         )
-        sieve_data = load_csv_files(sieve_files)
+        sieve_data = load_csv_files(empty_sieve_output(), sieve_files)
         if size(sieve_data, 1) > 0
             data = leftjoin(data, sieve_data, on=joining_keys(), matchmissing=:equal)
         end

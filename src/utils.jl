@@ -5,7 +5,7 @@
 #####################################################################
 
 
-csv_headers(;size=0) = DataFrame(
+empty_tmle_output(;size=0) = DataFrame(
     PARAMETER_TYPE=Vector{String}(undef, size), 
     TREATMENTS=Vector{String}(undef, size), 
     CASE=Vector{String}(undef, size), 
@@ -75,7 +75,7 @@ statistics_from_result(result::MissingTMLEResult) =
     (missing, missing, missing, missing, missing)
 
 function append_csv(filename, tmle_results, logs)
-    data = csv_headers(size=size(tmle_results, 1))
+    data = empty_tmle_output(size=size(tmle_results, 1))
     for (i, (result, log)) in enumerate(zip(tmle_results, logs))
         Ψ = result.parameter
         param_type = param_string(Ψ)

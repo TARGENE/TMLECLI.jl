@@ -34,6 +34,20 @@ sieve_dataframe() = DataFrame(
     TMLE_ESTIMATE=Float64[],
 )
 
+empty_sieve_output() = DataFrame(
+    PARAMETER_TYPE=String[], 
+    TREATMENTS=String[], 
+    CASE=String[], 
+    CONTROL=Union{String, Missing}[], 
+    TARGET=String[], 
+    CONFOUNDERS=String[], 
+    COVARIATES=Union{String, Missing}[], 
+    SIEVE_STD = Float64[],
+    SIEVE_PVALUE = Float64[],
+    SIEVE_LWB = Float64[],
+    SIEVE_UPB = Float64[],
+)
+
 function push_sieveless!(output, Ψ, Ψ̂)
     target = string(Ψ.target)
     param_type = param_string(Ψ)

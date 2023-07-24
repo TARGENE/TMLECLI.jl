@@ -313,7 +313,7 @@ end
     @test size(io["variances"]) == (10, 8)
     close(io)
     # check csv file
-    output = CSV.read(string(outprefix, ".csv"), DataFrame)
+    output = TargetedEstimation.read_output_with_types(string(outprefix, ".csv"))
     some_expected_cols = DataFrame(
         PARAMETER_TYPE = ["IATE", "IATE", "ATE", "IATE", "IATE", "ATE", "ATE", "CM"],
         TREATMENTS = ["T1_&_T2", "T1_&_T2", "T1_&_T2", "T1_&_T2", "T1_&_T2", "T1_&_T2", "T1", "T1"],
@@ -329,6 +329,13 @@ end
     @test output.SIEVE_UPB isa Vector{Float64}
     @test output.SIEVE_STD isa Vector{Float64}
 
+    tmle_output = TargetedEstimation.load_csv_files(
+        TargetedEstimation.empty_tmle_output(),
+        ["tmle_output_1.csv", "tmle_output_2.csv"]
+    )
+
+    joined = leftjoin(tmle_output, output, on=TargetedEstimation.joining_keys(), matchmissing=:equal)
+    @test all(joined.SIEVE_PVALUE .> 0 )
     # clean
     rm(string(outprefix, ".csv"))
     rm(string(outprefix, ".hdf5"))

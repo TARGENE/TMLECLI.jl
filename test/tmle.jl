@@ -174,7 +174,7 @@ end
 
     ## Check CSV file
     data = CSV.read(parsed_args["csv-out"], DataFrame)
-    @test names(TargetedEstimation.csv_headers()) == names(data)
+    @test names(TargetedEstimation.empty_tmle_output()) == names(data)
     @test size(data) == (6, 19)
     all(x === missing for x in data.LOG)
     # Clean
