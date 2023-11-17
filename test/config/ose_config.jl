@@ -1,13 +1,7 @@
 
 evotree = EvoTreeClassifier(nrounds=10)
 
-tmle_spec = (
-  # Controls caching of data by MLJ machines: turning to `true`` may result in faster execution but higher memory usage
-  cache = true,
-  # Controls whether the fluctuation is weighted or not
-  weighted_fluctuation = true,
-  # Propensity score threshold
-  threshold    = 1e-8,
+default_models = TMLE.default_models(
   # For the estimation of E[Y|W, T]: continuous target
   Q_continuous = Stack(
     metalearner        = LinearRegressor(fit_intercept=false),
@@ -42,3 +36,6 @@ tmle_spec = (
     )
 )
 
+ESTIMATORS = (
+  OSE  = OSE(models=default_models),
+)

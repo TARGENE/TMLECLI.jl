@@ -24,10 +24,12 @@ using MultipleTesting
 using Combinatorics
 using Tables
 using Random
+using YAML
 
 import MLJModelInterface
 
-include("tmle.jl")
+include("cache_managers.jl")
+include("runner.jl")
 include("utils.jl")
 include("sieve_variance.jl")
 include("merge.jl")
@@ -36,7 +38,7 @@ include(joinpath("models", "glmnet.jl"))
 include(joinpath("models", "adaptive_interaction_transformer.jl"))
 include(joinpath("models", "biallelic_snp_encoder.jl"))
 
-export tmle_estimation, sieve_variance_plateau, merge_csv_files
+export run_estimation, sieve_variance_plateau, merge_csv_files
 export GLMNetRegressor, GLMNetClassifier
 export RestrictedInteractionTransformer, BiAllelicSNPEncoder
 export AdaptiveCV, AdaptiveStratifiedCV, JointStratifiedCV

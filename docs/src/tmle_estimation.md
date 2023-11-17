@@ -34,7 +34,7 @@ The output file is a plain CSV file containing one line per estimand in the inpu
 - `TREATMENTS`: A "_&_" separated string containing all treatment variables associated with the estimand.
 - `CASE`: A "_&_" separated string containing the treatment variables' case values in the same order as `TREATMENTS`.
 - `CONTROL`: A "_&_" separated string containing the treatment variables' control values in the same order as `TREATMENTS`.
-- `TARGET`: The outcome variable.
+- `OUTCOME`: The outcome variable.
 - `CONFOUNDERS`: A "_&_" separated string containing the confounding variables.
 - `COVARIATES`: A "_&_" separated string containing the extra covariates used to estimate the outcome's mean.
 - `INITIAL_ESTIMATE`: The initial estimate before the targeting step.

@@ -1,0 +1,102 @@
+type: "Configuration"
+estimands:
+  - outcome_extra_covariates:
+      - C1
+    type: "IATE"
+    treatment_values:
+      T2:
+        case: true
+        control: false
+      T1:
+        case: true
+        control: false
+    outcome: CONTINUOUS, outcome
+    treatment_confounders:
+      T2:
+        - W1
+        - W2
+      T1:
+        - W1
+        - W2
+  - outcome_extra_covariates:
+      - C1
+    type: "IATE"
+    treatment_values:
+      T2:
+        case: true
+        control: false
+      T1:
+        case: true
+        control: false
+    outcome: BINARY/outcome
+    treatment_confounders:
+      T2:
+        - W1
+        - W2
+      T1:
+        - W1
+        - W2
+  - outcome_extra_covariates: []
+    type: "ATE"
+    treatment_values:
+      T1:
+        case: true
+        control: false
+    outcome: CONTINUOUS, outcome
+    treatment_confounders:
+      T1:
+        - W1
+        - W2
+  - outcome_extra_covariates: []
+    type: "IATE"
+    treatment_values:
+      T2:
+        case: false
+        control: true
+      T1:
+        case: true
+        control: false
+    outcome: CONTINUOUS, outcome
+    treatment_confounders:
+      T2:
+        - W1
+        - W2
+      T1:
+        - W1
+        - W2
+  - outcome_extra_covariates:
+      - C1
+    type: "IATE"
+    treatment_values:
+      T2:
+        case: false
+        control: true
+      T1:
+        case: true
+        control: false
+    outcome: BINARY/outcome
+    treatment_confounders:
+      T2:
+        - W1
+        - W2
+      T1:
+        - W1
+        - W2
+  - outcome_extra_covariates:
+      - C1
+    type: "ATE"
+    treatment_values:
+      T2:
+        case: true
+        control: false
+      T1:
+        case: true
+        control: false
+    outcome: CONTINUOUS, outcome
+    treatment_confounders:
+      T2:
+        - W1
+        - W2
+      T1:
+        - W1
+        - W2

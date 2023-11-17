@@ -1,16 +1,10 @@
 evotree = EvoTreeClassifier(nrounds=10)
 
-tmle_spec = (
-  # Controls caching of data by MLJ machines: turning to `true` may result in faster execution but higher memory usage
-  cache=false,
-  # Controls whether the fluctuation is weighted or not
-  weighted_fluctuation = false,
-  # Propensity score threshold
-  threshold    = 0.001,
-  # For the estimation of E[Y|W, T]: continuous target
+default_models = TMLE.default_models(
   Q_continuous = Stack(
     metalearner        = LinearRegressor(fit_intercept=false),
     resampling         = CV(nfolds=2),
+    cache              = false,
     interaction_glmnet = Pipeline(
       interaction_transformer = RestrictedInteractionTransformer(order=3, primary_variables_patterns=[r"^rs[0-9]+"]),
       glmnet                  = GLMNetRegressor(),
@@ -46,6 +40,7 @@ tmle_spec = (
   G = Stack(
     metalearner        = LogisticClassifier(lambda=0., fit_intercept=false),
     resampling         = StratifiedCV(nfolds=2),
+    cache              = false,
     interaction_glmnet = Pipeline(
       interaction_transformer = RestrictedInteractionTransformer(
           order=2,
@@ -58,4 +53,9 @@ tmle_spec = (
     constant           = ConstantClassifier(),
     evo                = EvoTreeClassifier(nrounds=10)
   )
+)
+
+ESTIMATORS = (
+  TMLE = TMLEE(models=default_models, weighted=true, ps_lowerbound=0.001),
+  OSE  = OSE(models=default_models)
 )

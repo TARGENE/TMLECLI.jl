@@ -38,8 +38,8 @@ function build_dataset(sample_ids)
         C1 = C₁,
     )
 
-    dataset[!, "CONTINUOUS, TARGET"] = y₁
-    dataset[!, "BINARY/TARGET"] = categorical(y₂)
+    dataset[!, "CONTINUOUS, OUTCOME"] = y₁
+    dataset[!, "BINARY/OUTCOME"] = categorical(y₂)
 
     CSV.write("data.csv", dataset)
 end
@@ -91,7 +91,7 @@ end
 
 function test_initial_output(output, expected_output)
     # Metadata columns
-    for col in [:PARAMETER_TYPE, :TREATMENTS, :CASE, :CONTROL, :TARGET, :CONFOUNDERS, :COVARIATES]
+    for col in [:PARAMETER_TYPE, :TREATMENTS, :CASE, :CONTROL, :OUTCOME, :CONFOUNDERS, :COVARIATES]
         for index in eachindex(output[!, col])
             if expected_output[index, col] === missing
                 @test expected_output[index, col] === output[index, col]
@@ -126,7 +126,7 @@ end
         result = io[key]["result"]
         IC = result.tmle.IC
         # missing sample
-        if result.parameter.target == Symbol("BINARY/TARGET")
+        if result.parameter.target == Symbol("BINARY/OUTCOME")
             IC = vcat(0, IC)
         end
         @test convert(Vector{Float32}, IC) == influence_curves[parse(Int, key), :]
@@ -138,7 +138,7 @@ end
         TREATMENTS = ["T1_&_T2", "T1_&_T2", "T1_&_T2", "T1_&_T2", "T1_&_T2", "T1_&_T2"],
         CASE=["true_&_true", "true_&_false", "true_&_true", "true_&_true", "true_&_false", "true_&_true"],
         CONTROL=["false_&_false", "false_&_true", "false_&_false", "false_&_false", "false_&_true", "false_&_false"],
-        TARGET = ["BINARY/TARGET", "BINARY/TARGET", "BINARY/TARGET", "CONTINUOUS, TARGET", "CONTINUOUS, TARGET", "CONTINUOUS, TARGET"],
+        OUTCOME = ["BINARY/OUTCOME", "BINARY/OUTCOME", "BINARY/OUTCOME", "CONTINUOUS, OUTCOME", "CONTINUOUS, OUTCOME", "CONTINUOUS, OUTCOME"],
         CONFOUNDERS = ["W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2"],
         COVARIATES = ["C1", "C1", "C1", "C1", "C1", "C1"]
     )
@@ -159,7 +159,7 @@ end
         TREATMENTS = ["T1_&_T2", "T1_&_T2", "T1_&_T2", "T1_&_T2", "T1_&_T2", "T1_&_T2", "T1", "T1"],
         CASE = ["true_&_true", "true_&_false", "true_&_true", "true_&_true", "true_&_false", "true_&_true", "true", "false"],
         CONTROL = ["false_&_false", "false_&_true", "false_&_false", "false_&_false", "false_&_true", "false_&_false", "false", missing],
-        TARGET = ["BINARY/TARGET", "BINARY/TARGET", "BINARY/TARGET", "CONTINUOUS, TARGET", "CONTINUOUS, TARGET", "CONTINUOUS, TARGET", "CONTINUOUS, TARGET", "CONTINUOUS, TARGET"],
+        OUTCOME = ["BINARY/OUTCOME", "BINARY/OUTCOME", "BINARY/OUTCOME", "CONTINUOUS, OUTCOME", "CONTINUOUS, OUTCOME", "CONTINUOUS, OUTCOME", "CONTINUOUS, OUTCOME", "CONTINUOUS, OUTCOME"],
         CONFOUNDERS = ["W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2", "W1", "W1"],
         COVARIATES = ["C1", "C1", "C1", "C1", "C1", "C1", missing, missing]
     )
@@ -319,7 +319,7 @@ end
         TREATMENTS = ["T1_&_T2", "T1_&_T2", "T1_&_T2", "T1_&_T2", "T1_&_T2", "T1_&_T2", "T1", "T1"],
         CASE = ["true_&_true", "true_&_false", "true_&_true", "true_&_true", "true_&_false", "true_&_true", "true", "false"],
         CONTROL = ["false_&_false", "false_&_true", "false_&_false", "false_&_false", "false_&_true", "false_&_false", "false", missing],
-        TARGET = ["BINARY/TARGET", "BINARY/TARGET", "BINARY/TARGET", "CONTINUOUS, TARGET", "CONTINUOUS, TARGET", "CONTINUOUS, TARGET", "CONTINUOUS, TARGET", "CONTINUOUS, TARGET"],
+        OUTCOME = ["BINARY/OUTCOME", "BINARY/OUTCOME", "BINARY/OUTCOME", "CONTINUOUS, OUTCOME", "CONTINUOUS, OUTCOME", "CONTINUOUS, OUTCOME", "CONTINUOUS, OUTCOME", "CONTINUOUS, OUTCOME"],
         CONFOUNDERS = ["W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2", "W1", "W1"],
         COVARIATES = ["C1", "C1", "C1", "C1", "C1", "C1", missing, missing]
     )

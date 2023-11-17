@@ -1,29 +1,31 @@
-Parameters:
-  - type: IATE
-    target: CONTINUOUS, TARGET
-    treatment: (T1 = (control = 0, case = 1), T2 = (control = 0, case = 1))
-    confounders: [W1, W2]
-    covariates: [C1]
-  - type: IATE
-    target: "BINARY/TARGET"
-    treatment: (T1 = (control = 0, case = 1), T2 = (control = 0, case = 1))
-    confounders: [W1, W2]
-    covariates: [C1]
-  - type: ATE
-    target: CONTINUOUS, TARGET
-    treatment: (T1 = (control = 0, case = 1),)
-    confounders: [W1, W2]
-  - type: IATE
-    target: CONTINUOUS, TARGET
-    treatment: (T1 = (control = 0, case = 1), T2 = (control = 1, case = 0))
-    confounders: [W1, W2]
-  - type: IATE
-    target: "BINARY/TARGET"
-    treatment: (T1 = (control = 0, case = 1), T2 = (control = 1, case = 0))
-    confounders: [W1, W2]
-    covariates: [C1]
-  - type: ATE
-    target: CONTINUOUS, TARGET
-    treatment: (T1 = (control = 0, case = 1), T2 = (control = 0, case = 1))
-    confounders: [W1, W2]
-    covariates: [C1]
+Estimands:
+  - type: TMLE.StatisticalIATE
+    outcome: CONTINUOUS, outcome
+    treatment_values: (T1 = (control = 0, case = 1), T2 = (control = 0, case = 1))
+    treatment_confounders: (T1 = (:W1, :W2), T2 = (:W1, :W2))
+    outcome_extra_covariates: (:C1,)
+  - type: TMLE.StatisticalIATE
+    outcome: "BINARY/outcome"
+    treatment_values: (T1 = (control = 0, case = 1), T2 = (control = 0, case = 1))
+    treatment_confounders: (T1 = (:W1, :W2), T2 = (:W1, :W2))
+    outcome_extra_covariates: (:C1,)
+  - type: TMLE.StatisticalATE
+    outcome: CONTINUOUS, outcome
+    treatment_values: (T1 = (control = 0, case = 1),)
+    treatment_confounders: (T1 = (:W1, :W2),)
+    outcome_extra_covariates: ()
+  - type: TMLE.StatisticalIATE
+    outcome: CONTINUOUS, outcome
+    treatment_values: (T1 = (control = 0, case = 1), T2 = (control = 1, case = 0))
+    treatment_confounders: (T1 = (:W1, :W2), T2 = (:W1, :W2))
+    outcome_extra_covariates: ()
+  - type: TMLE.StatisticalIATE
+    outcome: "BINARY/outcome"
+    treatment_values: (T1 = (control = 0, case = 1), T2 = (control = 1, case = 0))
+    treatment_confounders: (T1 = (:W1, :W2), T2 = (:W1, :W2))
+    outcome_extra_covariates: (:C1,)
+  - type: TMLE.StatisticalATE
+    outcome: CONTINUOUS, outcome
+    treatment_values: (T1 = (control = 0, case = 1), T2 = (control = 0, case = 1))
+    treatment_confounders: (T1 = (:W1, :W2), T2 = (:W1, :W2))
+    outcome_extra_covariates: (:C1,)

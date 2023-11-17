@@ -10,7 +10,7 @@ empty_tmle_output(;size=0) = DataFrame(
     TREATMENTS=Vector{String}(undef, size), 
     CASE=Vector{String}(undef, size), 
     CONTROL=Vector{Union{Missing, String}}(undef, size), 
-    TARGET=Vector{String}(undef, size), 
+    OUTCOME=Vector{String}(undef, size), 
     CONFOUNDERS=Vector{String}(undef, size), 
     COVARIATES=Vector{Union{Missing, String}}(undef, size), 
     INITIAL_ESTIMATE=Vector{Union{Missing, Float64}}(undef, size), 
@@ -28,9 +28,9 @@ empty_tmle_output(;size=0) = DataFrame(
 )
 
 covariates_string(Ψ; join_string="_&_") = 
-    length(Ψ.covariates) != 0 ? join(Ψ.covariates, join_string) : missing
+    length(Ψ.outcome_extra_covariates) != 0 ? join(Ψ.outcome_extra_covariates, join_string) : missing
 
-function param_string(param::T) where T <: TMLE.Parameter
+function param_string(param::T) where T <: TMLE.Estimand
     str = string(T)
     return startswith(str, "TMLE.") ? str[6:end] : str
 end
@@ -44,7 +44,7 @@ control_string(t::Tuple{Vararg{NamedTuple}}; join_string="_&_") =
 
 control_string(t; join_string="_&_") = missing
 
-control_string(Ψ::TMLE.Parameter; join_string="_&_") = 
+control_string(Ψ::TMLE.Estimand; join_string="_&_") = 
     control_string(values(Ψ.treatment); join_string=join_string)
 
 treatment_string(Ψ; join_string="_&_") = join(keys(Ψ.treatment), join_string)
@@ -60,7 +60,7 @@ function statistics_from_estimator(estimator)
     return (Ψ̂, std, pval, l, u)
 end
 
-function statistics_from_result(result::TMLE.TMLEResult)
+function statistics_from_result(result::TMLE.Estimate)
     Ψ̂₀ = result.initial
     # TMLE stats
     tmle_stats = statistics_from_estimator(result.tmle) 
@@ -69,7 +69,7 @@ function statistics_from_result(result::TMLE.TMLEResult)
     return Ψ̂₀, tmle_stats, onestep_stats
 end
 
-statistics_from_result(result::MissingTMLEResult) = 
+statistics_from_result(result::FailedEstimation) = 
     missing, 
     (missing, missing, missing, missing, missing), 
     (missing, missing, missing, missing, missing)
@@ -109,7 +109,7 @@ function update_jld2_output(jld2_file::String, partition, tmle_results, dataset;
 
             for (partition_index, param_index) in enumerate(partition)
                 r = tmle_results[partition_index]
-                if (r isa TMLE.TMLEResult) && (pvalue(OneSampleZTest(r.tmle)) <= pval_threshold)
+                if (r isa TMLE.Estimate) && (pvalue(OneSampleZTest(r.tmle)) <= pval_threshold)
                     current_variables = variables(r.parameter)
                     if previous_variables != current_variables
                         sample_ids = TargetedEstimation.get_sample_ids(dataset, current_variables)
@@ -127,52 +127,60 @@ function update_jld2_output(jld2_file::String, partition, tmle_results, dataset;
 end
 
 #####################################################################
-#####                    Read Parameters                         ####
+#####                    Read Estimands                         ####
 #####################################################################
 
 
-function treatment_values(Ψ::Union{IATE, ATE}, treatment_names, treatment_types)
+function convert_treatment_values(treatment_levels::NamedTuple{names, <:Tuple{Vararg{NamedTuple}}}, treatment_types) where names
     return [(
-        case = convert(treatment_types[tn], Ψ.treatment[tn].case), 
-        control = convert(treatment_types[tn], Ψ.treatment[tn].control)
+        case = convert(treatment_types[tn], treatment_levels[tn].case), 
+        control = convert(treatment_types[tn], treatment_levels[tn].control)
     ) 
-        for tn in treatment_names]
+        for tn in names]
 end
 
-treatment_values(Ψ::CM, treatment_names, treatment_types) = 
-    [convert(treatment_types[tn], Ψ.treatment[tn]) for tn in treatment_names]
+convert_treatment_values(treatment_levels::NamedTuple{names,}, treatment_types) where names = 
+    [convert(treatment_types[tn], treatment_levels[tn]) for tn in names]
+
+MissingSCMError() = ArgumentError(string("A Structural Causal Model should be provided in the configuration file in order to identify causal estimands."))
+
+get_identification_method(method::Nothing) = BackdoorAdjustment()
+get_identification_method(method) = method
+
+maybe_identify(Ψ::TMLE.CausalCMCompositeEstimands, scm::SCM, method) = 
+    identify(get_identification_method(method), Ψ, scm)
+
+maybe_identify(Ψ::TMLE.CausalCMCompositeEstimands, scm::Nothing, method) = throw(MissingSCMError())
+
+maybe_identify(Ψ, scm, method) = Ψ
 
 """
-    parameters_from_yaml(param_file, dataset)
+    read_estimands(param_file, dataset)
 
-Reads parameters from file and ensures that the parameters treatment in the config file
-respect the treatment types in the dataset.
+Reads estimands from file and ensures that the treatment values in the config file
+respects the treatment types in the dataset.
 """
-function read_parameters(param_file, dataset)
-    parameters = if any(endswith(param_file, ext) for ext in ("yaml", "yml"))
-        parameters_from_yaml(param_file)
-    else
-        deserialize(param_file)
-    end
-
+function proofread_estimands_from_yaml(filename, dataset)
+    config = configuration_from_yaml(filename)
+    estimands = Vector{TMLE.Estimand}(undef, length(config.estimands))
     treatment_types = Dict()
-    for index in eachindex(parameters)
-        Ψ = parameters[index]
-        treatment_names = keys(Ψ.treatment)
+    for (index, Ψ) in enumerate(config.estimands)
+        statisticalΨ = TargetedEstimation.maybe_identify(Ψ, config.scm, config.adjustment)
+        treatment_names = keys(statisticalΨ.treatment_values)
         for tn in treatment_names
             haskey(treatment_types, tn) ? nothing : treatment_types[tn] = eltype(dataset[!, tn])
         end
         new_treatment = NamedTuple{treatment_names}(
-            treatment_values(Ψ, treatment_names, treatment_types)
+            TargetedEstimation.convert_treatment_values(statisticalΨ.treatment_values, treatment_types)
         )
-        parameters[index] = typeof(Ψ)(
-            target = Ψ.target,
-            treatment = new_treatment,
-            confounders = Ψ.confounders,
-            covariates = Ψ.covariates
+        estimands[index] = typeof(Ψ)(
+            outcome = Ψ.outcome,
+            treatment_values = new_treatment,
+            treatment_confounders = statisticalΨ.treatment_confounders,
+            outcome_extra_covariates = statisticalΨ.outcome_extra_covariates
         )
     end
-    return collect(parameters)
+    return estimands
 end
 
 #####################################################################
@@ -194,13 +202,15 @@ instantiate_dataset(path::String) =
 
 isbinary(col, dataset) = Set(unique(skipmissing(dataset[!, col]))) == Set([0, 1])
 
+make_categorical(x::CategoricalVector, ordered) = x
+make_categorical(x, ordered) = categorical(x, ordered=ordered)
 
 function make_categorical!(dataset, colname::Union{String, Symbol}; infer_ordered=false)
     ordered = false
     if infer_ordered
         ordered = eltype(dataset[!, colname]) <: Real
     end
-    dataset[!, colname] = categorical(dataset[!, colname], ordered=ordered)
+    dataset[!, colname] = make_categorical(dataset[!, colname], ordered)
 end
 
 function make_categorical!(dataset, colnames; infer_ordered=false)
@@ -209,8 +219,10 @@ function make_categorical!(dataset, colnames; infer_ordered=false)
     end
 end
 
+make_float(x) = float(x)
+
 make_float!(dataset, colname::Union{String, Symbol}) = 
-    dataset[!, colname] = float(dataset[!, colname])
+    dataset[!, colname] = make_float(dataset[!, colname])
 
 function make_float!(dataset, colnames)
     for colname in colnames
@@ -218,55 +230,36 @@ function make_float!(dataset, colnames)
     end
 end
 
-function coerce_types!(dataset, variables)
-    # Treatment columns are converted to categorical
-    make_categorical!(dataset, variables.treatments, infer_ordered=true)
-    # Confounders and Covariates are converted to Float64
-    make_float!(dataset, vcat(variables.confounders, variables.covariates))
-    # Binary targets are converted to categorical
-    make_categorical!(dataset, variables.binarytargets, infer_ordered=false)
-    # Continuous targets are converted to Float64
-    make_float!(dataset, variables.continuoustargets)
+function coerce_types!(dataset, Ψ)
+    categorical_variables = Set(keys(Ψ.treatment_values))
+    continuous_variables = Set(Iterators.flatten(values(Ψ.treatment_confounders)))
+    union!(continuous_variables, Ψ.outcome_extra_covariates) 
+    TMLE.is_binary(dataset, Ψ.outcome) ? 
+        push!(categorical_variables, Ψ.outcome) : 
+        push!(continuous_variables, Ψ.outcome)
+    make_categorical!(dataset, categorical_variables, infer_ordered=true)
+    make_float!(dataset, continuous_variables)
 end
 
-variables(Ψ::TMLE.Parameter) = (
-    target = Ψ.target, 
-    covariates = Ψ.covariates, 
-    confounders = Ψ.confounders,
-    treatments = keys(Ψ.treatment)
+variables(Ψ::TMLE.Estimand) = (
+    outcome = Ψ.outcome, 
+    covariates = Ψ.outcome_extra_covariates, 
+    confounders = Ψ.treatment_confounders,
+    treatments = keys(Ψ.treatment_values)
     )
-
-function variables(parameters::Vector{<:TMLE.Parameter}, dataset)
-    treatments = Set{Symbol}()
-    confounders = Set{Symbol}()
-    covariates = Set{Symbol}()
-    binarytargets = Set{Symbol}()
-    continuoustargets = Set{Symbol}()
-    for Ψ in parameters
-        push!(treatments, keys(Ψ.treatment)...)
-        push!(confounders, Ψ.confounders...)
-        length(Ψ.covariates) > 0 && push!(covariates, Ψ.covariates...)
-        isbinary(Ψ.target, dataset) ? push!(binarytargets, Ψ.target) : push!(continuoustargets, Ψ.target)
-    end
-    return (
-        treatments=treatments, 
-        confounders=confounders, 
-        covariates=covariates, 
-        binarytargets=binarytargets,
-        continuoustargets
-    )
-end
 
 load_tmle_spec(file::Nothing) = (
-    cache        = false,
-    weighted_fluctuation = false,
-    threshold    = 1e-8,
-    Q_continuous = LinearRegressor(),
-    Q_binary = LogisticClassifier(lambda=0.),
-    G = LogisticClassifier(lambda=0.)
-  )
+    TMLE = TMLEE(
+        models = TMLE.default_models(
+            Q_binary = LogisticClassifier(lambda=0.),
+            Q_continuous = LinearRegressor(),
+            G = LogisticClassifier(lambda=0.)
+        ),
+        weighted = true, 
+        ),
+    )
 
 function load_tmle_spec(file)
     include(abspath(file))
-    return merge(load_tmle_spec(nothing), tmle_spec::NamedTuple)
+    return ESTIMATORS
 end

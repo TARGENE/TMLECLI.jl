@@ -22,7 +22,7 @@ function load_csv_files(data, files)
     return data
 end
 
-joining_keys() = ["PARAMETER_TYPE", "TREATMENTS", "CASE", "CONTROL", "TARGET", "CONFOUNDERS", "COVARIATES"]
+joining_keys() = ["PARAMETER_TYPE", "TREATMENTS", "CASE", "CONTROL", "OUTCOME", "CONFOUNDERS", "COVARIATES"]
 
 function merge_csv_files(parsed_args)
     tmle_files = files_matching_prefix_and_suffix(
@@ -45,7 +45,7 @@ function merge_csv_files(parsed_args)
     end
 
     # Pvalue Adjustment by Target
-    for gp in groupby(data, :TARGET)
+    for gp in groupby(data, :OUTCOME)
         gp.TRAIT_ADJUSTED_TMLE_PVALUE = gp[:, :TMLE_PVALUE]
         pvalues = collect(skipmissing(gp.TMLE_PVALUE))
         if length(pvalues) > 0

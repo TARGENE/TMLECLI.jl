@@ -15,7 +15,7 @@ using DataFrames
     output = CSV.read(parsed_args["out"], DataFrame)
     @test names(output) == [
         "PARAMETER_TYPE", "TREATMENTS", "CASE",
-        "CONTROL", "TARGET", "CONFOUNDERS",
+        "CONTROL", "OUTCOME", "CONFOUNDERS",
         "COVARIATES", "INITIAL_ESTIMATE", 
         "TMLE_ESTIMATE", "TMLE_STD", "TMLE_PVALUE", "TMLE_LWB", "TMLE_UPB",
         "ONESTEP_ESTIMATE", "ONESTEP_STD", "ONESTEP_PVALUE", "ONESTEP_LWB", "ONESTEP_UPB", 
@@ -42,7 +42,7 @@ end
 @testset "Test merge_csv_files, sieve file" begin
     sieve_colnames = [
         "PARAMETER_TYPE", "TREATMENTS", "CASE",
-        "CONTROL", "TARGET", "CONFOUNDERS",
+        "CONTROL", "OUTCOME", "CONFOUNDERS",
         "COVARIATES", "INITIAL_ESTIMATE", 
         "TMLE_ESTIMATE", "TMLE_STD", "TMLE_PVALUE", "TMLE_LWB", "TMLE_UPB", 
         "ONESTEP_ESTIMATE", "ONESTEP_STD", "ONESTEP_PVALUE", "ONESTEP_LWB", "ONESTEP_UPB",
@@ -88,7 +88,7 @@ end
     output = CSV.read(parsed_args["out"], DataFrame)
     @test names(output) == [
         "PARAMETER_TYPE", "TREATMENTS", "CASE",
-        "CONTROL", "TARGET", "CONFOUNDERS",
+        "CONTROL", "OUTCOME", "CONFOUNDERS",
         "COVARIATES", "INITIAL_ESTIMATE", 
         "TMLE_ESTIMATE", "TMLE_STD", "TMLE_PVALUE", "TMLE_LWB", "TMLE_UPB",
         "ONESTEP_ESTIMATE", "ONESTEP_STD", "ONESTEP_PVALUE", "ONESTEP_LWB", "ONESTEP_UPB", 
