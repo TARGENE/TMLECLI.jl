@@ -25,6 +25,9 @@ using Combinatorics
 using Tables
 using Random
 using YAML
+using JSON
+using Comonicon
+using Configurations
 
 import MLJModelInterface
 
@@ -38,7 +41,7 @@ include(joinpath("models", "glmnet.jl"))
 include(joinpath("models", "adaptive_interaction_transformer.jl"))
 include(joinpath("models", "biallelic_snp_encoder.jl"))
 
-export run_estimation, sieve_variance_plateau, merge_csv_files
+export Runner, run_estimation, sieve_variance_plateau, merge_csv_files
 export GLMNetRegressor, GLMNetClassifier
 export RestrictedInteractionTransformer, BiAllelicSNPEncoder
 export AdaptiveCV, AdaptiveStratifiedCV, JointStratifiedCV

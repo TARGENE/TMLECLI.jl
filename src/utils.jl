@@ -30,14 +30,12 @@ empty_tmle_output(;size=0) = DataFrame(
 covariates_string(Ψ; join_string="_&_") = 
     length(Ψ.outcome_extra_covariates) != 0 ? join(Ψ.outcome_extra_covariates, join_string) : missing
 
-function param_string(param::T) where T <: TMLE.Estimand
-    str = string(T)
-    return startswith(str, "TMLE.") ? str[6:end] : str
-end
+param_string(param::T) where T <: TMLE.Estimand = replace(string(T), "TMLE.Statistical" => "")
+
 
 case(nt::NamedTuple) = nt.case
 case(x) = x
-case_string(Ψ; join_string="_&_") = join((case(x) for x in values(Ψ.treatment)), join_string)
+case_string(Ψ; join_string="_&_") = join((case(x) for x in values(Ψ.treatment_values)), join_string)
 
 control_string(t::Tuple{Vararg{NamedTuple}}; join_string="_&_") = 
     join((val.control for val in t), join_string)
@@ -45,10 +43,10 @@ control_string(t::Tuple{Vararg{NamedTuple}}; join_string="_&_") =
 control_string(t; join_string="_&_") = missing
 
 control_string(Ψ::TMLE.Estimand; join_string="_&_") = 
-    control_string(values(Ψ.treatment); join_string=join_string)
+    control_string(values(Ψ.treatment_values); join_string=join_string)
 
-treatment_string(Ψ; join_string="_&_") = join(keys(Ψ.treatment), join_string)
-confounders_string(Ψ; join_string="_&_") = join(Ψ.confounders, join_string)
+treatment_string(Ψ; join_string="_&_") = join(keys(Ψ.treatment_values), join_string)
+confounders_string(Ψ; join_string="_&_") = join(Ψ.confounders_values, join_string)
 
 
 function statistics_from_estimator(estimator)
@@ -74,9 +72,9 @@ statistics_from_result(result::FailedEstimation) =
     (missing, missing, missing, missing, missing), 
     (missing, missing, missing, missing, missing)
 
-function append_csv(filename, tmle_results, logs)
-    data = empty_tmle_output(size=size(tmle_results, 1))
-    for (i, (result, log)) in enumerate(zip(tmle_results, logs))
+function append_csv(filename, results)
+    data = empty_tmle_output(size=size(results, 1))
+    for (i, result) in enumerate(results)
         Ψ = result.parameter
         param_type = param_string(Ψ)
         treatments = treatment_string(Ψ)
@@ -93,41 +91,83 @@ function append_csv(filename, tmle_results, logs)
     CSV.write(filename, data, append=true, header=!isfile(filename))
 end
 
+#####################################################################
+#####                       JSON OUTPUT                          ####
+#####################################################################
+
+initialize_json(filename::Nothing) = nothing
+
+initialize_json(filename::String) = open(filename, "w") do io
+    print(io, '[')
+end
+
+function update(output::JSONOutput, results; finalize=false)
+    output.filename === nothing && return
+    open(output.filename, "a") do io
+        for result in results
+            result = TMLE.emptyIC(result, output.pval_threshold)
+            JSON.print(io, TMLE.to_dict(result))
+            print(io, ',')
+        end
+        if finalize
+            skip(io, -1) # get rid of the last comma which JSON doesn't allow
+            print(io, ']')
+        end
+    end
+end
 
 #####################################################################
-#####                       JLD2 OUTPUT                          ####
+#####                       STD OUTPUT                          ####
 #####################################################################
 
-update_jld2_output(jld2_file::Nothing, partition, tmle_results, dataset; pval_threshold=0.05) = nothing
-
-function update_jld2_output(jld2_file::String, partition, tmle_results, dataset; pval_threshold=0.05)
-    if jld2_file !== nothing
-        jldopen(jld2_file, "a+", compress=true) do io
-        # Append only with results passing the threshold
-            previous_variables = nothing
-            sample_ids_idx = nothing
-
-            for (partition_index, param_index) in enumerate(partition)
-                r = tmle_results[partition_index]
-                if (r isa TMLE.Estimate) && (pvalue(OneSampleZTest(r.tmle)) <= pval_threshold)
-                    current_variables = variables(r.parameter)
-                    if previous_variables != current_variables
-                        sample_ids = TargetedEstimation.get_sample_ids(dataset, current_variables)
-                        io["$param_index/sample_ids"] = sample_ids
-                        sample_ids_idx = param_index
-                    end
-                    io["$param_index/result"] = r
-                    io["$param_index/sample_ids_idx"] = sample_ids_idx
-
-                    previous_variables = current_variables
-                end
+function update(doprint, results)
+    if doprint
+        mimetext = MIME"text/plain"()
+        index = 1
+        for result in results
+            for (key, val) ∈ zip(keys(result), result)
+                show(stdout, mimetext, string("⋆⋆⋆ Estimand ", index, " ⋆⋆⋆"))
+                show(stdout, mimetext, val.estimand)
+                show(stdout, mimetext, string("Estimation Result From: ", key, ))
+                show(stdout, mimetext, val)
+                index += 1
             end
         end
     end
 end
 
 #####################################################################
-#####                    Read Estimands                         ####
+#####                       JLD2 OUTPUT                          ####
+#####################################################################
+
+
+function update(output::HDF5Output, partition, results, dataset)
+    output.filename === nothing && return
+
+    jldopen(output.filename, "a+", compress=true) do io
+    # Append only with results passing the threshold
+        previous_variables = nothing
+        sample_ids_idx = nothing
+        for (partition_index, param_index) in enumerate(partition)
+            estimator_results = TMLE.emptyIC(results[partition_index], output.pval_threshold)
+            current_variables = variables(r.parameter)
+            if previous_variables != current_variables
+                sample_ids = TargetedEstimation.get_sample_ids(dataset, current_variables)
+                io["$param_index/sample_ids"] = sample_ids
+                sample_ids_idx = param_index
+            end
+            io["$param_index/result"] = r
+            io["$param_index/sample_ids_idx"] = sample_ids_idx
+
+            previous_variables = current_variables
+        end
+        
+    end
+
+end
+
+#####################################################################
+#####                    Read TMLE Estimands Configuration                         ####
 #####################################################################
 
 
@@ -154,14 +194,17 @@ maybe_identify(Ψ::TMLE.CausalCMCompositeEstimands, scm::Nothing, method) = thro
 
 maybe_identify(Ψ, scm, method) = Ψ
 
+read_method(extension) = extension == ".json" ? read_json : read_yaml
+
 """
-    read_estimands(param_file, dataset)
+    proofread_estimands(param_file, dataset)
 
 Reads estimands from file and ensures that the treatment values in the config file
 respects the treatment types in the dataset.
 """
-function proofread_estimands_from_yaml(filename, dataset)
-    config = configuration_from_yaml(filename)
+function proofread_estimands(filename, dataset)
+    extension = filename[findlast(isequal('.'), filename):end]
+    config = read_method(extension)(filename)
     estimands = Vector{TMLE.Estimand}(undef, length(config.estimands))
     treatment_types = Dict()
     for (index, Ψ) in enumerate(config.estimands)
@@ -186,6 +229,18 @@ end
 #####################################################################
 #####                 ADDITIONAL METHODS                         ####
 #####################################################################
+
+TMLE.emptyIC(result::NamedTuple{names}, pval_threshold::Nothing) where names = 
+    NamedTuple{names}([TMLE.emptyIC(r) for r in result])
+
+function TMLE.emptyIC(result, pval_threshold::Float64)
+    pval = pvalue(OneSampleZTest(result))
+    return pval < pval_threshold ? result : TMLE.emptyIC(result)
+end
+
+TMLE.emptyIC(result::NamedTuple{names}, pval_threshold::Float64) where names =
+    NamedTuple{names}([TMLE.emptyIC(r, pval_threshold) for r in result])
+
 
 function get_sample_ids(data, variables)
     cols = [:SAMPLE_ID, variables.target, variables.treatments..., variables.confounders..., variables.covariates...]
@@ -263,3 +318,6 @@ function load_tmle_spec(file)
     include(abspath(file))
     return ESTIMATORS
 end
+
+TMLE.to_dict(nt::NamedTuple{names, <:Tuple{Vararg{TMLE.EICEstimate}}}) where names = 
+    Dict(key => TMLE.to_dict(val) for (key, val) ∈ zip(keys(nt), nt))

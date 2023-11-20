@@ -52,12 +52,16 @@ function release!(cache_manager::NoCacheManager, Ψ)
 end
 
 function make_cache_manager(estimands, string)
-    if string == "release_unusable"
+    if string == "release-unusable"
         return ReleaseUnusableCacheManager(TMLE.nuisance_counts(estimands))
-    elseif string == "no_cache"
+    elseif string == "no-cache"
         return NoCacheManager()
     else
-        return MaxSizeCacheManager(parse(Int, string))
+        maxsize = try parse(Int, string) 
+            catch E
+                throw(ArgumentError(string("Could not convert the provided cache value to an integer: ", string)))
+            end
+        return MaxSizeCacheManager(maxsize)
     end
 end
 

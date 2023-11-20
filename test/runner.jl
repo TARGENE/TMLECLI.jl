@@ -93,24 +93,52 @@ function build_dataset(;n=1000, format="csv")
     format == "csv" ? CSV.write("data.csv", dataset) : Arrow.write("data.arrow", dataset)
 end
 
-@testset "Test partition_tmle!" begin
+@testset "Integration Test" begin
     build_dataset(;n=1000, format="csv")
-    dataset = TargetedEstimation.instantiate_dataset("data.csv")
-    estimands = TargetedEstimation.read_estimands(joinpath(config_dir, "parameters.yaml"), dataset)
-    variables = TargetedEstimation.variables(estimands, dataset)
-    TargetedEstimation.coerce_types!(dataset, variables)
-    tmle_spec = TargetedEstimation.load_tmle_spec(joinpath("config", "tmle_config.jl"))
-    cache = TMLECache(dataset)
+    tmpdir = mktempdir(cleanup=true)
+    estimands_filename = joinpath(tmpdir, "configuration.yaml")
+    TMLE.write_json(estimands_filename, statistical_estimands_only_config())
+    outputs = TargetedEstimation.Outputs(
+        json=TargetedEstimation.JSONOutput(filename="output.json"),
+        std=true,
+    )
+    runner = Runner(
+        "data.csv", 
+        estimands_filename, 
+        joinpath(CONFIGDIR, "tmle_ose_config.jl"); 
+        outputs=outputs, 
+        cache_strategy="release-unusable",
+    )
+    partition = 1:3
+    results = runner(partition)
+    for result in results
+        @test result.TMLE isa TMLE.TMLEstimate
+        @test result.OSE isa TMLE.OSEstimate
+    end
 
-    tmle_results = Vector{Union{TMLE.Estimate, TargetedEstimation.FailedEstimation}}(undef, 3)
-    logs = Vector{Union{String, Missing}}(undef, 3)
-    part = 4:6
-    TargetedEstimation.partition_tmle!(cache, tmle_results, logs, part, tmle_spec, parameters, variables; verbosity=0)
-    @test [x.tmle.Ψ̂ for x in tmle_results] isa Vector{Float64}
-    @test [x.parameter for x in tmle_results] == parameters[part]
-    @test [x.onestep.Ψ̂ for x in tmle_results] isa Vector{Float64}
-    @test all(x === missing for x in logs)
+    output_txt = "output.txt"
+    TargetedEstimation.initialize(outputs)
+    open(output_txt, "w") do io
+        redirect_stdout(io) do
+            TargetedEstimation.save(runner, results, partition, true)
+        end
+    end
+    # Read STDOUT
+    stdout_content = split(read(output_txt, String), "\n")
+    @test length(stdout_content) > 20
+
+    # Read JSON
+    loaded_results = TMLE.read_json(outputs.json.filename)
+    for (result, loaded_result) in zip(results, loaded_results)
+        @test loaded_result[:TMLE] isa TMLE.TMLEstimate
+        @test result.TMLE.estimate == loaded_result[:TMLE].estimate
+        @test loaded_result[:OSE] isa TMLE.OSEstimate
+        @test result.OSE.estimate == loaded_result[:OSE].estimate
+    end
+
     rm("data.csv")
+    rm(output_txt)
+    rm(outputs.json.filename)
 end
 
 @testset "Test tmle_estimation" begin

@@ -14,7 +14,7 @@ PROJECT_DIR = dirname(dirname(pathof(TargetedEstimation)))
 include(joinpath(PROJECT_DIR, "test", "testutils.jl"))
 
 @testset "Test load_tmle_spec: with configuration file" begin
-    estimators = TargetedEstimation.load_tmle_spec(joinpath(PROJECT_DIR, "test", "config", "tmle_config.jl"))
+    estimators = TargetedEstimation.load_tmle_spec(joinpath(PROJECT_DIR, "test", "config", "tmle_ose_config.jl"))
     @test estimators.TMLE isa TMLE.TMLEE
     @test estimators.OSE isa TMLE.OSE
     @test estimators.TMLE.weighted === true
@@ -45,11 +45,13 @@ end
     @test newT == [(case = true, control = false), (case = 1, control = 0)]
 end
 
-@testset "Test proofread_estimands_from_yaml" begin
-    filename = "statistical_estimands.yml"
-    configuration_to_yaml(filename, statistical_estimands_only_config())
+@testset "Test proofread_estimands" for extension in ("yaml", "json")
+    # Write estimands file
+    filename = "statistical_estimands.$extension"
+    eval(Meta.parse("write_$extension"))(filename, statistical_estimands_only_config())
+
     dataset = DataFrame(T1 = [1., 0.], T2=[true, false])
-    estimands = TargetedEstimation.proofread_estimands_from_yaml(filename, dataset)
+    estimands = TargetedEstimation.proofread_estimands(filename, dataset)
     for estimand in estimands
         if haskey(estimand.treatment_values, :T1)
             @test estimand.treatment_values.T1.case isa Float64
@@ -60,6 +62,7 @@ end
             @test estimand.treatment_values.T2.control isa Bool
         end
     end
+    # Clean estimands file
     rm(filename)
 end
 
@@ -77,10 +80,10 @@ end
     @test TargetedEstimation.confounders_string(Ψ) == "W₁_&_W₂"
 
     Ψ = CM(
-        target=:Y,
-        treatment=(T₁=1, T₂="AC"),
-        confounders=[:W₁, :W₂],
-        covariates=[:C₁]
+        outcome=:Y,
+        treatment_values=(T₁=1, T₂="AC"),
+        treatment_confounders=(T₁=[:W₁, :W₂], T₂ = [:W₁, :W₂]),
+        outcome_extra_covariates=[:C₁]
     )
 
     @test TargetedEstimation.covariates_string(Ψ) === "C₁"
@@ -125,7 +128,6 @@ end
 
     @test dataset.Ycat isa CategoricalArray
     @test eltype(dataset.C) <: Union{Missing, Float64}
-
 end
 
 @testset "Test get_sample_ids" begin
@@ -205,7 +207,29 @@ end
     # If the type is already coerced then no-operation is applied 
     TargetedEstimation.make_float(dataset.C₁) === dataset.C₁
     TargetedEstimation.make_categorical(dataset.T₁, true) === dataset.T₁
+end
 
+@tetset "Test JSON writing" begin
+    results = []
+    for Ψ in statistical_estimands_only_config().estimands
+        push!(results, (
+            TMLE=TMLE.TMLEstimate(Ψ, rand(), rand(), 10, Float64[]),
+            OSE=TMLE.OSEstimate(Ψ, rand(), rand(), 10, Float64[])
+            ))
+    end
+    tmpdir = mktempdir(cleanup=true)
+    filename = joinpath(tmpdir, "output_test.json")
+    TargetedEstimation.initialize_json(filename)
+    TargetedEstimation.update(filename, results[1:3])
+    TargetedEstimation.update(filename, results[4:end]; finalize=true)
+    loaded_results = TMLE.read_json(filename)
+    @test size(loaded_results) == size(results)
+    for (result, loaded_result) in zip(results, loaded_results)
+        @test result.TMLE.estimate == loaded_result[:TMLE].estimate
+        @test result.TMLE.std == loaded_result[:TMLE].std
+        @test result.OSE.estimate == loaded_result[:OSE].estimate
+        @test result.OSE.std == loaded_result[:OSE].std
+    end
 end
 
 end;

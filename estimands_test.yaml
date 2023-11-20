@@ -10,7 +10,7 @@ estimands:
       T1:
         case: true
         control: false
-    outcome: CONTINUOUS, outcome
+    outcome: CONTINUOUS, OUTCOME
     treatment_confounders:
       T2:
         - W1
@@ -28,7 +28,7 @@ estimands:
       T1:
         case: true
         control: false
-    outcome: BINARY/outcome
+    outcome: BINARY/OUTCOME
     treatment_confounders:
       T2:
         - W1
@@ -42,7 +42,7 @@ estimands:
       T1:
         case: true
         control: false
-    outcome: CONTINUOUS, outcome
+    outcome: CONTINUOUS, OUTCOME
     treatment_confounders:
       T1:
         - W1
@@ -56,7 +56,7 @@ estimands:
       T1:
         case: true
         control: false
-    outcome: CONTINUOUS, outcome
+    outcome: CONTINUOUS, OUTCOME
     treatment_confounders:
       T2:
         - W1
@@ -74,7 +74,7 @@ estimands:
       T1:
         case: true
         control: false
-    outcome: BINARY/outcome
+    outcome: BINARY/OUTCOME
     treatment_confounders:
       T2:
         - W1
@@ -92,7 +92,7 @@ estimands:
       T1:
         case: true
         control: false
-    outcome: CONTINUOUS, outcome
+    outcome: CONTINUOUS, OUTCOME
     treatment_confounders:
       T2:
         - W1

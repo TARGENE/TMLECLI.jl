@@ -2,35 +2,57 @@ struct FailedEstimation
     message::String
 end
 
+
+@option struct JSONOutput
+    filename::Union{Nothing, String} = nothing
+    pval_threshold::Union{Nothing, Float64} = nothing
+end
+
+initialize(output::JSONOutput) = initialize_json(output.filename)
+
+
+@option struct HDF5Output
+    filename::Union{Nothing, String} = nothing
+    pval_threshold::Union{Nothing, Float64} = nothing
+end
+
+initialize_hdf5(x) = nothing
+
+initialize(output::HDF5Output) = initialize_hdf5(output.filename)
+
+@option struct Outputs
+    json::JSONOutput = JSONOutput()
+    hdf5::HDF5Output = HDF5Output()
+    std::Bool = true
+end
+
+function initialize(outputs::Outputs)
+    initialize(outputs.json)
+    initialize(outputs.hdf5)
+end
+
 mutable struct Runner
     estimators::NamedTuple
     estimands::Vector{TMLE.Estimand}
     dataset::DataFrame
     cache_manager::CacheManager
     chunksize::Int
-    pvalue_threshold::Float64
-    output_ios::NamedTuple
-    function Runner(parsed_args)
-        datafile = parsed_args["dataset"]
-        paramfile = parsed_args["estimands-config"]
-        estimatorfile = parsed_args["estimators-config"]
-        verbosity = parsed_args["verbosity"]
-        csv_filename = parsed_args["csv-out"]
-        hdf5_filename = parsed_args["hdf5-out"]
-        pvalue_threshold = parsed_args["pval-threshold"]
-        chunksize = parsed_args["chunksize"]
-        rng = parsed_args["rng"]
-        cache_strategy = parsed_args["cache-strategy"]
-        sort_estimands = parsed_args["sort-estimands"]
-    
-        # Output IOs
-        output_ios = (CSV=csv_filename, HDF5=hdf5_filename)
+    outputs::Outputs
+    verbosity::Int
+    function Runner(dataset, estimands, estimators; 
+        verbosity=0, 
+        outputs=Outputs(), 
+        chunksize=100,
+        rng=123,
+        cache_strategy="release-unusable",
+        sort_estimands=false
+        )    
         # Retrieve TMLE specifications
-        estimators = TargetedEstimation.load_tmle_spec(estimatorfile)
+        estimators = TargetedEstimation.load_tmle_spec(estimators)
         # Load dataset
-        dataset = TargetedEstimation.instantiate_dataset(datafile)
+        dataset = TargetedEstimation.instantiate_dataset(dataset)
         # Read parameter files
-        estimands = TargetedEstimation.proofread_estimands_from_yaml(paramfile, dataset)
+        estimands = TargetedEstimation.proofread_estimands(estimands, dataset)
         if sort_estimands
             estimands = groups_ordering(estimands; 
                 brute_force=true, 
@@ -41,10 +63,33 @@ mutable struct Runner
         end
         cache_manager = make_cache_manager(estimands, cache_strategy)
 
-        return new(estimators, estimands, dataset, cache_manager, chunksize, pvalue_threshold, output_ios)
+        return new(estimators, estimands, dataset, cache_manager, chunksize, outputs, verbosity)
     end
 end
 
+function save(runner::Runner, results, partition, finalize)
+    # Append STD Out
+    update(runner.outputs.std, results)
+    # Append JSON result with partition
+    update(runner.outputs.json, results; finalize=finalize)
+    # Append HDF5 result if save-ic is true
+    # update_jld2_output(runner.output_ios.HDF5, partition, results, runner.dataset)
+end
+
+
+function try_estimation(runner, Ψ, estimator)
+    try
+        result, _ = estimator(Ψ, runner.dataset,
+            cache=runner.cache_manager.cache,
+            verbosity=runner.verbosity, 
+        )
+        return result
+    catch e
+        # On Error, store the nuisance function where the error occured 
+        # to fail fast the next estimands
+        return FailedEstimation(string(e))
+    end
+end
 
 function (runner::Runner)(partition)
     results = Vector{NamedTuple}(undef, size(partition, 1))
@@ -54,17 +99,8 @@ function (runner::Runner)(partition)
         TargetedEstimation.coerce_types!(runner.dataset, Ψ)
         # Maybe update cache with new η_spec
         estimators_results = []
-        for estimator in estimators
-            try
-                result, _ = estimator(Ψ, runner.dataset,
-                    cache=runner.cache,
-                    verbosity=runner.verbosity, 
-                )
-            catch e
-                # On Error, store the nuisance function where the error occured 
-                # to fail fast the next estimands
-                result = FailedEstimation(string(e))
-            end
+        for estimator in runner.estimators
+            result = try_estimation(runner, Ψ, estimator)
             push!(estimators_results, result)
         end
         # Update results
@@ -81,18 +117,58 @@ function (runner::Runner)(partition)
 end
 
 function (runner::Runner)()
+    # Initialize output files
+    initialize_outputs(runner.output_ios)
     # Split worklist in partitions
     nparams = size(runner.estimands, 1)
-    for partition in Iterators.partition(1:nparams, runner.chunksize)
+    partitions = collect(Iterators.partition(1:nparams, runner.chunksize))
+    for partition in partitions
         results = runner(partition)
-        # Append CSV result with partition
-        append_csv(csv_file, results)
-        # Append HDF5 result if save-ic is true
-        update_jld2_output(jld2_file, partition, results, dataset; pval_threshold=pval_threshold)
+        save(runner, results, partition, partition===partitions[end])
     end
-
     verbosity >= 1 && @info "Done."
     return 0
 end
 
-run_estimation(parsed_args) = Runner(parsed_args)()
+
+"""
+TMLE CLI.
+
+# Args
+
+- `dataset`: Data file (either .csv or .arrow)
+- `estimands`: Estimands file (either .json or .yaml)
+- `estimators`: A julia file containing the estimators to use.
+
+# Options
+
+- `-v, --verbosity`: Verbosity level.
+- `-j, --json_out`: JSON output filename.
+- `--hdf5_out`: HDF5 output filename.
+- `--chunksize`: Results are written in batches of size chunksize.
+- `-r, --rng`: Random seed (Only used for estimands ordering at the moment).
+- `-c, --cache_strategy`: Caching Strategy for the nuisance functions, any of ("release-unusable", "no-cache", "max-size").
+
+# Flags
+
+- `-s, --sort_estimands`: Sort estimands to minimize cache usage (A brute force approach will be used, resulting in exponentially long sorting time).
+"""
+@main function tmle(dataset, estimands, estimators; 
+    verbosity=0, 
+    outputs=Outputs(),
+    chunksize=100,
+    rng=123,
+    cache_strategy="release-unusable",
+    sort_estimands=false
+    )
+    runner = Runner(dataset, estimands, estimators; 
+        verbosity=verbosity, 
+        outputs=outputs, 
+        chunksize=chunksize,
+        rng=rng,
+        cache_strategy=cache_strategy,
+        sort_estimands=sort_estimands
+    )
+    runner()
+    return
+end
