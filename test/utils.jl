@@ -9,6 +9,11 @@ using MLJBase
 using MLJLinearModels
 using CategoricalArrays
 
+check_type(treatment_value, ::Type{T}) where T = @test treatment_value isa T
+
+check_type(treatment_values::NamedTuple, ::Type{T}) where T = 
+    @test treatment_values.case isa T && treatment_values.control isa T 
+
 PROJECT_DIR = dirname(dirname(pathof(TargetedEstimation)))
 
 include(joinpath(PROJECT_DIR, "test", "testutils.jl"))
@@ -54,46 +59,15 @@ end
     estimands = TargetedEstimation.proofread_estimands(filename, dataset)
     for estimand in estimands
         if haskey(estimand.treatment_values, :T1)
-            @test estimand.treatment_values.T1.case isa Float64
-            @test estimand.treatment_values.T1.control isa Float64
+            check_type(estimand.treatment_values.T1, Float64)
         end
         if haskey(estimand.treatment_values, :T2)
-            @test estimand.treatment_values.T2.case isa Bool
-            @test estimand.treatment_values.T2.control isa Bool
+            check_type(estimand.treatment_values.T2, Bool)
         end
     end
     # Clean estimands file
     rm(filename)
 end
-
-@testset "Test CSV writing" begin
-    Ψ = IATE(
-        outcome=:Y,
-        treatment_values=(T₁=(case=1, control=0), T₂=(case="AC", control="CC")),
-        treatment_confounders=(T₁=[:W₁, :W₂], T₂=[:W₁, :W₂])
-    )
-    @test TargetedEstimation.covariates_string(Ψ) === missing
-    @test TargetedEstimation.param_string(Ψ) == "IATE"
-    @test TargetedEstimation.case_string(Ψ) == "1_&_AC"
-    @test TargetedEstimation.control_string(Ψ) == "0_&_CC"
-    @test TargetedEstimation.treatment_string(Ψ) == "T₁_&_T₂"
-    @test TargetedEstimation.confounders_string(Ψ) == "W₁_&_W₂"
-
-    Ψ = CM(
-        outcome=:Y,
-        treatment_values=(T₁=1, T₂="AC"),
-        treatment_confounders=(T₁=[:W₁, :W₂], T₂ = [:W₁, :W₂]),
-        outcome_extra_covariates=[:C₁]
-    )
-
-    @test TargetedEstimation.covariates_string(Ψ) === "C₁"
-    @test TargetedEstimation.param_string(Ψ) == "CM"
-    @test TargetedEstimation.case_string(Ψ) == "1_&_AC"
-    @test TargetedEstimation.control_string(Ψ) === missing
-    @test TargetedEstimation.treatment_string(Ψ) == "T₁_&_T₂"
-    @test TargetedEstimation.confounders_string(Ψ) == "W₁_&_W₂"
-end
-
 @testset "Test coerce_types!" begin
     Ψ = IATE(
         outcome=:Ycont,
@@ -171,33 +145,6 @@ end
     @test sample_ids == [2]
 end
 
-@testset "Test write_target_results with missing values" begin
-    filename = "test.csv"
-    parameters = [
-        CM(
-        target=:Y,
-        treatment=(T₁=1, T₂="AC"),
-        confounders=[:W₁, :W₂],
-        covariates=[:C₁]
-    )]
-    tmle_results = [TargetedEstimation.FailedEstimation(parameters[1])]
-    logs = ["Error X"]
-    TargetedEstimation.append_csv(filename, tmle_results, logs)
-    out = CSV.read(filename, DataFrame)
-    expected_out = ["CM", "T₁_&_T₂", "1_&_AC", missing, "Y", "W₁_&_W₂", "C₁", 
-        missing, missing, missing, missing, missing, missing,
-        missing, missing, missing, missing, missing,
-        "Error X"]
-    for (x, y) in zip(first(out), expected_out)
-        if x === missing 
-            @test x === y
-        else
-            @test x == y
-        end
-    end
-    rm(filename)
-end
-
 @testset "Test make_categorical! and make_float!" begin
     dataset = DataFrame(
         T₁ = [1, 1, 0, 0],
@@ -228,7 +175,7 @@ end
     TargetedEstimation.make_categorical(dataset.T₁, true) === dataset.T₁
 end
 
-@tetset "Test JSON writing" begin
+@testset "Test JSON writing" begin
     results = []
     for Ψ in statistical_estimands_only_config().estimands
         push!(results, (
@@ -237,11 +184,11 @@ end
             ))
     end
     tmpdir = mktempdir(cleanup=true)
-    filename = joinpath(tmpdir, "output_test.json")
-    TargetedEstimation.initialize_json(filename)
-    TargetedEstimation.update(filename, results[1:3])
-    TargetedEstimation.update(filename, results[4:end]; finalize=true)
-    loaded_results = TMLE.read_json(filename)
+    jsonoutput = TargetedEstimation.JSONOutput(filename=joinpath(tmpdir, "output_test.json"))
+    TargetedEstimation.initialize_json(jsonoutput.filename)
+    TargetedEstimation.update_file(jsonoutput, results[1:3])
+    TargetedEstimation.update_file(jsonoutput, results[4:end]; finalize=true)
+    loaded_results = TMLE.read_json(jsonoutput.filename)
     @test size(loaded_results) == size(results)
     for (result, loaded_result) in zip(results, loaded_results)
         @test result.TMLE.estimate == loaded_result[:TMLE].estimate

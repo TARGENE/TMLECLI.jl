@@ -222,29 +222,55 @@ end
     rm(outputs.json.filename)
 end
 
-@testset "Test tmle_estimation: Failing parameters" begin
+@testset "Test tmle: Failing estimands" begin
     build_dataset(;n=1000, format="csv")
-    parsed_args = Dict(
-        "dataset" => "data.csv",
-        "estimands-config" => joinpath("config", "failing_parameters.yaml"),
-        "estimators-config" => joinpath("config", "tmle_config.jl"),
-        "csv-out" => "output.csv",
-        "verbosity" => 0,
-        "hdf5-out" => nothing,
-        "pval-threshold" => 1e-10,
-        "chunksize" => 10
+    outputs = TargetedEstimation.Outputs(
+        json=TargetedEstimation.JSONOutput(filename="output.json"),
+        hdf5=TargetedEstimation.HDF5Output(filename="output.hdf5")
     )
+    tmpdir = mktempdir(cleanup=true)
+    estimandsfile = joinpath(tmpdir, "configuration.json")
+    configuration = statistical_estimands_only_config()
+    TMLE.write_json(estimandsfile, configuration)
+    estimatorfile = joinpath(CONFIGDIR, "problematic_tmle_ose_config.jl")
+    datafile = "data.csv"
 
-    tmle_estimation(parsed_args)
+    runner = Runner(datafile, estimandsfile, estimatorfile; outputs=outputs);
+    runner()
 
-    # Essential results
-    data = CSV.read(parsed_args["csv-out"], DataFrame)
-    @test size(data) == (1, 19)
-    @test data[1, :TMLE_ESTIMATE] === missing
+    # Test failed nuisance estimates (T2 model)
+    @test runner.failed_nuisance == Set([
+        TMLE.ConditionalDistribution(:T2, (:W1, :W2))
+    ])
 
-    rm(parsed_args["dataset"])
-    rm(parsed_args["csv-out"])
+    # Check results from JSON
+    results_from_json = TMLE.read_json(outputs.json.filename)
+    for estimator in (:OSE, :TMLE)
+        @test results_from_json[1][estimator][:error] == "Could not fit the following propensity score model: P₀(T2 | W1, W2)"
+        @test results_from_json[1][estimator][:estimand] isa TMLE.Estimand
+        @test results_from_json[2][estimator] isa TMLE.EICEstimate
+        for i in 3:6
+            @test results_from_json[i][estimator][:error] == "Skipped due to shared failed nuisance fit."
+            @test results_from_json[i][estimator][:estimand] isa TMLE.Estimand
+        end
+    end
 
+    # Check results from HDF5
+    hdf5file = jldopen(outputs.hdf5.filename)
+    for estimator in (:OSE, :TMLE)
+        @test hdf5file["1/result"][estimator] isa TargetedEstimation.FailedEstimation
+        @test hdf5file["2/result"][estimator] isa TMLE.EICEstimate
+        for i in 3:6
+            @test hdf5file[string(i, "/result")][estimator] isa TargetedEstimation.FailedEstimation
+            @test hdf5file[string(i, "/result")][estimator].estimand isa TMLE.Estimand
+        end
+    end
+    close(hdf5file)
+
+    # Clean
+    rm(outputs.json.filename)
+    rm(outputs.hdf5.filename)
+    rm(datafile)
 end
 
 end;

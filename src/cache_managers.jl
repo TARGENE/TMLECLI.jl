@@ -15,13 +15,13 @@ function release!(cache_manager::ReleaseUnusableCacheManager, Ψ)
     for ps in η.propensity_score
         cache_manager.η_counts[ps] -= 1
         if cache_manager.η_counts[ps] == 0
-            pop!(cache_manager.cache, ps)
+            delete!(cache_manager.cache, ps)
         end
     end
     # Outcome Mean
     cache_manager.η_counts[η.outcome_mean] -= 1
     if cache_manager.η_counts[η.outcome_mean] == 0
-        pop!(cache_manager.cache, η.outcome_mean)
+        delete!(cache_manager.cache, η.outcome_mean)
     end
 end
 

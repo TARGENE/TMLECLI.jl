@@ -10,6 +10,8 @@ using TMLE
     cache_manager.cache["Tata"] = 2
     TargetedEstimation.release!(cache_manager, nothing)
     @test cache_manager.cache == Dict()
+    # Check this does not throw
+    TargetedEstimation.release!(cache_manager, nothing)
 end
 
 @testset "Test MaxSizeCacheManager" begin
@@ -21,6 +23,8 @@ end
     cache_manager.cache["Titi"] = 3
     cache_manager.cache["Tutu"] = 4
     @test length(cache_manager.cache) == 4
+    TargetedEstimation.release!(cache_manager, nothing)
+    @test length(cache_manager.cache) == 3
     TargetedEstimation.release!(cache_manager, nothing)
     @test length(cache_manager.cache) == 3
 end
@@ -77,8 +81,8 @@ end
     # Y_T₁ and T₁_W are no longer needed
     TargetedEstimation.release!(cache_manager, estimands[3])
     @test cache_manager.cache == Dict()
-
-
+    # Check this does not throw
+    TargetedEstimation.release!(cache_manager, estimands[1])
 end
 
 end

@@ -1,96 +1,3 @@
-
-
-#####################################################################
-#####                       CSV OUTPUT                           ####
-#####################################################################
-
-
-empty_tmle_output(;size=0) = DataFrame(
-    PARAMETER_TYPE=Vector{String}(undef, size), 
-    TREATMENTS=Vector{String}(undef, size), 
-    CASE=Vector{String}(undef, size), 
-    CONTROL=Vector{Union{Missing, String}}(undef, size), 
-    OUTCOME=Vector{String}(undef, size), 
-    CONFOUNDERS=Vector{String}(undef, size), 
-    COVARIATES=Vector{Union{Missing, String}}(undef, size), 
-    INITIAL_ESTIMATE=Vector{Union{Missing, Float64}}(undef, size), 
-    TMLE_ESTIMATE=Vector{Union{Missing, Float64}}(undef, size),
-    TMLE_STD=Vector{Union{Missing, Float64}}(undef, size),
-    TMLE_PVALUE=Vector{Union{Missing, Float64}}(undef, size),
-    TMLE_LWB=Vector{Union{Missing, Float64}}(undef, size),
-    TMLE_UPB=Vector{Union{Missing, Float64}}(undef, size),
-    ONESTEP_ESTIMATE=Vector{Union{Missing, Float64}}(undef, size),
-    ONESTEP_STD=Vector{Union{Missing, Float64}}(undef, size),
-    ONESTEP_PVALUE=Vector{Union{Missing, Float64}}(undef, size),
-    ONESTEP_LWB=Vector{Union{Missing, Float64}}(undef, size),
-    ONESTEP_UPB=Vector{Union{Missing, Float64}}(undef, size),
-    LOG=Vector{Union{Missing, String}}(undef, size)
-)
-
-covariates_string(Ψ; join_string="_&_") = 
-    length(Ψ.outcome_extra_covariates) != 0 ? join(Ψ.outcome_extra_covariates, join_string) : missing
-
-param_string(param::T) where T <: TMLE.Estimand = replace(string(T), "TMLE.Statistical" => "")
-
-
-case(nt::NamedTuple) = nt.case
-case(x) = x
-case_string(Ψ; join_string="_&_") = join((case(x) for x in values(Ψ.treatment_values)), join_string)
-
-control_string(t::Tuple{Vararg{NamedTuple}}; join_string="_&_") = 
-    join((val.control for val in t), join_string)
-
-control_string(t; join_string="_&_") = missing
-
-control_string(Ψ::TMLE.Estimand; join_string="_&_") = 
-    control_string(values(Ψ.treatment_values); join_string=join_string)
-
-treatment_string(Ψ; join_string="_&_") = join(keys(Ψ.treatment_values), join_string)
-confounders_string(Ψ; join_string="_&_") = join(Ψ.confounders_values, join_string)
-
-
-function statistics_from_estimator(estimator)
-    Ψ̂ = TMLE.estimate(estimator)
-    std = √(var(estimator))
-    testresult = OneSampleTTest(estimator)
-    pval = pvalue(testresult)
-    l, u = confint(testresult)
-    return (Ψ̂, std, pval, l, u)
-end
-
-function statistics_from_result(result::TMLE.Estimate)
-    Ψ̂₀ = result.initial
-    # TMLE stats
-    tmle_stats = statistics_from_estimator(result.tmle) 
-    # OneStep stats
-    onestep_stats = statistics_from_estimator(result.onestep)
-    return Ψ̂₀, tmle_stats, onestep_stats
-end
-
-statistics_from_result(result::FailedEstimation) = 
-    missing, 
-    (missing, missing, missing, missing, missing), 
-    (missing, missing, missing, missing, missing)
-
-function append_csv(filename, results)
-    data = empty_tmle_output(size=size(results, 1))
-    for (i, result) in enumerate(results)
-        Ψ = result.parameter
-        param_type = param_string(Ψ)
-        treatments = treatment_string(Ψ)
-        case = case_string(Ψ)
-        control = control_string(Ψ)
-        confounders = confounders_string(Ψ)
-        covariates = covariates_string(Ψ)
-        Ψ̂₀, tmle_stats, onestep_stats = statistics_from_result(result)
-        data[i, :] = (
-            param_type, treatments, case, control, string(Ψ.target), confounders, covariates, 
-            Ψ̂₀, tmle_stats..., onestep_stats..., log
-        )
-    end
-    CSV.write(filename, data, append=true, header=!isfile(filename))
-end
-
 #####################################################################
 #####                       JSON OUTPUT                          ####
 #####################################################################
@@ -101,7 +8,7 @@ initialize_json(filename::String) = open(filename, "w") do io
     print(io, '[')
 end
 
-function update(output::JSONOutput, results; finalize=false)
+function update_file(output::JSONOutput, results; finalize=false)
     output.filename === nothing && return
     open(output.filename, "a") do io
         for result in results
@@ -120,7 +27,7 @@ end
 #####                       STD OUTPUT                          ####
 #####################################################################
 
-function update(doprint, results, partition)
+function update_file(doprint, results, partition)
     if doprint
         mimetext = MIME"text/plain"()
         index = 1
@@ -143,7 +50,7 @@ end
 #####################################################################
 
 
-function update(output::HDF5Output, partition, results, dataset)
+function update_file(output::HDF5Output, partition, results, dataset)
     output.filename === nothing && return
 
     jldopen(output.filename, "a+", compress=true) do io
@@ -168,7 +75,6 @@ end
 #####################################################################
 #####                    Read TMLE Estimands Configuration                         ####
 #####################################################################
-
 
 function convert_treatment_values(treatment_levels::NamedTuple{names, <:Tuple{Vararg{NamedTuple}}}, treatment_types) where names
     return [(
@@ -229,16 +135,20 @@ end
 #####                 ADDITIONAL METHODS                         ####
 #####################################################################
 
+TMLE.emptyIC(result::FailedEstimation) = result
+
+TMLE.emptyIC(result::FailedEstimation, pval_threshold::Float64) = result
+
 TMLE.emptyIC(result::NamedTuple{names}, pval_threshold::Nothing) where names = 
     NamedTuple{names}([TMLE.emptyIC(r) for r in result])
+
+TMLE.emptyIC(result::NamedTuple{names}, pval_threshold::Float64) where names =
+    NamedTuple{names}([TMLE.emptyIC(r, pval_threshold) for r in result])
 
 function TMLE.emptyIC(result, pval_threshold::Float64)
     pval = pvalue(OneSampleZTest(result))
     return pval < pval_threshold ? result : TMLE.emptyIC(result)
 end
-
-TMLE.emptyIC(result::NamedTuple{names}, pval_threshold::Float64) where names =
-    NamedTuple{names}([TMLE.emptyIC(r, pval_threshold) for r in result])
 
 
 get_sample_ids(data, variables) = dropmissing(data[!, [:SAMPLE_ID, variables...]]).SAMPLE_ID
@@ -317,4 +227,7 @@ function load_tmle_spec(file)
 end
 
 TMLE.to_dict(nt::NamedTuple{names, <:Tuple{Vararg{TMLE.EICEstimate}}}) where names = 
+    Dict(key => TMLE.to_dict(val) for (key, val) ∈ zip(keys(nt), nt))
+
+TMLE.to_dict(nt::NamedTuple{names, <:Tuple{Vararg{FailedEstimation}}}) where names = 
     Dict(key => TMLE.to_dict(val) for (key, val) ∈ zip(keys(nt), nt))

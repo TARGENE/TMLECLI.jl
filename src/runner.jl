@@ -1,6 +1,13 @@
 struct FailedEstimation
-    message::String
+    estimand::TMLE.Estimand
+    msg::String
 end
+
+TMLE.to_dict(x::FailedEstimation) = Dict(
+        :estimand => TMLE.to_dict(x.estimand),
+        :error => x.msg
+    )
+
 
 @option struct JSONOutput
     filename::Union{Nothing, String} = nothing
@@ -32,6 +39,7 @@ mutable struct Runner
     chunksize::Int
     outputs::Outputs
     verbosity::Int
+    failed_nuisance::Set
     function Runner(dataset, estimands, estimators; 
         verbosity=0, 
         outputs=Outputs(), 
@@ -55,20 +63,21 @@ mutable struct Runner
             )
         end
         cache_manager = make_cache_manager(estimands, cache_strategy)
+        
+        failed_nuisance = Set([])
 
-        return new(estimators, estimands, dataset, cache_manager, chunksize, outputs, verbosity)
+        return new(estimators, estimands, dataset, cache_manager, chunksize, outputs, verbosity, failed_nuisance)
     end
 end
 
 function save(runner::Runner, results, partition, finalize)
     # Append STD Out
-    update(runner.outputs.std, results, partition)
+    update_file(runner.outputs.std, results, partition)
     # Append JSON Output
-    update(runner.outputs.json, results; finalize=finalize)
+    update_file(runner.outputs.json, results; finalize=finalize)
     # Append HDF5 Output
-    update(runner.outputs.hdf5, partition, results, runner.dataset)
+    update_file(runner.outputs.hdf5, partition, results, runner.dataset)
 end
-
 
 function try_estimation(runner, Ψ, estimator)
     try
@@ -78,16 +87,33 @@ function try_estimation(runner, Ψ, estimator)
         )
         return result
     catch e
-        # On Error, store the nuisance function where the error occured 
-        # to fail fast the next estimands
-        return FailedEstimation(string(e))
+        # Some nuisance function fits may fail. We do not interrupt on them but log instead.
+        # This also allows to skip fast the next estimands requiring the same nuisance functions.
+        if e isa TMLE.FitFailedError
+            push!(runner.failed_nuisance, e.estimand)
+            return FailedEstimation(Ψ, e.msg)
+        # On other errors, rethrow
+        else 
+            rethrow(e) 
+        end
     end
+end
+
+function skip_fast(runner, Ψ)
+    ηs = TMLE.get_relevant_factors(Ψ)
+    ηs.propensity_score
+    any(η ∈ runner.failed_nuisance for η in (ηs.outcome_mean, ηs.propensity_score...)) && return true
+    return false
 end
 
 function (runner::Runner)(partition)
     results = Vector{NamedTuple}(undef, size(partition, 1))
     for (partition_index, param_index) in enumerate(partition)
         Ψ = runner.estimands[param_index]
+        if skip_fast(runner, Ψ)
+            results[partition_index] = NamedTuple{keys(runner.estimators)}([FailedEstimation(Ψ, "Skipped due to shared failed nuisance fit.") for _ in 1:length(runner.estimators)])
+            continue
+        end
         # Make sure data types are appropriate for the estimand
         TargetedEstimation.coerce_types!(runner.dataset, Ψ)
         # Maybe update cache with new η_spec
@@ -119,8 +145,6 @@ function (runner::Runner)()
         results = runner(partition)
         save(runner, results, partition, partition===partitions[end])
     end
-    runner.verbosity >= 1 && @info "Done."
-    return 0
 end
 
 
@@ -163,5 +187,6 @@ TMLE CLI.
         sort_estimands=sort_estimands
     )
     runner()
+    verbosity >= 1 && @info "Done."
     return
 end
