@@ -251,7 +251,7 @@ end
 end
 
 @testset "Test corrected_stderrors" begin
-    io = jldopen(joinpath("data", "sieve_variances.hdf5"))
+    io = jldopen(joinpath(TESTDIR, "data", "sieve_variances.hdf5"))
     variances = io["variances"]
     n_obs = [10, 10, 10, 10, 10, 100, 100, 1000, 1000, 1000]
     stderrors = TargetedEstimation.corrected_stderrors(variances, n_obs)
