@@ -130,13 +130,32 @@ end
     @test eltype(dataset.C) <: Union{Missing, Float64}
 end
 
-@testset "Test get_sample_ids" begin
-    variables = (
-        target = :Y,
-        covariates = Symbol[],
-        confounders = [:W₁, :W₂],
-        treatments = (:T₁, :T₂)
+@testset "Test misc" begin
+    Ψ = ATE(
+        outcome = :Y,
+        treatment_values = (
+            T₁ = (case=1, control=0), 
+            T₂ = (case=1, control=0)),
+        treatment_confounders = (
+            T₁=[:W₁, :W₂], 
+            T₂=[:W₂, :W₃]
+        ),
+        outcome_extra_covariates = [:C]
     )
+    variables = TargetedEstimation.variables(Ψ)
+    @test variables == Set([:Y, :C, :T₁, :T₂, :W₁, :W₂, :W₃])
+    Ψ = ATE(
+        outcome = :Y,
+        treatment_values = (
+            T₁ = (case=1, control=0), 
+            T₂ = (case=1, control=0)),
+        treatment_confounders = (
+            T₁=[:W₁, :W₂], 
+            T₂=[:W₁, :W₂]
+        ),
+    )
+    variables = TargetedEstimation.variables(Ψ)
+    @test variables == Set([:Y, :T₁, :T₂, :W₁, :W₂])
     data = DataFrame(
         SAMPLE_ID  = [1, 2, 3, 4, 5],
         Y          = [1, 2, 3, missing, 5],

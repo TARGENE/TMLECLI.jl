@@ -11,14 +11,6 @@ function statistical_estimands_only_config()
                 treatment_confounders = (T1 = (:W1, :W2), T2 = (:W1, :W2)), 
                 outcome_extra_covariates = (:C1,)
             ),
-            IATE(
-                outcome = Symbol("BINARY/OUTCOME"), 
-                treatment_values = (
-                    T1 = (case = true, control = false), 
-                    T2 = (case = true, control = false)), 
-                treatment_confounders = (T1 = (:W1, :W2), T2 = (:W1, :W2)), 
-                outcome_extra_covariates = (:C1,)
-            ),
             ATE(
                 outcome = Symbol("CONTINUOUS, OUTCOME"), 
                 treatment_values = (T1 = (case = true, control = false),), 
@@ -43,11 +35,19 @@ function statistical_estimands_only_config()
                 treatment_confounders = (T1 = (:W1, :W2), T2 = (:W1, :W2)), 
                 outcome_extra_covariates = (:C1,)
             ),
-            ATE(
-                outcome = Symbol("CONTINUOUS, OUTCOME"), 
+            IATE(
+                outcome = Symbol("BINARY/OUTCOME"), 
                 treatment_values = (
                     T1 = (case = true, control = false), 
                     T2 = (case = true, control = false)), 
+                treatment_confounders = (T1 = (:W1, :W2), T2 = (:W1, :W2)), 
+                outcome_extra_covariates = (:C1,)
+            ),
+            CM(
+                outcome = Symbol("CONTINUOUS, OUTCOME"), 
+                treatment_values = (
+                    T1 = true, 
+                    T2 = false), 
                 treatment_confounders = (T1 = (:W1, :W2), T2 = (:W1, :W2)),
                 outcome_extra_covariates = (:C1,)
             )

@@ -20,33 +20,18 @@ CONFIGDIR = joinpath(PKGDIR, "test", "config")
 
 include(joinpath(PKGDIR, "test", "testutils.jl"))
 
-function test_tmle_output(param_index, jldio, data, expected_param, sample_ids_idx)
-    jld2_res = jldio[string(param_index)]
-    csv_row = data[param_index, :]
-    Ψ = jld2_res["result"].parameter
-    @test jld2_res["result"] isa TMLE.Estimate
-    @test jld2_res["result"].tmle.Ψ̂ isa Float64
-    @test Ψ == expected_param
-    @test jld2_res["sample_ids_idx"] == sample_ids_idx
-    sample_ids = jldio[string(jld2_res["sample_ids_idx"])]["sample_ids"]
-    if expected_param.target == Symbol("BINARY/OUTCOME")
-        @test sample_ids == 2:1000
-    else
-        @test sample_ids == 1:1000
-    end
-    @test jld2_res["result"] isa TMLE.Estimate
+sort_nt_by_key(nt::NamedTuple{names}) where names = NamedTuple{sort(names)}(nt)
+sort_nt_by_key(x) = x
 
-    if csv_row.COVARIATES === missing
-        @test TargetedEstimation.covariates_string(Ψ) === csv_row.COVARIATES
-    else
-        @test TargetedEstimation.covariates_string(Ψ) == csv_row.COVARIATES
+function test_estimands_match(Ψ₁::T1, Ψ₂::T2) where {T1, T2}
+    @test T1 == T2
+    @test Ψ₁.outcome == Ψ₂.outcome
+    @test Ψ₁.outcome_extra_covariates == Ψ₂.outcome_extra_covariates
+    @test sort_nt_by_key(Ψ₁.treatment_confounders) == sort_nt_by_key(Ψ₂.treatment_confounders)
+    @test sort(keys(Ψ₁.treatment_values)) == sort(keys(Ψ₂.treatment_values))
+    for key in keys(Ψ₁.treatment_values)
+        @test sort_nt_by_key(Ψ₁.treatment_values[key]) == sort_nt_by_key(Ψ₂.treatment_values[key])
     end
-    @test TargetedEstimation.param_string(Ψ) == csv_row.PARAMETER_TYPE
-    @test TargetedEstimation.case_string(Ψ) == csv_row.CASE
-    @test TargetedEstimation.control_string(Ψ) == csv_row.CONTROL
-    @test TargetedEstimation.treatment_string(Ψ) == csv_row.TREATMENTS
-    @test TargetedEstimation.confounders_string(Ψ) == csv_row.CONFOUNDERS
-    @test csv_row.TMLE_ESTIMATE == jld2_res["result"].tmle.Ψ̂
 end
 
 """
@@ -100,6 +85,7 @@ end
     TMLE.write_json(estimands_filename, statistical_estimands_only_config())
     outputs = TargetedEstimation.Outputs(
         json=TargetedEstimation.JSONOutput(filename="output.json"),
+        hdf5=TargetedEstimation.HDF5Output(filename="output.hdf5", pval_threshold=1.),
         std=true,
     )
     runner = Runner(
@@ -109,13 +95,14 @@ end
         outputs=outputs, 
         cache_strategy="release-unusable",
     )
-    partition = 1:3
+    partition = 4:6
     results = runner(partition)
     for result in results
         @test result.TMLE isa TMLE.TMLEstimate
         @test result.OSE isa TMLE.OSEstimate
     end
 
+    # Test Save to STDOUT
     output_txt = "output.txt"
     TargetedEstimation.initialize(outputs)
     open(output_txt, "w") do io
@@ -123,138 +110,116 @@ end
             TargetedEstimation.save(runner, results, partition, true)
         end
     end
-    # Read STDOUT
-    stdout_content = split(read(output_txt, String), "\n")
-    @test length(stdout_content) > 20
+    stdout_content = read(output_txt, String)
+    @test all(occursin("Estimand $i", stdout_content) for i in partition)
 
-    # Read JSON
+    # Test Save to JSON
     loaded_results = TMLE.read_json(outputs.json.filename)
     for (result, loaded_result) in zip(results, loaded_results)
         @test loaded_result[:TMLE] isa TMLE.TMLEstimate
         @test result.TMLE.estimate == loaded_result[:TMLE].estimate
+        @test loaded_result[:TMLE].IC == []
+
         @test loaded_result[:OSE] isa TMLE.OSEstimate
         @test result.OSE.estimate == loaded_result[:OSE].estimate
+        @test loaded_result[:OSE].IC == []
     end
 
+    # Test Save to HDF5
+    hdf5file = jldopen(outputs.hdf5.filename, "r")
+    for (result_index, param_index) in enumerate(4:6)
+        result = hdf5file[string(param_index, "/result")]
+        @test result.TMLE isa TMLE.TMLEstimate
+        @test results[result_index].TMLE.estimate == result.TMLE.estimate
+
+        @test result.OSE isa TMLE.OSEstimate
+        @test results[result_index].OSE.estimate == result.OSE.estimate
+    end
+    @test hdf5file["4/sample_ids"] == collect(2:1000)
+    @test hdf5file["4/sample_ids_idx"] == 4
+    @test size(hdf5file["4/result"].TMLE.IC, 1) == 999
+
+    @test !haskey(hdf5file, "5/sample_ids")
+    @test hdf5file["5/sample_ids_idx"] == 4
+    @test size(hdf5file["5/result"].TMLE.IC, 1) == 999
+
+    @test hdf5file["6/sample_ids"] == collect(1:1000)
+    @test hdf5file["6/sample_ids_idx"] == 6
+    @test size(hdf5file["6/result"].TMLE.IC, 1) == 1000
+
+    close(hdf5file)
+
+    # Clean
     rm("data.csv")
     rm(output_txt)
     rm(outputs.json.filename)
+    rm(outputs.hdf5.filename)
 end
 
-@testset "Test tmle_estimation" begin
-    expected_parameters = [
-        ATE(Symbol("CONTINUOUS, OUTCOME"), (T1 = (case = true, control = false),), [:W1, :W2], Symbol[]),
-        IATE(Symbol("BINARY/OUTCOME"), (T1 = (case = true, control = false), T2 = (case = true, control = false)), [:W1, :W2], [:C1]),
-        IATE(Symbol("BINARY/OUTCOME"), (T1 = (case = true, control = false), T2 = (case = false, control = true)), [:W1, :W2], [:C1]),
-        IATE(Symbol("CONTINUOUS, OUTCOME"), (T1 = (case = true, control = false), T2 = (case = false, control = true)), [:W1, :W2], Symbol[]),
-        IATE(Symbol("CONTINUOUS, OUTCOME"), (T1 = (case = true, control = false), T2 = (case = true, control = false)), [:W1, :W2], [:C1]),
-        ATE(Symbol("CONTINUOUS, OUTCOME"), (T1 = (case = true, control = false), T2 = (case = true, control = false)), [:W1, :W2], [:C1])
-    ]
-    outfilename = "statistical_estimands.yml"
-    configuration_to_yaml(outfilename, statistical_estimands_only_config())
-    expected_param_sample_ids_idx = [1, 2, 2, 4, 5, 5]
+@testset "Test tmle" begin
+    tmpdir = mktempdir(cleanup=true)
+    estimands_filename = joinpath(tmpdir, "configuration.json")
+    configuration = statistical_estimands_only_config()
+    TMLE.write_json(estimands_filename, configuration)
+    outputs = TargetedEstimation.Outputs(
+        json=TargetedEstimation.JSONOutput(filename="output.json"),
+        hdf5=TargetedEstimation.HDF5Output(filename="output.hdf5", pval_threshold=1.),
+    )
+    estimatorfile = joinpath(CONFIGDIR, "tmle_ose_config.jl")
     # Run tests over CSV and Arrow data formats
     for format in ("csv", "arrow")
+        datafile = string("data.", format)
         build_dataset(;n=1000, format=format)
-        parsed_args = Dict(
-                    "dataset" => string("data.", format),
-                    "estimands-config" => nothing,
-                    "estimators-config" => joinpath(config_dir, "tmle_config.jl"),
-                    "csv-out" => "output.csv",
-                    "verbosity" => 0,
-                    "hdf5-out" => "output.hdf5",
-                    "pval-threshold" => 1.,
-                    "chunksize" => nothing
-                )
-        runner = TargetedEstimation.Runner(parsed_args)
-        for param_file in ("parameters.yaml", "parameters.bin")
-            for chunksize in (4, 10)
-                # Only one continuous phenotype / machines not saved / no adaptive cv
+        for chunksize in (4, 10)
+            tmle(datafile, estimands_filename, estimatorfile; 
+                outputs=outputs,
+                chunksize=chunksize,
+            )
 
-                parsed_args["estimands-config"] = outfilename
-                parsed_args["chunksize"] = chunksize
+            hdf5file = jldopen(outputs.hdf5.filename)
+            results_from_json = TMLE.read_json(outputs.json.filename)
 
-                tmle_estimation(parsed_args)
-
-                # Given the threshold is 1, all
-                # estimation results will make the threshold
-                jldio = jldopen(parsed_args["hdf5-out"])
-                data = CSV.read(parsed_args["csv-out"], DataFrame)
-
-                @test all(data[i, :TMLE_ESTIMATE] != data[j, :TMLE_ESTIMATE] for i in 1:5 for j in i+1:6)
-
-                for (param_index, (Ψ, sample_ids_idx)) in enumerate(zip(expected_parameters, expected_param_sample_ids_idx))
-                    test_tmle_output(param_index, jldio, data, Ψ, sample_ids_idx)
-                end
-                # Clean
-                rm(parsed_args["csv-out"])
-                rm(parsed_args["hdf5-out"])
+            for i in 1:6
+                Ψ = configuration.estimands[i]
+                test_estimands_match(Ψ, results_from_json[i][:TMLE].estimand)
+                hdf5result = hdf5file[string(i, "/result")]
+                @test results_from_json[i][:TMLE].estimate == hdf5result.TMLE.estimate
+                @test results_from_json[i][:OSE].estimate == hdf5result.OSE.estimate
             end
+
+            # Clean
+            rm(outputs.hdf5.filename)
+            rm(outputs.json.filename)
         end
-        rm(parsed_args["dataset"])
+        rm(datafile)
     end
 end
 
-@testset "Test tmle_estimation: No hdf5 file" begin
+@testset "Test tmle: lower p-value threshold only JSON output" begin
     build_dataset(;n=1000, format="csv")
-    estimands_filename = "estimands_test.yaml"
-    configuration_to_yaml(estimands_filename, statistical_estimands_only_config())
-    # Only one continuous phenotype / machines not saved / no adaptive cv
-    parsed_args = Dict(
-        "dataset" => "data.csv",
-        "estimands-config" => estimands_filename,
-        "estimators-config" => joinpath(CONFIGDIR, "ose_config.jl"),
-        "csv-out" => "output.csv",
-        "verbosity" => 0,
-        "hdf5-out" => nothing,
-        "pval-threshold" => 1.,
-        "chunksize" => 10,
-        "rng" => 123,
-        "sort-estimands" => false,
-        "cache-strategy" => "release_unusable"
+    outputs = TargetedEstimation.Outputs(
+        json=TargetedEstimation.JSONOutput(filename="output.json", pval_threshold=1e-15)
     )
-    @enter run_estimation(parsed_args)
-
-    ## Check CSV file
-    data = CSV.read(parsed_args["csv-out"], DataFrame)
-    @test names(TargetedEstimation.empty_tmle_output()) == names(data)
-    @test size(data) == (6, 19)
-    all(x === missing for x in data.LOG)
-    # Clean
-    rm(parsed_args["csv-out"])
-    rm(parsed_args["dataset"])
-end
-
-
-@testset "Test tmle_estimation: lower p-value threhsold" begin
-    build_dataset(;n=1000, format="csv")
-    parsed_args = Dict(
-        "dataset" => "data.csv",
-        "estimands-config" => joinpath("config", "parameters.yaml"),
-        "estimators-config" => joinpath("config", "tmle_config.jl"),
-        "csv-out" => "output.csv",
-        "verbosity" => 0,
-        "hdf5-out" => "output.hdf5",
-        "pval-threshold" => 1e-15,
-        "chunksize" => 10
-    )
-
-    tmle_estimation(parsed_args)
+    tmpdir = mktempdir(cleanup=true)
+    estimandsfile = joinpath(tmpdir, "configuration.json")
+    configuration = statistical_estimands_only_config()
+    TMLE.write_json(estimandsfile, configuration)
+    estimatorfile = joinpath(CONFIGDIR, "ose_config.jl")
+    datafile = "data.csv"
+    tmle(datafile, estimandsfile, estimatorfile; outputs=outputs)
     
     # Essential results
-    data = CSV.read(parsed_args["csv-out"], DataFrame)
-    jldio = jldopen(parsed_args["hdf5-out"])
-    @test !haskey(jldio, "2")
-    @test !haskey(jldio, "3")
-    @test !haskey(jldio, "4")
-    @test !haskey(jldio, "5")
-    @test !haskey(jldio, "6")
+    results_from_json = TMLE.read_json(outputs.json.filename)
+    n_IC_empties = 0
+    for result in results_from_json
+        if result[:OSE].IC != []
+            n_IC_empties += 1
+        end
+    end
+    @test n_IC_empties > 0
 
-    @test jldio["1"]["result"].tmle.Ψ̂ == data[1, :TMLE_ESTIMATE]
-
-    rm(parsed_args["dataset"])
-    rm(parsed_args["csv-out"])
-    rm(parsed_args["hdf5-out"])
+    rm(datafile)
+    rm(outputs.json.filename)
 end
 
 @testset "Test tmle_estimation: Failing parameters" begin

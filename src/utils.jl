@@ -120,15 +120,17 @@ end
 #####                       STD OUTPUT                          ####
 #####################################################################
 
-function update(doprint, results)
+function update(doprint, results, partition)
     if doprint
         mimetext = MIME"text/plain"()
         index = 1
-        for result in results
+        for (result, estimand_index) in zip(results, partition)
+            show(stdout, mimetext, string("⋆⋆⋆ Estimand ", estimand_index, " ⋆⋆⋆"))
+            println(stdout)
+            show(stdout, mimetext, first(result).estimand)
             for (key, val) ∈ zip(keys(result), result)
-                show(stdout, mimetext, string("⋆⋆⋆ Estimand ", index, " ⋆⋆⋆"))
-                show(stdout, mimetext, val.estimand)
-                show(stdout, mimetext, string("Estimation Result From: ", key, ))
+                show(stdout, mimetext, string("→ Estimation Result From: ", key, ))
+                println(stdout)
                 show(stdout, mimetext, val)
                 index += 1
             end
@@ -145,25 +147,22 @@ function update(output::HDF5Output, partition, results, dataset)
     output.filename === nothing && return
 
     jldopen(output.filename, "a+", compress=true) do io
-    # Append only with results passing the threshold
         previous_variables = nothing
         sample_ids_idx = nothing
         for (partition_index, param_index) in enumerate(partition)
             estimator_results = TMLE.emptyIC(results[partition_index], output.pval_threshold)
-            current_variables = variables(r.parameter)
+            current_variables = variables(first(estimator_results).estimand)
             if previous_variables != current_variables
                 sample_ids = TargetedEstimation.get_sample_ids(dataset, current_variables)
                 io["$param_index/sample_ids"] = sample_ids
                 sample_ids_idx = param_index
             end
-            io["$param_index/result"] = r
+            io["$param_index/result"] = estimator_results
             io["$param_index/sample_ids_idx"] = sample_ids_idx
 
             previous_variables = current_variables
         end
-        
     end
-
 end
 
 #####################################################################
@@ -242,10 +241,8 @@ TMLE.emptyIC(result::NamedTuple{names}, pval_threshold::Float64) where names =
     NamedTuple{names}([TMLE.emptyIC(r, pval_threshold) for r in result])
 
 
-function get_sample_ids(data, variables)
-    cols = [:SAMPLE_ID, variables.target, variables.treatments..., variables.confounders..., variables.covariates...]
-    return dropmissing(data[!, cols]).SAMPLE_ID
-end
+get_sample_ids(data, variables) = dropmissing(data[!, [:SAMPLE_ID, variables...]]).SAMPLE_ID
+
 
 """
     instantiate_dataset(path::String)
@@ -296,12 +293,12 @@ function coerce_types!(dataset, Ψ)
     make_float!(dataset, continuous_variables)
 end
 
-variables(Ψ::TMLE.Estimand) = (
-    outcome = Ψ.outcome, 
-    covariates = Ψ.outcome_extra_covariates, 
-    confounders = Ψ.treatment_confounders,
-    treatments = keys(Ψ.treatment_values)
-    )
+variables(Ψ::TMLE.Estimand) = Set([
+    Ψ.outcome,
+    keys(Ψ.treatment_values)...,
+    Ψ.outcome_extra_covariates..., 
+    Iterators.flatten(values(Ψ.treatment_confounders))...
+    ])
 
 load_tmle_spec(file::Nothing) = (
     TMLE = TMLEE(

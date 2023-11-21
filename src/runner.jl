@@ -2,7 +2,6 @@ struct FailedEstimation
     message::String
 end
 
-
 @option struct JSONOutput
     filename::Union{Nothing, String} = nothing
     pval_threshold::Union{Nothing, Float64} = nothing
@@ -10,25 +9,19 @@ end
 
 initialize(output::JSONOutput) = initialize_json(output.filename)
 
-
 @option struct HDF5Output
     filename::Union{Nothing, String} = nothing
     pval_threshold::Union{Nothing, Float64} = nothing
 end
 
-initialize_hdf5(x) = nothing
-
-initialize(output::HDF5Output) = initialize_hdf5(output.filename)
-
 @option struct Outputs
     json::JSONOutput = JSONOutput()
     hdf5::HDF5Output = HDF5Output()
-    std::Bool = true
+    std::Bool = false
 end
 
 function initialize(outputs::Outputs)
     initialize(outputs.json)
-    initialize(outputs.hdf5)
 end
 
 mutable struct Runner
@@ -69,11 +62,11 @@ end
 
 function save(runner::Runner, results, partition, finalize)
     # Append STD Out
-    update(runner.outputs.std, results)
-    # Append JSON result with partition
+    update(runner.outputs.std, results, partition)
+    # Append JSON Output
     update(runner.outputs.json, results; finalize=finalize)
-    # Append HDF5 result if save-ic is true
-    # update_jld2_output(runner.output_ios.HDF5, partition, results, runner.dataset)
+    # Append HDF5 Output
+    update(runner.outputs.hdf5, partition, results, runner.dataset)
 end
 
 
@@ -118,7 +111,7 @@ end
 
 function (runner::Runner)()
     # Initialize output files
-    initialize_outputs(runner.output_ios)
+    initialize(runner.outputs)
     # Split worklist in partitions
     nparams = size(runner.estimands, 1)
     partitions = collect(Iterators.partition(1:nparams, runner.chunksize))
@@ -126,7 +119,7 @@ function (runner::Runner)()
         results = runner(partition)
         save(runner, results, partition, partition===partitions[end])
     end
-    verbosity >= 1 && @info "Done."
+    runner.verbosity >= 1 && @info "Done."
     return 0
 end
 
