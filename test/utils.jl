@@ -14,12 +14,12 @@ check_type(treatment_value, ::Type{T}) where T = @test treatment_value isa T
 check_type(treatment_values::NamedTuple, ::Type{T}) where T = 
     @test treatment_values.case isa T && treatment_values.control isa T 
 
-PROJECT_DIR = dirname(dirname(pathof(TargetedEstimation)))
+TESTDIR = joinpath(pkgdir(TargetedEstimation), "test")
 
-include(joinpath(PROJECT_DIR, "test", "testutils.jl"))
+include(joinpath(TESTDIR, "testutils.jl"))
 
 @testset "Test load_tmle_spec: with configuration file" begin
-    estimators = TargetedEstimation.load_tmle_spec(joinpath(PROJECT_DIR, "test", "config", "tmle_ose_config.jl"))
+    estimators = TargetedEstimation.load_tmle_spec(joinpath(TESTDIR, "config", "tmle_ose_config.jl"))
     @test estimators.TMLE isa TMLE.TMLEE
     @test estimators.OSE isa TMLE.OSE
     @test estimators.TMLE.weighted === true

@@ -88,32 +88,32 @@ function build_work_list(prefix, grm_ids)
             x -> startswith(x, prefix_) && endswith(x, ".hdf5"), 
             readdir(dirname__)
     )
-    hdf5files = [joinpath(dirname_, x) for x in hdf5files]
+    hdf5files = sort([joinpath(dirname_, x) for x in hdf5files])
 
     influence_curves = Vector{Float32}[]
     n_obs = Int[]
-    sieve_df = sieve_dataframe()
+    tmle_results = []
     for hdf5file in hdf5files
         jldopen(hdf5file) do io
             # templateΨs = io["parameters"]
             # results = io["results"]
             for key in keys(io)
                 result_group = io[key]
-                tmleresult = io[key]["result"]
-                Ψ = tmleresult.parameter
-                sample_ids = haskey(result_group, "sample_ids") ? result_group["sample_ids"] :
-                    io[string(result_group["sample_ids_idx"])]["sample_ids"]
-                sample_ids = string.(sample_ids)
-                Ψ̂ = TMLE.estimate(tmleresult.tmle)
+                tmleresult = io[key]["result"].TMLE
+                if size(tmleresult.IC, 1) > 0
+                    sample_ids = haskey(result_group, "sample_ids") ? result_group["sample_ids"] :
+                        io[string(result_group["sample_ids_idx"])]["sample_ids"]
+                    sample_ids = string.(sample_ids)
 
-                push!(influence_curves, align_ic(tmleresult.tmle.IC, sample_ids, grm_ids))
-                push!(n_obs, size(sample_ids, 1))
-                push_sieveless!(sieve_df, Ψ, Ψ̂)
+                    push!(influence_curves, align_ic(tmleresult.IC, sample_ids, grm_ids))
+                    push!(n_obs, size(sample_ids, 1))
+                    push!(tmle_results, tmleresult)
+                end
             end
         end
     end
     influence_curves = length(influence_curves) > 0 ? reduce(vcat, transpose(influence_curves)) : Matrix{Float32}(undef, 0, 0)
-    return sieve_df, influence_curves, n_obs
+    return tmle_results, influence_curves, n_obs
 end
 
 

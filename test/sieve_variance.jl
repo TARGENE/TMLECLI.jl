@@ -11,6 +11,8 @@ using StableRNGs
 using Distributions
 using LogExpFunctions
 
+TESTDIR = joinpath(pkgdir(TargetedEstimation), "test")
+
 function build_dataset(sample_ids)
     rng = StableRNG(123)
     n = size(sample_ids, 1)
@@ -44,23 +46,13 @@ function build_dataset(sample_ids)
     CSV.write("data.csv", dataset)
 end
 
-function build_tmle_output_file(sample_ids, param_file, outprefix)
+function build_tmle_output_file(sample_ids, estimandfile, outprefix, pval)
     build_dataset(sample_ids)
-    # Only one continuous phenotype / machines not saved / no adaptive cv
-    parsed_args = Dict(
-        "data" => "data.csv",
-        "param-file" => param_file,
-        "estimator-file" => joinpath("config", "tmle_config.jl"),
-        "csv-out" => string(outprefix, ".csv"),
-        "verbosity" => 0,
-        "hdf5-out" => string(outprefix, ".hdf5"),
-        "pval-threshold" => 1.,
-        "chunksize" => 100
+    outputs = TargetedEstimation.Outputs(
+        hdf5=TargetedEstimation.HDF5Output(filename=string(outprefix, ".hdf5"), pval_threshold=pval),
     )
-
-    TargetedEstimation.tmle_estimation(parsed_args)
+    tmle("data.csv", estimandfile, joinpath(TESTDIR, "config", "tmle_ose_config.jl"), outputs=outputs)
 end
-
 
 function basic_variance_implementation(matrix_distance, influence_curve, n_obs)
     variance = 0.f0
@@ -101,9 +93,8 @@ function test_initial_output(output, expected_output)
         end
     end
 end
-
 @testset "Test readGRM" begin
-    prefix = joinpath("data", "grm", "test.grm")
+    prefix = joinpath(TESTDIR, "data", "grm", "test.grm")
     GRM, ids = TargetedEstimation.readGRM(prefix)
     @test eltype(ids.SAMPLE_ID) == String
     @test size(GRM, 1) == 18915
@@ -111,65 +102,55 @@ end
 end
 
 @testset "Test build_work_list" begin
-    grm_ids = TargetedEstimation.GRMIDs(joinpath("data", "grm", "test.grm.id"))
-    param_file_1 = joinpath("config", "sieve_tests_parameters_1.yaml")
-    outprefix_1 = "tmle_output_1"
-    prefix = "tmle_output"
-    # CASE_1: only one file
-    build_tmle_output_file(grm_ids.SAMPLE_ID, param_file_1, outprefix_1)
-    # Since pval = 1., all parameters are considered for sieve variance
-    sieve_df, influence_curves, n_obs = TargetedEstimation.build_work_list(prefix, grm_ids)
-    @test n_obs == [193, 193, 193, 194, 194, 194]
+    grm_ids = TargetedEstimation.GRMIDs(joinpath(TESTDIR, "data", "grm", "test.grm.id"))
+    tmpdir = mktempdir(cleanup=true)
+    configuration = statistical_estimands_only_config()
+
+    # CASE_1: Since pval = 1.
+    # Simulate multiple runs that occured
+    pval = 1.
+    config_1 = TMLE.Configuration(estimands=configuration.estimands[1:3])
+    estimandsfile_1 = joinpath(tmpdir, "configuration_1.json")
+    TMLE.write_json(estimandsfile_1, config_1)
+    build_tmle_output_file(grm_ids.SAMPLE_ID, estimandsfile_1, "tmle_output_1", pval)
+
+    config_2 = TMLE.Configuration(estimands=configuration.estimands[4:end])
+    estimandsfile_2 = joinpath(tmpdir, "configuration_2.json")
+    TMLE.write_json(estimandsfile_2, config_2)
+    build_tmle_output_file(grm_ids.SAMPLE_ID, estimandsfile_2, "tmle_output_2", pval)
+
+    results, influence_curves, n_obs = TargetedEstimation.build_work_list("tmle_output", grm_ids)
+    # Check n_obs
+    @test n_obs == [194, 194, 194, 193, 193, 194]
     # Check influence curves
-    io = jldopen(string(outprefix_1, ".hdf5"))
-    for key in keys(io)
-        result = io[key]["result"]
-        IC = result.tmle.IC
-        # missing sample
-        if result.parameter.target == Symbol("BINARY/OUTCOME")
-            IC = vcat(0, IC)
-        end
-        @test convert(Vector{Float32}, IC) == influence_curves[parse(Int, key), :]
+    expected_influence_curves = [size(r.IC, 1) == 194 ? r.IC : vcat(0, r.IC) for r in results]
+    for rowindex in 1:6
+        @test convert(Vector{Float32}, expected_influence_curves[rowindex]) == influence_curves[rowindex, :]
     end
-    close(io)
-    # Check output
-    some_expected_cols = DataFrame(
-        PARAMETER_TYPE = ["IATE", "IATE", "ATE", "IATE", "IATE", "ATE"],
-        TREATMENTS = ["T1_&_T2", "T1_&_T2", "T1_&_T2", "T1_&_T2", "T1_&_T2", "T1_&_T2"],
-        CASE=["true_&_true", "true_&_false", "true_&_true", "true_&_true", "true_&_false", "true_&_true"],
-        CONTROL=["false_&_false", "false_&_true", "false_&_false", "false_&_false", "false_&_true", "false_&_false"],
-        OUTCOME = ["BINARY/OUTCOME", "BINARY/OUTCOME", "BINARY/OUTCOME", "CONTINUOUS, OUTCOME", "CONTINUOUS, OUTCOME", "CONTINUOUS, OUTCOME"],
-        CONFOUNDERS = ["W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2"],
-        COVARIATES = ["C1", "C1", "C1", "C1", "C1", "C1"]
-    )
-    test_initial_output(sieve_df, some_expected_cols)
-
-    # CASE_2: add another file 
-    param_file_2 = joinpath("config", "sieve_tests_parameters_2.yaml")
-    outprefix_2 = "tmle_output_2"
-    build_tmle_output_file(grm_ids.SAMPLE_ID, param_file_2, outprefix_2)
-    # This p-value filters the influence curves for the binary outcome
-    sieve_df, influence_curves, n_obs = TargetedEstimation.build_work_list(prefix, grm_ids)
-    @test size(influence_curves) == (8, 194)
-    @test n_obs == [193, 193, 193, 194, 194, 194, 194, 194]
-
-    # Check output
-    some_expected_cols = DataFrame(
-        PARAMETER_TYPE = ["IATE", "IATE", "ATE", "IATE", "IATE", "ATE", "ATE", "CM"],
-        TREATMENTS = ["T1_&_T2", "T1_&_T2", "T1_&_T2", "T1_&_T2", "T1_&_T2", "T1_&_T2", "T1", "T1"],
-        CASE = ["true_&_true", "true_&_false", "true_&_true", "true_&_true", "true_&_false", "true_&_true", "true", "false"],
-        CONTROL = ["false_&_false", "false_&_true", "false_&_false", "false_&_false", "false_&_true", "false_&_false", "false", missing],
-        OUTCOME = ["BINARY/OUTCOME", "BINARY/OUTCOME", "BINARY/OUTCOME", "CONTINUOUS, OUTCOME", "CONTINUOUS, OUTCOME", "CONTINUOUS, OUTCOME", "CONTINUOUS, OUTCOME", "CONTINUOUS, OUTCOME"],
-        CONFOUNDERS = ["W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2", "W1", "W1"],
-        COVARIATES = ["C1", "C1", "C1", "C1", "C1", "C1", missing, missing]
-    )
-    test_initial_output(sieve_df, some_expected_cols)
-
+    # Check results
+    all(x isa TMLE.TMLEstimate for x in results)
+    all(size(x.IC, 1) > 0 for x in results)
     # clean
-    rm(string(outprefix_1, ".hdf5"))
-    rm(string(outprefix_1, ".csv"))
-    rm(string(outprefix_2, ".hdf5"))
-    rm(string(outprefix_2, ".csv"))
+    rm("tmle_output_1.hdf5")
+    rm("tmle_output_2.hdf5")
+
+    # CASE_2: Since pval = 0.8
+    pval = 0.8
+    estimandsfile = joinpath(tmpdir, "configuration.json")
+    TMLE.write_json(estimandsfile, configuration)
+    build_tmle_output_file(grm_ids.SAMPLE_ID, estimandsfile_1, "tmle_output", pval)
+    results, influence_curves, n_obs = TargetedEstimation.build_work_list("tmle_output", grm_ids)
+    # Check n_obs
+    @test n_obs == [194, 194, 194]
+    # Check influence curves
+    for rowindex in 1:3
+        @test convert(Vector{Float32}, results[rowindex].IC) == influence_curves[rowindex, :]
+    end
+    # Check results
+    all(x isa TMLE.TMLEstimate for x in results)
+    all(size(x.IC, 1) > 0 for x in results)
+    # Clean
+    rm("tmle_output.hdf5")
     rm("data.csv")
 end
 
@@ -257,7 +238,6 @@ end
 
     # Check by hand for a single τ=0.5
     @test variances[2, :] ≈ Float32[0.03666667, 0.045, 0.045]
-
 end
 
 @testset "Test grm_rows_bounds" begin
