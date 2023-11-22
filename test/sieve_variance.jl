@@ -13,6 +13,8 @@ using LogExpFunctions
 
 TESTDIR = joinpath(pkgdir(TargetedEstimation), "test")
 
+include(joinpath(TESTDIR, "testutils.jl"))
+
 function build_dataset(sample_ids)
     rng = StableRNG(123)
     n = size(sample_ids, 1)
@@ -106,7 +108,7 @@ end
     tmpdir = mktempdir(cleanup=true)
     configuration = statistical_estimands_only_config()
 
-    # CASE_1: Since pval = 1.
+    # CASE_1: pval = 1.
     # Simulate multiple runs that occured
     pval = 1.
     config_1 = TMLE.Configuration(estimands=configuration.estimands[1:3])
@@ -134,17 +136,18 @@ end
     rm("tmle_output_1.hdf5")
     rm("tmle_output_2.hdf5")
 
-    # CASE_2: Since pval = 0.8
-    pval = 0.8
+    # CASE_2: pval = 0.1
+    pval = 0.1
     estimandsfile = joinpath(tmpdir, "configuration.json")
     TMLE.write_json(estimandsfile, configuration)
-    build_tmle_output_file(grm_ids.SAMPLE_ID, estimandsfile_1, "tmle_output", pval)
+    build_tmle_output_file(grm_ids.SAMPLE_ID, estimandsfile, "tmle_output", pval)
     results, influence_curves, n_obs = TargetedEstimation.build_work_list("tmle_output", grm_ids)
     # Check n_obs
-    @test n_obs == [194, 194, 194]
+    @test n_obs == [194, 193, 193, 194]
     # Check influence curves
-    for rowindex in 1:3
-        @test convert(Vector{Float32}, results[rowindex].IC) == influence_curves[rowindex, :]
+    expected_influence_curves = [size(r.IC, 1) == 194 ? r.IC : vcat(0, r.IC) for r in results]
+    for rowindex in 1:4
+        @test convert(Vector{Float32}, expected_influence_curves[rowindex]) == influence_curves[rowindex, :]
     end
     # Check results
     all(x isa TMLE.TMLEstimate for x in results)
@@ -253,76 +256,67 @@ end
 @testset "Test corrected_stderrors" begin
     io = jldopen(joinpath(TESTDIR, "data", "sieve_variances.hdf5"))
     variances = io["variances"]
-    n_obs = [10, 10, 10, 10, 10, 100, 100, 1000, 1000, 1000]
-    stderrors = TargetedEstimation.corrected_stderrors(variances, n_obs)
+    stderrors = TargetedEstimation.corrected_stderrors(variances)
     # sanity check
     @test size(stderrors, 1) == 10
 
     # check for the first curve
-    stderrors[1] == sqrt(maximum(variances[:,1])/n_obs[1])
+    stderrors[1] == sqrt(maximum(variances[:,1]))
 
     close(io)
 end
 
 @testset "Test sieve_variance_plateau" begin
     # Generate data
-    nb_estimators = 10
-    grm_ids = TargetedEstimation.GRMIDs(joinpath("data", "grm", "test.grm.id"))
-    param_file_1 = joinpath("config", "sieve_tests_parameters_1.yaml")
-    tmle_outprefix_1 = "tmle_output_1"
-    param_file_2 = joinpath("config", "sieve_tests_parameters_2.yaml")
-    tmle_outprefix_2 = "tmle_output_2"
-    build_tmle_output_file(grm_ids.SAMPLE_ID, param_file_1, tmle_outprefix_1)
-    build_tmle_output_file(grm_ids.SAMPLE_ID, param_file_2, tmle_outprefix_2)
+    grm_ids = TargetedEstimation.GRMIDs(joinpath(TESTDIR, "data", "grm", "test.grm.id"))
+    tmpdir = mktempdir(cleanup=true)
+    configuration = statistical_estimands_only_config()
+    pval = 0.1
+    config_1 = TMLE.Configuration(estimands=configuration.estimands[1:3])
+    estimandsfile_1 = joinpath(tmpdir, "configuration_1.json")
+    TMLE.write_json(estimandsfile_1, config_1)
+    build_tmle_output_file(grm_ids.SAMPLE_ID, estimandsfile_1, "tmle_output_1", pval)
 
-    outprefix = "sieve_output"
-    parsed_args = Dict(
-        "prefix" => "tmle_output",
-        "pval" => 1e-10,
-        "grm-prefix" => "data/grm/test.grm",
-        "out-prefix" => outprefix,
-        "nb-estimators" => nb_estimators,
-        "max-tau" => 0.75,
-        "verbosity" => 0
+    config_2 = TMLE.Configuration(estimands=configuration.estimands[4:end])
+    estimandsfile_2 = joinpath(tmpdir, "configuration_2.json")
+    TMLE.write_json(estimandsfile_2, config_2)
+    build_tmle_output_file(grm_ids.SAMPLE_ID, estimandsfile_2, "tmle_output_2", pval)
+
+    sieve_variance_plateau("tmle_output";
+        grm_prefix=joinpath(TESTDIR, "data", "grm", "test.grm"),
+        max_tau=0.75
     )
 
-    sieve_variance_plateau(parsed_args)
-    # check hdf5 file
-    io = jldopen(string(outprefix, ".hdf5"))
-    @test io["taus"] == TargetedEstimation.default_τs(nb_estimators; max_τ=parsed_args["max-tau"])
-    @test size(io["variances"]) == (10, 8)
+    # Check HDF5 file
+    io = jldopen("svp.hdf5")
+    @test io["taus"] == TargetedEstimation.default_τs(10; max_τ=0.75)
+    @test size(io["variances"]) == (10, 4)
     close(io)
-    # check csv file
-    output = TargetedEstimation.read_output_with_types(string(outprefix, ".csv"))
-    some_expected_cols = DataFrame(
-        PARAMETER_TYPE = ["IATE", "IATE", "ATE", "IATE", "IATE", "ATE", "ATE", "CM"],
-        TREATMENTS = ["T1_&_T2", "T1_&_T2", "T1_&_T2", "T1_&_T2", "T1_&_T2", "T1_&_T2", "T1", "T1"],
-        CASE = ["true_&_true", "true_&_false", "true_&_true", "true_&_true", "true_&_false", "true_&_true", "true", "false"],
-        CONTROL = ["false_&_false", "false_&_true", "false_&_false", "false_&_false", "false_&_true", "false_&_false", "false", missing],
-        OUTCOME = ["BINARY/OUTCOME", "BINARY/OUTCOME", "BINARY/OUTCOME", "CONTINUOUS, OUTCOME", "CONTINUOUS, OUTCOME", "CONTINUOUS, OUTCOME", "CONTINUOUS, OUTCOME", "CONTINUOUS, OUTCOME"],
-        CONFOUNDERS = ["W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2", "W1_&_W2", "W1", "W1"],
-        COVARIATES = ["C1", "C1", "C1", "C1", "C1", "C1", missing, missing]
-    )
-    test_initial_output(output, some_expected_cols)
-    @test output.SIEVE_PVALUE isa Vector{Float64}
-    @test output.SIEVE_LWB isa Vector{Float64}
-    @test output.SIEVE_UPB isa Vector{Float64}
-    @test output.SIEVE_STD isa Vector{Float64}
 
-    tmle_output = TargetedEstimation.load_csv_files(
-        TargetedEstimation.empty_tmle_output(),
-        ["tmle_output_1.csv", "tmle_output_2.csv"]
+    # Check JSON file
+    svp_results = TMLE.read_json("svp.json")
+    tmleout1 = jldopen("tmle_output_1.hdf5")
+    tmleout2 = jldopen("tmle_output_2.hdf5")
+
+    src_results = vcat(
+        [tmleout1[string(i, "/result")].TMLE for i in 1:3],
+        [tmleout2[string(i, "/result")].TMLE for i in 1:3],
     )
 
-    joined = leftjoin(tmle_output, output, on=TargetedEstimation.joining_keys(), matchmissing=:equal)
-    @test all(joined.SIEVE_PVALUE .> 0 )
+    for svp_result in svp_results
+        src_result_index = findall(x.estimand == svp_result.estimand for x in src_results)
+        src_result = src_results[only(src_result_index)]
+        @test src_result.std != svp_result.std
+        @test src_result.estimate == svp_result.estimate
+        @test src_result.n == svp_result.n
+        @test svp_result.IC == []
+    end
+
     # clean
-    rm(string(outprefix, ".csv"))
-    rm(string(outprefix, ".hdf5"))
-    rm(string(tmle_outprefix_1, ".hdf5"))
-    rm(string(tmle_outprefix_1, ".csv"))
-    rm(string(tmle_outprefix_2, ".hdf5"))
-    rm(string(tmle_outprefix_2, ".csv"))
+    rm("svp.json")
+    rm("svp.hdf5")
+    rm("tmle_output_1.hdf5")
+    rm("tmle_output_2.hdf5")
     rm("data.csv")
 end
 

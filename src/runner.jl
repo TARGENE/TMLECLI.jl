@@ -149,6 +149,15 @@ end
 
 
 """
+    tmle(dataset, estimands, estimators; 
+        verbosity=0, 
+        outputs=Outputs(),
+        chunksize=100,
+        rng=123,
+        cache_strategy="release-unusable",
+        sort_estimands=false
+    )
+
 TMLE CLI.
 
 # Args
@@ -160,23 +169,22 @@ TMLE CLI.
 # Options
 
 - `-v, --verbosity`: Verbosity level.
-- `-j, --json_out`: JSON output filename.
-- `--hdf5_out`: HDF5 output filename.
+- `-o, --outputs`: Ouputs to be genrated.
 - `--chunksize`: Results are written in batches of size chunksize.
 - `-r, --rng`: Random seed (Only used for estimands ordering at the moment).
-- `-c, --cache_strategy`: Caching Strategy for the nuisance functions, any of ("release-unusable", "no-cache", "max-size").
+- `-c, --cache-strategy`: Caching Strategy for the nuisance functions, any of ("release-unusable", "no-cache", "max-size").
 
 # Flags
 
 - `-s, --sort_estimands`: Sort estimands to minimize cache usage (A brute force approach will be used, resulting in exponentially long sorting time).
 """
-@main function tmle(dataset, estimands, estimators; 
+@cast function tmle(dataset, estimands, estimators; 
     verbosity=0, 
     outputs=Outputs(),
     chunksize=100,
     rng=123,
     cache_strategy="release-unusable",
-    sort_estimands=false
+    sort_estimands::Bool=false
     )
     runner = Runner(dataset, estimands, estimators; 
         verbosity=verbosity, 
