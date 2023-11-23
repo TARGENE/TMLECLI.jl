@@ -198,6 +198,36 @@ end
     end
 end
 
+@testset "Test maybe_identify" begin
+    scm = StaticSCM(
+        outcomes = [:Y],
+        treatments = [:T₁, :T₂],
+        confounders = [:W]
+    )
+    adjustment = BackdoorAdjustment()
+    causalATE = ATE(
+        outcome = :Y, 
+        treatment_values = (T₁ =(case=1, control=0),)
+    )
+    statisticalATE = ATE(
+        outcome = :Y, 
+        treatment_values = (T₁ =(case=1, control=0),),
+        treatment_confounders = (T₁=[:W],)
+    )
+    # Correctly identifies the estimand
+    identifiedATE = TargetedEstimation.maybe_identify(causalATE, scm, nothing)
+    @test statisticalATE == identifiedATE
+    # Just returns the estimand
+    @test TargetedEstimation.maybe_identify(statisticalATE, scm, nothing) === statisticalATE
+    # Throws if can't identify
+    @test_throws TargetedEstimation.MissingSCMError() TargetedEstimation.maybe_identify(causalATE, nothing, nothing)
+    # Composed Estimand with a weird mixture of statistical/causal estimands
+    diff = ComposedEstimand(-, (causalATE, statisticalATE))
+    identified_diff = TargetedEstimation.maybe_identify(diff, scm, nothing)
+    statistical_diff = ComposedEstimand(-, (statisticalATE, statisticalATE))
+    @test identified_diff == statistical_diff
+end
+
 end;
 
 true

@@ -46,7 +46,7 @@ function update_file(doprint, results, partition)
 end
 
 #####################################################################
-#####                       JLD2 OUTPUT                          ####
+#####                       HDF5 OUTPUT                          ####
 #####################################################################
 
 
@@ -68,6 +68,21 @@ function update_file(output::HDF5Output, partition, results, dataset)
             io["$param_index/sample_ids_idx"] = sample_ids_idx
 
             previous_variables = current_variables
+        end
+    end
+end
+
+#####################################################################
+#####                        JLS OUTPUT                          ####
+#####################################################################
+
+function update_file(output::JLSOutput, results)
+    output.filename === nothing && return
+
+    open(output.filename, "a") do io
+        for result in results
+            result = TMLE.emptyIC(result, output.pval_threshold)
+            serialize(io, result)
         end
     end
 end
@@ -97,9 +112,49 @@ maybe_identify(Ψ::TMLE.CausalCMCompositeEstimands, scm::SCM, method) =
 
 maybe_identify(Ψ::TMLE.CausalCMCompositeEstimands, scm::Nothing, method) = throw(MissingSCMError())
 
+function maybe_identify(Ψ::TMLE.ComposedEstimand, scm, method)
+    method = get_identification_method(method)
+    return TMLE.ComposedEstimand(Ψ.f, Tuple(maybe_identify(arg, scm, method) for arg ∈ Ψ.args))
+end
+
 maybe_identify(Ψ, scm, method) = Ψ
 
-read_method(extension) = extension == ".json" ? read_json : read_yaml
+function read_method(extension)
+    method = if extension == ".json"
+        TMLE.read_json
+    elseif extension == ".yaml"
+        TMLE.read_yaml
+    elseif extension == ".jls"
+        deserialize
+    else
+        throw(ArgumentError(string("Can't read from ", extension, " file")))
+    end
+    return method
+end
+
+function fix_treatment_values!(treatment_types::AbstractDict, Ψ::ComposedEstimand, dataset)
+    new_args = Tuple(fix_treatment_values!(treatment_types, arg, dataset) for arg in Ψ.args)
+    return ComposedEstimand(Ψ.f, new_args)
+end
+
+"""
+Uses the values found in the dataset to create a new estimand with adjusted values.
+"""
+function fix_treatment_values!(treatment_types::AbstractDict, Ψ, dataset)
+    treatment_names = keys(Ψ.treatment_values)
+    for tn in treatment_names
+        haskey(treatment_types, tn) ? nothing : treatment_types[tn] = eltype(dataset[!, tn])
+    end
+    new_treatment = NamedTuple{treatment_names}(
+        convert_treatment_values(Ψ.treatment_values, treatment_types)
+    )
+    return typeof(Ψ)(
+        outcome = Ψ.outcome,
+        treatment_values = new_treatment,
+        treatment_confounders = Ψ.treatment_confounders,
+        outcome_extra_covariates = Ψ.outcome_extra_covariates
+    )
+end
 
 """
     proofread_estimands(param_file, dataset)
@@ -114,19 +169,7 @@ function proofread_estimands(filename, dataset)
     treatment_types = Dict()
     for (index, Ψ) in enumerate(config.estimands)
         statisticalΨ = TargetedEstimation.maybe_identify(Ψ, config.scm, config.adjustment)
-        treatment_names = keys(statisticalΨ.treatment_values)
-        for tn in treatment_names
-            haskey(treatment_types, tn) ? nothing : treatment_types[tn] = eltype(dataset[!, tn])
-        end
-        new_treatment = NamedTuple{treatment_names}(
-            TargetedEstimation.convert_treatment_values(statisticalΨ.treatment_values, treatment_types)
-        )
-        estimands[index] = typeof(Ψ)(
-            outcome = Ψ.outcome,
-            treatment_values = new_treatment,
-            treatment_confounders = statisticalΨ.treatment_confounders,
-            outcome_extra_covariates = statisticalΨ.outcome_extra_covariates
-        )
+        estimands[index] = fix_treatment_values!(treatment_types, statisticalΨ, dataset)
     end
     return estimands
 end

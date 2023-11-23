@@ -21,10 +21,16 @@ initialize(output::JSONOutput) = initialize_json(output.filename)
     pval_threshold::Union{Nothing, Float64} = nothing
 end
 
+@option struct JLSOutput
+    filename::Union{Nothing, String} = nothing
+    pval_threshold::Union{Nothing, Float64} = nothing
+end
+
 @option struct Outputs
     json::JSONOutput = JSONOutput()
     hdf5::HDF5Output = HDF5Output()
-    std::Bool = false
+    jls::JLSOutput   = JLSOutput()
+    std::Bool        = false
 end
 
 function initialize(outputs::Outputs)
@@ -75,6 +81,8 @@ function save(runner::Runner, results, partition, finalize)
     update_file(runner.outputs.std, results, partition)
     # Append JSON Output
     update_file(runner.outputs.json, results; finalize=finalize)
+    # Append JLS Output
+    update_file(runner.outputs.jls, results)
     # Append HDF5 Output
     update_file(runner.outputs.hdf5, partition, results, runner.dataset)
 end

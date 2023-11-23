@@ -86,6 +86,7 @@ end
     outputs = TargetedEstimation.Outputs(
         json=TargetedEstimation.JSONOutput(filename="output.json"),
         hdf5=TargetedEstimation.HDF5Output(filename="output.hdf5", pval_threshold=1.),
+        jls=TargetedEstimation.JLSOutput(filename="output.jls"),
         std=true,
     )
     runner = Runner(
@@ -115,6 +116,23 @@ end
 
     # Test Save to JSON
     loaded_results = TMLE.read_json(outputs.json.filename)
+    for (result, loaded_result) in zip(results, loaded_results)
+        @test loaded_result[:TMLE] isa TMLE.TMLEstimate
+        @test result.TMLE.estimate == loaded_result[:TMLE].estimate
+        @test loaded_result[:TMLE].IC == []
+
+        @test loaded_result[:OSE] isa TMLE.OSEstimate
+        @test result.OSE.estimate == loaded_result[:OSE].estimate
+        @test loaded_result[:OSE].IC == []
+    end
+
+    # Test Save to JLS
+    loaded_results = []
+    open(outputs.jls.filename) do io
+        while !eof(io)
+            push!(loaded_results, deserialize(io))
+        end
+    end
     for (result, loaded_result) in zip(results, loaded_results)
         @test loaded_result[:TMLE] isa TMLE.TMLEstimate
         @test result.TMLE.estimate == loaded_result[:TMLE].estimate
@@ -156,7 +174,7 @@ end
     rm(outputs.hdf5.filename)
 end
 
-@testset "Test tmle" begin
+@testset "Test tmle: varying dataset format and chunksize" begin
     tmpdir = mktempdir(cleanup=true)
     estimands_filename = joinpath(tmpdir, "configuration.json")
     configuration = statistical_estimands_only_config()
@@ -272,6 +290,24 @@ end
     rm(outputs.hdf5.filename)
     rm(datafile)
 end
+
+@testset "Test tmle: Causal and Composed Estimands" begin
+    build_dataset(;n=1000, format="csv")
+    outputs = TargetedEstimation.Outputs(
+        jls=TargetedEstimation.JLSOutput(filename="output.jls")
+    )
+    tmpdir = mktempdir(cleanup=true)
+    estimandsfile = joinpath(tmpdir, "configuration.jls")
+
+    configuration = causal_and_composed_estimands_config()
+    serialize(estimandsfile, configuration)
+    estimatorfile = joinpath(CONFIGDIR, "ose_config.jl")
+    datafile = "data.csv"
+    tmle(datafile, estimandsfile, estimatorfile; outputs=outputs)
+    
+    rm(datafile)
+end
+
 
 end;
 
