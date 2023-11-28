@@ -49,26 +49,12 @@ end
 #####                       HDF5 OUTPUT                          ####
 #####################################################################
 
-
-function update_file(output::HDF5Output, partition, results, dataset)
+function update_file(output::HDF5Output, results, dataset)
     output.filename === nothing && return
-
-    jldopen(output.filename, "a+", compress=true) do io
-        previous_variables = nothing
-        sample_ids_idx = nothing
-        for (partition_index, param_index) in enumerate(partition)
-            estimator_results = TMLE.emptyIC(results[partition_index], output.pval_threshold)
-            current_variables = variables(first(estimator_results).estimand)
-            if previous_variables != current_variables
-                sample_ids = TargetedEstimation.get_sample_ids(dataset, current_variables)
-                io["$param_index/sample_ids"] = sample_ids
-                sample_ids_idx = param_index
-            end
-            io["$param_index/result"] = estimator_results
-            io["$param_index/sample_ids_idx"] = sample_ids_idx
-
-            previous_variables = current_variables
-        end
+    results = post_process(results, dataset, output.pval_threshold, output.save_sample_ids)
+    jldopen(output.filename, "a+", compress=output.compress) do io
+        latest_index = maximum(parse(Int, split(key, "_")[2]) for key in keys(io))
+        io[string("Batch_", latest_index + 1)] = results
     end
 end
 
@@ -76,12 +62,12 @@ end
 #####                        JLS OUTPUT                          ####
 #####################################################################
 
-function update_file(output::JLSOutput, results)
+function update_file(output::JLSOutput, results, dataset)
     output.filename === nothing && return
+    results = post_process(results, dataset, output.pval_threshold, output.save_sample_ids)
 
     open(output.filename, "a") do io
         for result in results
-            result = TMLE.emptyIC(result, output.pval_threshold)
             serialize(io, result)
         end
     end
@@ -183,9 +169,32 @@ TMLE.emptyIC(result::FailedEstimation, pval_threshold) = result
 TMLE.emptyIC(nt::NamedTuple{names}, pval_threshold) where names =
     NamedTuple{names}([TMLE.emptyIC(result, pval_threshold) for result in nt])
 
+function post_process(results, dataset, pval_threshold, save_sample_ids)
+    results = [TMLE.emptyIC(result, pval_threshold) for result ∈ results]
+    if save_sample_ids
+        sample_ids = get_sample_ids(dataset, results)
+        results = [(result..., SAMPLE_IDS=s_ids) for (result, s_ids) in zip(results, sample_ids)]
+    end
+    return results
+end
 
-get_sample_ids(data, variables) = dropmissing(data[!, [:SAMPLE_ID, variables...]]).SAMPLE_ID
+sample_ids_from_variables(dataset, variables) = dropmissing(dataset[!, [:SAMPLE_ID, variables...]]).SAMPLE_ID
 
+function get_sample_ids(dataset, results)
+    previous_variables = nothing
+    sample_ids = []
+    current_ref_id = 0
+    for (index, result) in enumerate(results)
+        current_variables = variables(first(result).estimand)
+        if previous_variables != current_variables
+            push!(sample_ids, sample_ids_from_variables(dataset, current_variables))
+            current_ref_id = index
+        else
+            push!(sample_ids, current_ref_id)
+        end
+    end
+    return sample_ids
+end
 
 """
     instantiate_dataset(path::String)

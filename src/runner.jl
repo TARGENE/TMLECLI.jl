@@ -19,11 +19,14 @@ initialize(output::JSONOutput) = initialize_json(output.filename)
 @option struct HDF5Output
     filename::Union{Nothing, String} = nothing
     pval_threshold::Union{Nothing, Float64} = nothing
+    sample_ids::Bool = false
+    compress::Bool = false
 end
 
 @option struct JLSOutput
     filename::Union{Nothing, String} = nothing
     pval_threshold::Union{Nothing, Float64} = nothing
+    sample_ids::Bool = false
 end
 
 @option struct Outputs
@@ -82,9 +85,9 @@ function save(runner::Runner, results, partition, finalize)
     # Append JSON Output
     update_file(runner.outputs.json, results; finalize=finalize)
     # Append JLS Output
-    update_file(runner.outputs.jls, results)
+    update_file(runner.outputs.jls, results, runner.dataset)
     # Append HDF5 Output
-    update_file(runner.outputs.hdf5, partition, results, runner.dataset)
+    update_file(runner.outputs.hdf5, results, runner.dataset)
 end
 
 function try_estimation(runner, Ψ, estimator)
