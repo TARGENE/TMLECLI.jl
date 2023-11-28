@@ -10,18 +10,11 @@ function release!(cache_manager::ReleaseUnusableCacheManager, Ψ)
     # Always drop fluctuations
     haskey(cache_manager.cache, :last_fluctuation) && pop!(cache_manager.cache, :last_fluctuation)
 
-    η = TMLE.get_relevant_factors(Ψ)
-    # Propensity scores
-    for ps in η.propensity_score
-        cache_manager.η_counts[ps] -= 1
-        if cache_manager.η_counts[ps] == 0
-            delete!(cache_manager.cache, ps)
+    for η in TMLE.nuisance_functions_iterator(Ψ)
+        cache_manager.η_counts[η] -= 1
+        if cache_manager.η_counts[η] == 0
+            delete!(cache_manager.cache, η)
         end
-    end
-    # Outcome Mean
-    cache_manager.η_counts[η.outcome_mean] -= 1
-    if cache_manager.η_counts[η.outcome_mean] == 0
-        delete!(cache_manager.cache, η.outcome_mean)
     end
 end
 
@@ -53,7 +46,7 @@ end
 
 function make_cache_manager(estimands, string)
     if string == "release-unusable"
-        return ReleaseUnusableCacheManager(TMLE.nuisance_counts(estimands))
+        return ReleaseUnusableCacheManager(TMLE.nuisance_function_counts(estimands))
     elseif string == "no-cache"
         return NoCacheManager()
     else

@@ -178,20 +178,10 @@ end
 #####                 ADDITIONAL METHODS                         ####
 #####################################################################
 
-TMLE.emptyIC(result::FailedEstimation) = result
+TMLE.emptyIC(result::FailedEstimation, pval_threshold) = result
 
-TMLE.emptyIC(result::FailedEstimation, pval_threshold::Float64) = result
-
-TMLE.emptyIC(result::NamedTuple{names}, pval_threshold::Nothing) where names = 
-    NamedTuple{names}([TMLE.emptyIC(r) for r in result])
-
-TMLE.emptyIC(result::NamedTuple{names}, pval_threshold::Float64) where names =
-    NamedTuple{names}([TMLE.emptyIC(r, pval_threshold) for r in result])
-
-function TMLE.emptyIC(result, pval_threshold::Float64)
-    pval = pvalue(OneSampleZTest(result))
-    return pval < pval_threshold ? result : TMLE.emptyIC(result)
-end
+TMLE.emptyIC(nt::NamedTuple{names}, pval_threshold) where names =
+    NamedTuple{names}([TMLE.emptyIC(result, pval_threshold) for result in nt])
 
 
 get_sample_ids(data, variables) = dropmissing(data[!, [:SAMPLE_ID, variables...]]).SAMPLE_ID
@@ -232,6 +222,12 @@ make_float!(dataset, colname::Union{String, Symbol}) =
 function make_float!(dataset, colnames)
     for colname in colnames
         make_float!(dataset, colname)
+    end
+end
+
+function coerce_types!(dataset, Ψ::ComposedEstimand)
+    for arg in Ψ.args
+        coerce_types!(dataset, arg)
     end
 end
 

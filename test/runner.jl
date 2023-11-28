@@ -14,11 +14,11 @@ using Serialization
 using Arrow
 using YAML
 
-PKGDIR = pkgdir(TargetedEstimation)
+TESTDIR = joinpath(pkgdir(TargetedEstimation), "test")
 
-CONFIGDIR = joinpath(PKGDIR, "test", "config")
+CONFIGDIR = joinpath(TESTDIR, "config")
 
-include(joinpath(PKGDIR, "test", "testutils.jl"))
+include(joinpath(TESTDIR, "testutils.jl"))
 
 sort_nt_by_key(nt::NamedTuple{names}) where names = NamedTuple{sort(names)}(nt)
 sort_nt_by_key(x) = x
@@ -169,6 +169,7 @@ end
 
     # Clean
     rm("data.csv")
+    rm(outputs.jls.filename)
     rm(output_txt)
     rm(outputs.json.filename)
     rm(outputs.hdf5.filename)
@@ -305,7 +306,28 @@ end
     datafile = "data.csv"
     tmle(datafile, estimandsfile, estimatorfile; outputs=outputs)
     
+    results = []
+    open(outputs.jls.filename) do io
+        while !eof(io)
+            push!(results, deserialize(io))
+        end
+    end
+
+    for (index, Ψ) ∈ enumerate(configuration.estimands)
+        @test results[index].OSE.estimand == identify(Ψ, configuration.scm)
+    end
+    # The components of the diff should match the estimands 1 and 2
+    for index in 1:2
+        ATE_from_diff = results[3].OSE.estimates[index] 
+        ATE_standalone = results[index].OSE
+        @test ATE_from_diff.estimand == ATE_standalone.estimand
+        @test ATE_from_diff.estimate == ATE_standalone.estimate
+        @test ATE_from_diff.std == ATE_standalone.std
+    end
+    @test results[3].OSE isa TMLE.ComposedEstimate
+    
     rm(datafile)
+    rm(outputs.jls.filename)
 end
 
 

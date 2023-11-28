@@ -17,7 +17,7 @@ using MLJBase
     fit!(mach, verbosity=0)
     fitresult = fitted_params(mach).fitresult
     @test fitresult == Dict(:rs1234 => 'A', :rs4567 => 'C')
-    Xt = transform(mach)
+    Xt = MLJBase.transform(mach)
     @test Xt.rs1234[1:3] == [1, 0, 0]
     @test Xt.rs1234[4] === missing
     @test Xt.rs4567 == [0, 1, 2, 2]

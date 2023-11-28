@@ -53,7 +53,7 @@ end
 @testset "Test proofread_estimands" for extension in ("yaml", "json")
     # Write estimands file
     filename = "statistical_estimands.$extension"
-    eval(Meta.parse("write_$extension"))(filename, statistical_estimands_only_config())
+    eval(Meta.parse("TMLE.write_$extension"))(filename, statistical_estimands_only_config())
 
     dataset = DataFrame(T1 = [1., 0.], T2=[true, false])
     estimands = TargetedEstimation.proofread_estimands(filename, dataset)

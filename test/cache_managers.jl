@@ -52,7 +52,7 @@ end
             treatment_confounders=(T₃=[:W],)
         )
     ]
-    η_counts = TMLE.nuisance_counts(estimands)
+    η_counts = TMLE.nuisance_function_counts(estimands)
     cache_manager = TargetedEstimation.ReleaseUnusableCacheManager(η_counts)
     # Estimation of the first estimand will fill the cache with the following
     Y_T₁T₂ = TMLE.ConditionalDistribution(:Y, (:T₁, :T₂, :W))

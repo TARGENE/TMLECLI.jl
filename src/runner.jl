@@ -108,9 +108,8 @@ function try_estimation(runner, Ψ, estimator)
 end
 
 function skip_fast(runner, Ψ)
-    ηs = TMLE.get_relevant_factors(Ψ)
-    ηs.propensity_score
-    any(η ∈ runner.failed_nuisance for η in (ηs.outcome_mean, ηs.propensity_score...)) && return true
+    ηs = TMLE.nuisance_functions_iterator(Ψ)
+    any(η ∈ runner.failed_nuisance for η in ηs) && return true
     return false
 end
 
