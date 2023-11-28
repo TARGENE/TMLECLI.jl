@@ -113,7 +113,7 @@ In what follows, `Y` is an outcome of interest, `W` a set of confounding variabl
 
 For all the following experiments:
 
-- The Julia script can be found at [experiments/runtime.jl](../../experiments/runtime.jl).
+- The Julia script can be found at `experiments/runtime.jl`.
 - The various estimators used below are further described in [Ready to use estimator files](@ref).
 
 ### Multiple treatment contrasts
