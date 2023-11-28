@@ -17,7 +17,10 @@ makedocs(
         "Home" => "index.md",
         "Command Line Interfaces" => ["environment.md", "tmle_estimation.md", "sieve_variance.md", "merge.md"],
         "MLJ Extensions" => ["models.md", "resampling.md"],
-    ]
+    ],
+    pagesonly=true,
+    clean = true,
+    checkdocs=:exports
 )
 
 @info "Deploying docs..."
