@@ -92,8 +92,6 @@ end
 #####                 ADDITIONAL METHODS                         ####
 #####################################################################
 
-TMLE.emptyIC(result::FailedEstimation, pval_threshold) = result
-
 TMLE.emptyIC(nt::NamedTuple{names}, pval_threshold) where names =
     NamedTuple{names}([TMLE.emptyIC(result, pval_threshold) for result in nt])
 
@@ -176,5 +174,5 @@ function load_tmle_spec(file)
     return ESTIMATORS
 end
 
-TMLE.to_dict(nt::NamedTuple{names, <:Tuple{Vararg{Union{TMLE.EICEstimate, FailedEstimation, TMLE.ComposedEstimate}}}}) where names = 
+TMLE.to_dict(nt::NamedTuple{names, <:Tuple{Vararg{Union{TMLE.EICEstimate, FailedEstimate, TMLE.ComposedEstimate}}}}) where names = 
     Dict(key => TMLE.to_dict(val) for (key, val) ∈ zip(keys(nt), nt))

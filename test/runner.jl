@@ -272,10 +272,10 @@ end
     # Check results from HDF5
     results_from_hdf5 = jldopen(outputs.hdf5.filename)["Batch_1"]
     for estimator in (:OSE, :TMLE)
-        @test results_from_hdf5[1][estimator] isa TargetedEstimation.FailedEstimation
+        @test results_from_hdf5[1][estimator] isa TargetedEstimation.FailedEstimate
         @test results_from_hdf5[2][estimator] isa TMLE.EICEstimate
         for i in 3:6
-            @test results_from_hdf5[i][estimator] isa TargetedEstimation.FailedEstimation
+            @test results_from_hdf5[i][estimator] isa TargetedEstimation.FailedEstimate
             @test results_from_hdf5[i][estimator].estimand isa TMLE.Estimand
         end
     end

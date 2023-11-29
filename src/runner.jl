@@ -1,13 +1,3 @@
-struct FailedEstimation
-    estimand::TMLE.Estimand
-    msg::String
-end
-
-TMLE.to_dict(x::FailedEstimation) = Dict(
-        :estimand => TMLE.to_dict(x.estimand),
-        :error => x.msg
-    )
-
 mutable struct Runner
     estimators::NamedTuple
     estimands::Vector{TMLE.Estimand}
@@ -70,7 +60,7 @@ function try_estimation(runner, Ψ, estimator)
         # This also allows to skip fast the next estimands requiring the same nuisance functions.
         if e isa TMLE.FitFailedError
             push!(runner.failed_nuisance, e.estimand)
-            return FailedEstimation(Ψ, e.msg)
+            return FailedEstimate(Ψ, e.msg)
         # On other errors, rethrow
         else 
             rethrow(e) 
@@ -89,7 +79,7 @@ function (runner::Runner)(partition)
     for (partition_index, param_index) in enumerate(partition)
         Ψ = runner.estimands[param_index]
         if skip_fast(runner, Ψ)
-            results[partition_index] = NamedTuple{keys(runner.estimators)}([FailedEstimation(Ψ, "Skipped due to shared failed nuisance fit.") for _ in 1:length(runner.estimators)])
+            results[partition_index] = NamedTuple{keys(runner.estimators)}([FailedEstimate(Ψ, "Skipped due to shared failed nuisance fit.") for _ in 1:length(runner.estimators)])
             continue
         end
         # Make sure data types are appropriate for the estimand
