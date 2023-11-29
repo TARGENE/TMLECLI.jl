@@ -48,12 +48,15 @@ function build_dataset(sample_ids)
     CSV.write("data.csv", dataset)
 end
 
-function build_tmle_output_file(sample_ids, estimandfile, outprefix, pval)
+function build_tmle_output_file(sample_ids, estimandfile, outprefix; 
+    pval=1., 
+    estimatorfile=joinpath(TESTDIR, "config", "tmle_ose_config.jl")
+    )
     build_dataset(sample_ids)
     outputs = TargetedEstimation.Outputs(
-        hdf5=TargetedEstimation.HDF5Output(filename=string(outprefix, ".hdf5"), pval_threshold=pval),
+        hdf5=TargetedEstimation.HDF5Output(filename=string(outprefix, ".hdf5"), pval_threshold=pval, sample_ids=true),
     )
-    tmle("data.csv", estimandfile, joinpath(TESTDIR, "config", "tmle_ose_config.jl"), outputs=outputs)
+    tmle("data.csv", estimandfile, estimatorfile, outputs=outputs)
 end
 
 function basic_variance_implementation(matrix_distance, influence_curve, n_obs)
@@ -110,16 +113,15 @@ end
 
     # CASE_1: pval = 1.
     # Simulate multiple runs that occured
-    pval = 1.
     config_1 = TMLE.Configuration(estimands=configuration.estimands[1:3])
     estimandsfile_1 = joinpath(tmpdir, "configuration_1.json")
     TMLE.write_json(estimandsfile_1, config_1)
-    build_tmle_output_file(grm_ids.SAMPLE_ID, estimandsfile_1, "tmle_output_1", pval)
+    build_tmle_output_file(grm_ids.SAMPLE_ID, estimandsfile_1, "tmle_output_1")
 
     config_2 = TMLE.Configuration(estimands=configuration.estimands[4:end])
     estimandsfile_2 = joinpath(tmpdir, "configuration_2.json")
     TMLE.write_json(estimandsfile_2, config_2)
-    build_tmle_output_file(grm_ids.SAMPLE_ID, estimandsfile_2, "tmle_output_2", pval)
+    build_tmle_output_file(grm_ids.SAMPLE_ID, estimandsfile_2, "tmle_output_2")
 
     results, influence_curves, n_obs = TargetedEstimation.build_work_list("tmle_output", grm_ids)
     # Check n_obs
@@ -140,7 +142,7 @@ end
     pval = 0.1
     estimandsfile = joinpath(tmpdir, "configuration.json")
     TMLE.write_json(estimandsfile, configuration)
-    build_tmle_output_file(grm_ids.SAMPLE_ID, estimandsfile, "tmle_output", pval)
+    build_tmle_output_file(grm_ids.SAMPLE_ID, estimandsfile, "tmle_output"; pval=pval)
     results, influence_curves, n_obs = TargetedEstimation.build_work_list("tmle_output", grm_ids)
     # Check n_obs
     @test n_obs == [194, 193, 193, 194]
@@ -266,7 +268,7 @@ end
     close(io)
 end
 
-@testset "Test sieve_variance_plateau" begin
+@testset "Test SVP" begin
     # Generate data
     grm_ids = TargetedEstimation.GRMIDs(joinpath(TESTDIR, "data", "grm", "test.grm.id"))
     tmpdir = mktempdir(cleanup=true)
@@ -275,48 +277,86 @@ end
     config_1 = TMLE.Configuration(estimands=configuration.estimands[1:3])
     estimandsfile_1 = joinpath(tmpdir, "configuration_1.json")
     TMLE.write_json(estimandsfile_1, config_1)
-    build_tmle_output_file(grm_ids.SAMPLE_ID, estimandsfile_1, "tmle_output_1", pval)
+    build_tmle_output_file(grm_ids.SAMPLE_ID, estimandsfile_1, "tmle_output_1"; pval=pval)
 
     config_2 = TMLE.Configuration(estimands=configuration.estimands[4:end])
     estimandsfile_2 = joinpath(tmpdir, "configuration_2.json")
     TMLE.write_json(estimandsfile_2, config_2)
-    build_tmle_output_file(grm_ids.SAMPLE_ID, estimandsfile_2, "tmle_output_2", pval)
+    build_tmle_output_file(grm_ids.SAMPLE_ID, estimandsfile_2, "tmle_output_2"; pval=pval)
 
     sieve_variance_plateau("tmle_output";
         grm_prefix=joinpath(TESTDIR, "data", "grm", "test.grm"),
         max_tau=0.75
     )
 
-    # Check HDF5 file
     io = jldopen("svp.hdf5")
+    # Check τs
     @test io["taus"] == TargetedEstimation.default_τs(10; max_τ=0.75)
+    # Check variances
     @test size(io["variances"]) == (10, 4)
-    close(io)
-
-    # Check JSON file
-    svp_results = TMLE.read_json("svp.json")
-    tmleout1 = jldopen("tmle_output_1.hdf5")
-    tmleout2 = jldopen("tmle_output_2.hdf5")
-
-    src_results = vcat(
-        [tmleout1[string(i, "/result")].TMLE for i in 1:3],
-        [tmleout2[string(i, "/result")].TMLE for i in 1:3],
-    )
+    # Check results
+    svp_results = io["results"]
+    
+    tmleout1 = jldopen("tmle_output_1.hdf5")["Batch_1"]
+    tmleout2 = jldopen("tmle_output_2.hdf5")["Batch_1"]
+    src_results = [tmleout1..., tmleout2...]
 
     for svp_result in svp_results
-        src_result_index = findall(x.estimand == svp_result.estimand for x in src_results)
+        src_result_index = findall(x.TMLE.estimand == svp_result.TMLE.estimand for x in src_results)
         src_result = src_results[only(src_result_index)]
-        @test src_result.std != svp_result.std
-        @test src_result.estimate == svp_result.estimate
-        @test src_result.n == svp_result.n
-        @test svp_result.IC == []
+        @test src_result.TMLE.std != svp_result.TMLE.std
+        @test src_result.TMLE.estimate == svp_result.TMLE.estimate
+        @test src_result.TMLE.n == svp_result.TMLE.n
+        @test svp_result.TMLE.IC == []
     end
-
+    close(io)
     # clean
-    rm("svp.json")
     rm("svp.hdf5")
     rm("tmle_output_1.hdf5")
     rm("tmle_output_2.hdf5")
+    rm("data.csv")
+end
+
+@testset "Test SVP: causal and composed estimands" begin
+    # Generate data
+    grm_ids = TargetedEstimation.GRMIDs(joinpath(TESTDIR, "data", "grm", "test.grm.id"))
+    tmpdir = mktempdir(cleanup=true)
+    configuration = causal_and_composed_estimands_config()
+    pval = 1.
+    configfile = joinpath(tmpdir, "configuration.json")
+    TMLE.write_json(configfile, configuration)
+    build_tmle_output_file(
+        grm_ids.SAMPLE_ID, 
+        configfile, 
+        "tmle_output";
+        estimatorfile=joinpath(TESTDIR, "config", "ose_config.jl")
+    )
+    sieve_variance_plateau("tmle_output";
+        grm_prefix=joinpath(TESTDIR, "data", "grm", "test.grm"),
+        max_tau=0.75,
+        estimator_key="OSE"
+    )
+    # The ComposedEstimate std is not updated but each component is.
+    src_results = jldopen("tmle_output.hdf5")["Batch_1"]
+    io = jldopen("svp.hdf5")
+    svp_results = io["results"]
+    standalone_estimates = svp_results[1:2]
+    from_composite = svp_results[3:4]
+    @test standalone_estimates[1].OSE.estimand == from_composite[1].OSE.estimand
+    @test standalone_estimates[2].OSE.estimand == from_composite[2].OSE.estimand
+
+    # Check std has been updated
+    for i in 1:2
+        @test standalone_estimates[i].OSE.estimand == src_results[i].OSE.estimand
+        @test standalone_estimates[i].OSE.estimate == src_results[i].OSE.estimate
+        @test standalone_estimates[i].OSE.std != src_results[i].OSE.std
+    end
+
+    close(io)
+    
+    # clean
+    rm("svp.hdf5")
+    rm("tmle_output.hdf5")
     rm("data.csv")
 end
 

@@ -137,6 +137,8 @@ function coerce_types!(dataset, Ψ)
     make_float!(dataset, continuous_variables)
 end
 
+variables(Ψ::TMLE.ComposedEstimand) = union((variables(arg) for arg in Ψ.args)...)
+
 variables(Ψ::TMLE.Estimand) = Set([
     Ψ.outcome,
     keys(Ψ.treatment_values)...,

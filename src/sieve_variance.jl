@@ -80,8 +80,26 @@ end
 
 default_τs(nτs;max_τ=2) = Float32[max_τ*(i-1)/(nτs-1) for i in 1:nτs]
 
+retrieve_sample_ids(sample_ids::AbstractVector, batch_results) = sample_ids
 
-function build_work_list(prefix, grm_ids)
+retrieve_sample_ids(index::Int, batch_results) = batch_results[index].SAMPLE_IDS
+
+function update_work_lists_with!(result::TMLE.ComposedEstimate, sample_ids, batch_results, grm_ids, results, influence_curves, n_obs)
+    for estimate in result.estimates
+        update_work_lists_with!(estimate, sample_ids, batch_results, grm_ids, results, influence_curves, n_obs)
+    end
+end
+
+function update_work_lists_with!(result, sample_ids, batch_results, grm_ids, results, influence_curves, n_obs)
+    if length(result.IC) > 0
+        sample_ids = string.(retrieve_sample_ids(sample_ids, batch_results))
+        push!(influence_curves, align_ic(result.IC, sample_ids, grm_ids))
+        push!(n_obs, size(sample_ids, 1))
+        push!(results, result)
+    end
+end
+
+function build_work_list(prefix, grm_ids; estimator_key=:TMLE)
     dirname_, prefix_ = splitdir(prefix)
     dirname__ = dirname_ == "" ? "." : dirname_
     hdf5files = filter(
@@ -92,28 +110,28 @@ function build_work_list(prefix, grm_ids)
 
     influence_curves = Vector{Float32}[]
     n_obs = Int[]
-    tmle_results = []
+    results = []
     for hdf5file in hdf5files
         jldopen(hdf5file) do io
-            # templateΨs = io["parameters"]
-            # results = io["results"]
             for key in keys(io)
-                result_group = io[key]
-                tmleresult = first(io[key]["result"])
-                if size(tmleresult.IC, 1) > 0
-                    sample_ids = haskey(result_group, "sample_ids") ? result_group["sample_ids"] :
-                        io[string(result_group["sample_ids_idx"])]["sample_ids"]
-                    sample_ids = string.(sample_ids)
-
-                    push!(influence_curves, align_ic(tmleresult.IC, sample_ids, grm_ids))
-                    push!(n_obs, size(sample_ids, 1))
-                    push!(tmle_results, tmleresult)
+                batch_results = io[key]
+                for nt_result in batch_results
+                    result = nt_result[estimator_key]
+                    sample_ids = nt_result.SAMPLE_IDS
+                    update_work_lists_with!(
+                        result,
+                        sample_ids,
+                        batch_results, 
+                        grm_ids, results, 
+                        influence_curves, 
+                        n_obs
+                    )
                 end
             end
         end
     end
     influence_curves = length(influence_curves) > 0 ? reduce(vcat, transpose(influence_curves)) : Matrix{Float32}(undef, 0, 0)
-    return tmle_results, influence_curves, n_obs
+    return results, influence_curves, n_obs
 end
 
 
@@ -197,37 +215,37 @@ function grm_rows_bounds(n_samples)
     return bounds
 end
 
-function save_results(outprefix, results, τs, variances)
-    TMLE.write_json(string(outprefix, ".json"), results)
-    jldopen(string(outprefix, ".hdf5"), "w") do io
+function save_results(filename, results, τs, variances)
+    jldopen(filename, "w") do io
         io["taus"] = τs
         io["variances"] = variances
+        io["results"] = results
     end
 end
 
 corrected_stderrors(variances) =
     sqrt.(view(maximum(variances, dims=1), 1, :))
 
-function update_with_sieve_estimate!(results, stds)
-    for index in eachindex(results)
-        old = results[index]
-        results[index] = typeof(old)(
-            old.estimand,
-            old.estimate,
-            convert(Float64, stds[index]),
-            old.n,
-            Float64[]
-        )
-    end
-end
+with_updated_std(estimate::T, std) where T = T(
+    estimate.estimand,
+    estimate.estimate,
+    convert(Float64, std),
+    estimate.n,
+    Float64[]
+)
+
+with_updated_std(results, stds, estimator_key) =
+    [NamedTuple{(estimator_key,)}([with_updated_std(result, std)]) for (result, std) in zip(results, stds)]
+
 
 """
     sieve_variance_plateau(input_prefix;
-        output_prefix="svp",
+        out="svp.hdf5",
         grm_prefix="GRM",
         verbosity=0, 
         n_estimators=10, 
-        max_tau=0.8
+        max_tau=0.8,
+        estimator_key="TMLE"
     )
 
 Sieve Variance Plateau CLI.
@@ -238,33 +256,36 @@ Sieve Variance Plateau CLI.
 
 # Options
 
-- `-o, --output-prefix`: Output prefix.
+- `-o, --out`: Output filename.
 - `-g, --grm-prefix`: Prefix to the aggregated GRM.
 - `-v, --verbosity`: Verbosity level.
 - `-n, --n_estimators`: Number of variance estimators to build for each estimate. 
 - `-m, --max_tau`: Maximum distance between any two individuals.
+- `-e, --estimator-key`: Estimator to use to proceed with sieve variance correction.
 """
 @cast function sieve_variance_plateau(input_prefix;
-    output_prefix="svp",
+    out="svp.hdf5",
     grm_prefix="GRM",
     verbosity=0, 
     n_estimators=10, 
-    max_tau=0.8
+    max_tau=0.8,
+    estimator_key="TMLE"
     )
+    estimator_key = Symbol(estimator_key)
     τs = default_τs(n_estimators;max_τ=max_tau)
     grm, grm_ids = readGRM(grm_prefix)
     verbosity > 0 && @info "Preparing work list."
-    results, influence_curves, n_obs = build_work_list(input_prefix, grm_ids)
+    results, influence_curves, n_obs = build_work_list(input_prefix, grm_ids, estimator_key=estimator_key)
 
     if length(influence_curves) > 0
         verbosity > 0 && @info "Computing variance estimates."
         variances = compute_variances(influence_curves, grm, τs, n_obs)
         std_errors = corrected_stderrors(variances)
-        update_with_sieve_estimate!(results, std_errors)
+        results = with_updated_std(results, std_errors, estimator_key)
     else
         variances = Float32[]
     end
-    save_results(output_prefix, results, τs, variances)
+    save_results(out, results, τs, variances)
 
     verbosity > 0 && @info "Done."
     return 0
