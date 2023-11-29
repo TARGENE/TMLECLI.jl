@@ -175,29 +175,6 @@ end
     TargetedEstimation.make_categorical(dataset.T₁, true) === dataset.T₁
 end
 
-@testset "Test JSON writing" begin
-    results = []
-    for Ψ in statistical_estimands_only_config().estimands
-        push!(results, (
-            TMLE=TMLE.TMLEstimate(Ψ, rand(), rand(), 10, Float64[]),
-            OSE=TMLE.OSEstimate(Ψ, rand(), rand(), 10, Float64[])
-            ))
-    end
-    tmpdir = mktempdir(cleanup=true)
-    jsonoutput = TargetedEstimation.JSONOutput(filename=joinpath(tmpdir, "output_test.json"))
-    TargetedEstimation.initialize_json(jsonoutput.filename)
-    TargetedEstimation.update_file(jsonoutput, results[1:3])
-    TargetedEstimation.update_file(jsonoutput, results[4:end]; finalize=true)
-    loaded_results = TMLE.read_json(jsonoutput.filename)
-    @test size(loaded_results) == size(results)
-    for (result, loaded_result) in zip(results, loaded_results)
-        @test result.TMLE.estimate == loaded_result[:TMLE].estimate
-        @test result.TMLE.std == loaded_result[:TMLE].std
-        @test result.OSE.estimate == loaded_result[:OSE].estimate
-        @test result.OSE.std == loaded_result[:OSE].std
-    end
-end
-
 end;
 
 true

@@ -1,3 +1,15 @@
+FileExistsError(filename) = ArgumentError(string("File ", filename, " already exists."))
+
+check_file_exists(filename::Nothing) = nothing
+check_file_exists(filename) = !isfile(filename) || throw(FileExistsError(filename))
+
+"""
+    initialize(output)
+
+Default intialization procedure only checks that file does not exist.
+"""
+initialize(output) = check_file_exists(output.filename)
+
 #####################################################################
 #####                       JSON OUTPUT                          ####
 #####################################################################
@@ -7,7 +19,15 @@
     pval_threshold::Union{Nothing, Float64} = nothing
 end
 
-initialize(output::JSONOutput) = initialize_json(output.filename)
+"""
+    initialize(output::JSONOutput)
+
+Checks that file does not exist and inialize the json file
+"""
+function initialize(output::JSONOutput)
+    check_file_exists(output.filename)
+    initialize_json(output.filename)
+end
 
 initialize_json(filename::Nothing) = nothing
 
@@ -105,8 +125,15 @@ end
     std::Bool        = false
 end
 
+"""
+    initialize(output::Outputs)
+
+Initializes all outputs in output.
+"""
 function initialize(outputs::Outputs)
     initialize(outputs.json)
+    initialize(outputs.jls)
+    initialize(outputs.hdf5)
 end
 
 function post_process(results, dataset, pval_threshold, save_sample_ids)

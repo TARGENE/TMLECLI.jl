@@ -4,6 +4,7 @@ using Test
 TESTDIR = joinpath(pkgdir(TargetedEstimation), "test")
 
 @time begin
+    @test include(joinpath(TESTDIR, "outputs.jl"))
     @test include(joinpath(TESTDIR, "cache_managers.jl"))
     @test include(joinpath(TESTDIR, "utils.jl"))
     @test include(joinpath(TESTDIR, "sieve_variance.jl"))
