@@ -32,6 +32,7 @@ using Configurations
 import MLJModelInterface
 
 include("cache_managers.jl")
+include("outputs.jl")
 include("runner.jl")
 include("utils.jl")
 include("sieve_variance.jl")

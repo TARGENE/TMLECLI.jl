@@ -8,37 +8,6 @@ TMLE.to_dict(x::FailedEstimation) = Dict(
         :error => x.msg
     )
 
-@option struct JSONOutput
-    filename::Union{Nothing, String} = nothing
-    pval_threshold::Union{Nothing, Float64} = nothing
-end
-
-initialize(output::JSONOutput) = initialize_json(output.filename)
-
-@option struct HDF5Output
-    filename::Union{Nothing, String} = nothing
-    pval_threshold::Union{Nothing, Float64} = nothing
-    sample_ids::Bool = false
-    compress::Bool = false
-end
-
-@option struct JLSOutput
-    filename::Union{Nothing, String} = nothing
-    pval_threshold::Union{Nothing, Float64} = nothing
-    sample_ids::Bool = false
-end
-
-@option struct Outputs
-    json::JSONOutput = JSONOutput()
-    hdf5::HDF5Output = HDF5Output()
-    jls::JLSOutput   = JLSOutput()
-    std::Bool        = false
-end
-
-function initialize(outputs::Outputs)
-    initialize(outputs.json)
-end
-
 mutable struct Runner
     estimators::NamedTuple
     estimands::Vector{TMLE.Estimand}
