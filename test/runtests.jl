@@ -1,4 +1,5 @@
 using TargetedEstimation
+using Test
 
 TESTDIR = joinpath(pkgdir(TargetedEstimation), "test")
 

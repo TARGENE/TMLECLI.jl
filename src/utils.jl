@@ -1,6 +1,3 @@
-
-
-
 #####################################################################
 #####           Read TMLE Estimands Configuration                ####
 #####################################################################
@@ -20,18 +17,6 @@ MissingSCMError() = ArgumentError(string("A Structural Causal Model should be pr
 
 get_identification_method(method::Nothing) = BackdoorAdjustment()
 get_identification_method(method) = method
-
-maybe_identify(Ψ::TMLE.CausalCMCompositeEstimands, scm::SCM, method) = 
-    identify(get_identification_method(method), Ψ, scm)
-
-maybe_identify(Ψ::TMLE.CausalCMCompositeEstimands, scm::Nothing, method) = throw(MissingSCMError())
-
-function maybe_identify(Ψ::TMLE.ComposedEstimand, scm, method)
-    method = get_identification_method(method)
-    return TMLE.ComposedEstimand(Ψ.f, Tuple(maybe_identify(arg, scm, method) for arg ∈ Ψ.args))
-end
-
-maybe_identify(Ψ, scm, method) = Ψ
 
 function read_method(extension)
     method = if extension == ".json"
@@ -79,10 +64,11 @@ respects the treatment types in the dataset.
 function proofread_estimands(filename, dataset)
     extension = filename[findlast(isequal('.'), filename):end]
     config = read_method(extension)(filename)
+    adjustment_method = get_identification_method(config.adjustment)
     estimands = Vector{TMLE.Estimand}(undef, length(config.estimands))
     treatment_types = Dict()
     for (index, Ψ) in enumerate(config.estimands)
-        statisticalΨ = TargetedEstimation.maybe_identify(Ψ, config.scm, config.adjustment)
+        statisticalΨ = identify(Ψ, config.scm, method=adjustment_method)
         estimands[index] = fix_treatment_values!(treatment_types, statisticalΨ, dataset)
     end
     return estimands

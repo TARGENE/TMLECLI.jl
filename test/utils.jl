@@ -138,10 +138,10 @@ end
         T₁         = [1, 2, 3, 4, 5],
         T₂         = [1, 2, 3, 4, missing],
     )
-    sample_ids = TargetedEstimation.get_sample_ids(data, variables)
+    sample_ids = TargetedEstimation.sample_ids_from_variables(data, variables)
     @test sample_ids == [2, 3]
     data.W₁ = [1, 2, missing, 4, 5]
-    sample_ids = TargetedEstimation.get_sample_ids(data, variables)
+    sample_ids = TargetedEstimation.sample_ids_from_variables(data, variables)
     @test sample_ids == [2]
 end
 
@@ -196,36 +196,6 @@ end
         @test result.OSE.estimate == loaded_result[:OSE].estimate
         @test result.OSE.std == loaded_result[:OSE].std
     end
-end
-
-@testset "Test maybe_identify" begin
-    scm = StaticSCM(
-        outcomes = [:Y],
-        treatments = [:T₁, :T₂],
-        confounders = [:W]
-    )
-    adjustment = BackdoorAdjustment()
-    causalATE = ATE(
-        outcome = :Y, 
-        treatment_values = (T₁ =(case=1, control=0),)
-    )
-    statisticalATE = ATE(
-        outcome = :Y, 
-        treatment_values = (T₁ =(case=1, control=0),),
-        treatment_confounders = (T₁=[:W],)
-    )
-    # Correctly identifies the estimand
-    identifiedATE = TargetedEstimation.maybe_identify(causalATE, scm, nothing)
-    @test statisticalATE == identifiedATE
-    # Just returns the estimand
-    @test TargetedEstimation.maybe_identify(statisticalATE, scm, nothing) === statisticalATE
-    # Throws if can't identify
-    @test_throws TargetedEstimation.MissingSCMError() TargetedEstimation.maybe_identify(causalATE, nothing, nothing)
-    # Composed Estimand with a weird mixture of statistical/causal estimands
-    diff = ComposedEstimand(-, (causalATE, statisticalATE))
-    identified_diff = TargetedEstimation.maybe_identify(diff, scm, nothing)
-    statistical_diff = ComposedEstimand(-, (statisticalATE, statisticalATE))
-    @test identified_diff == statistical_diff
 end
 
 end;
