@@ -8,7 +8,6 @@ TMLE.to_dict(x::FailedEstimation) = Dict(
         :error => x.msg
     )
 
-
 @option struct JSONOutput
     filename::Union{Nothing, String} = nothing
     pval_threshold::Union{Nothing, Float64} = nothing

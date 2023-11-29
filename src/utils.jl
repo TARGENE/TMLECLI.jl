@@ -51,9 +51,10 @@ end
 
 function update_file(output::HDF5Output, results, dataset)
     output.filename === nothing && return
-    results = post_process(results, dataset, output.pval_threshold, output.save_sample_ids)
+    results = post_process(results, dataset, output.pval_threshold, output.sample_ids)
     jldopen(output.filename, "a+", compress=output.compress) do io
-        latest_index = maximum(parse(Int, split(key, "_")[2]) for key in keys(io))
+        batches_keys = keys(io)
+        latest_index = isempty(batches_keys) ? 0 : maximum(parse(Int, split(key, "_")[2]) for key in batches_keys)
         io[string("Batch_", latest_index + 1)] = results
     end
 end
@@ -64,7 +65,7 @@ end
 
 function update_file(output::JLSOutput, results, dataset)
     output.filename === nothing && return
-    results = post_process(results, dataset, output.pval_threshold, output.save_sample_ids)
+    results = post_process(results, dataset, output.pval_threshold, output.sample_ids)
 
     open(output.filename, "a") do io
         for result in results
@@ -74,7 +75,7 @@ function update_file(output::JLSOutput, results, dataset)
 end
 
 #####################################################################
-#####                    Read TMLE Estimands Configuration                         ####
+#####           Read TMLE Estimands Configuration                ####
 #####################################################################
 
 function convert_treatment_values(treatment_levels::NamedTuple{names, <:Tuple{Vararg{NamedTuple}}}, treatment_types) where names
@@ -189,6 +190,7 @@ function get_sample_ids(dataset, results)
         if previous_variables != current_variables
             push!(sample_ids, sample_ids_from_variables(dataset, current_variables))
             current_ref_id = index
+            previous_variables = current_variables
         else
             push!(sample_ids, current_ref_id)
         end
@@ -274,8 +276,5 @@ function load_tmle_spec(file)
     return ESTIMATORS
 end
 
-TMLE.to_dict(nt::NamedTuple{names, <:Tuple{Vararg{TMLE.EICEstimate}}}) where names = 
-    Dict(key => TMLE.to_dict(val) for (key, val) ∈ zip(keys(nt), nt))
-
-TMLE.to_dict(nt::NamedTuple{names, <:Tuple{Vararg{FailedEstimation}}}) where names = 
+TMLE.to_dict(nt::NamedTuple{names, <:Tuple{Vararg{Union{TMLE.EICEstimate, FailedEstimation, TMLE.ComposedEstimate}}}}) where names = 
     Dict(key => TMLE.to_dict(val) for (key, val) ∈ zip(keys(nt), nt))
