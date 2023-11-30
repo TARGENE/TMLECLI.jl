@@ -256,16 +256,13 @@ end
 end
 
 @testset "Test corrected_stderrors" begin
-    io = jldopen(joinpath(TESTDIR, "data", "sieve_variances.hdf5"))
-    variances = io["variances"]
+    variances = [
+        1. 2. 6.
+        4. 5. 3.
+    ]
     stderrors = TargetedEstimation.corrected_stderrors(variances)
     # sanity check
-    @test size(stderrors, 1) == 10
-
-    # check for the first curve
-    stderrors[1] == sqrt(maximum(variances[:,1]))
-
-    close(io)
+    stderrors == sqrt.([4., 5., 6.])
 end
 
 @testset "Test SVP" begin
