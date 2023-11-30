@@ -135,7 +135,7 @@ TMLE CLI.
 # Options
 
 - `-v, --verbosity`: Verbosity level.
-- `-o, --outputs`: Ouputs to be genrated.
+- `-o, --outputs`: Ouputs to be generated.
 - `--chunksize`: Results are written in batches of size chunksize.
 - `-r, --rng`: Random seed (Only used for estimands ordering at the moment).
 - `-c, --cache-strategy`: Caching Strategy for the nuisance functions, any of ("release-unusable", "no-cache", "max-size").
