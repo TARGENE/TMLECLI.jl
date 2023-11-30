@@ -38,8 +38,6 @@ mutable struct Runner
 end
 
 function save(runner::Runner, results, partition, finalize)
-    # Append STD Out
-    update_file(runner.outputs.std, results, partition)
     # Append JSON Output
     update_file(runner.outputs.json, results; finalize=finalize)
     # Append JLS Output

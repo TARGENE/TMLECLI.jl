@@ -4,14 +4,8 @@ using Test
 using TargetedEstimation
 using TMLE
 using JLD2
-using StableRNGs
-using Distributions
-using LogExpFunctions
-using CategoricalArrays
-using DataFrames
 using CSV
 using Serialization
-using Arrow
 using YAML
 using JSON
 
@@ -20,50 +14,6 @@ TESTDIR = joinpath(pkgdir(TargetedEstimation), "test")
 CONFIGDIR = joinpath(TESTDIR, "config")
 
 include(joinpath(TESTDIR, "testutils.jl"))
-
-"""
-CONTINUOUS_OUTCOME: 
-- IATE(0->1, 0->1) = E[W₂] = 0.5
-- ATE(0->1, 0->1)  = -4 E[C₁] + 1 + E[W₂] = -2 + 1 + 0.5 = -0.5
-
-BINARY_OUTCOME:
-- IATE(0->1, 0->1) =
-- ATE(0->1, 0->1)  = 
-
-"""
-function build_dataset(;n=1000, format="csv")
-    rng = StableRNG(123)
-    # Confounders
-    W₁ = rand(rng, Uniform(), n)
-    W₂ = rand(rng, Uniform(), n)
-    # Covariates
-    C₁ = rand(rng, n)
-    # Treatment | Confounders
-    T₁ = rand(rng, Uniform(), n) .< logistic.(0.5sin.(W₁) .- 1.5W₂)
-    T₂ = rand(rng, Uniform(), n) .< logistic.(-3W₁ - 1.5W₂)
-    # target | Confounders, Covariates, Treatments
-    μ = 1 .+ 2W₁ .+ 3W₂ .- 4C₁.*T₁ .+ T₁ + T₂.*W₂.*T₁
-    y₁ = μ .+ rand(rng, Normal(0, 0.01), n)
-    y₂ = rand(rng, Uniform(), n) .< logistic.(μ)
-    # Add some missingness
-    y₂ = vcat(missing, y₂[2:end])
-
-    dataset = DataFrame(
-        SAMPLE_ID = 1:n,
-        T1 = categorical(T₁),
-        T2 = categorical(T₂),
-        W1 = W₁, 
-        W2 = W₂,
-        C1 = C₁,
-    )
-    # Comma in name
-    dataset[!, "CONTINUOUS, OUTCOME"] = categorical(y₁)
-    # Slash in name
-    dataset[!, "BINARY/OUTCOME"] = categorical(y₂)
-    dataset[!, "EXTREME_BINARY"] = categorical(vcat(0, ones(n-1)))
-
-    format == "csv" ? CSV.write("data.csv", dataset) : Arrow.write("data.arrow", dataset)
-end
 
 @testset "Integration Test" begin
     build_dataset(;n=1000, format="csv")
@@ -74,7 +24,6 @@ end
         json=TargetedEstimation.JSONOutput(filename="output.json"),
         hdf5=TargetedEstimation.HDF5Output(filename="output.hdf5", pval_threshold=1., sample_ids=true),
         jls=TargetedEstimation.JLSOutput(filename="output.jls", pval_threshold=1e-5),
-        std=true,
     )
     runner = Runner(
         "data.csv", 
@@ -90,16 +39,9 @@ end
         @test result.OSE isa TMLE.OSEstimate
     end
 
-    # Test Save to STDOUT
-    output_txt = "output.txt"
+    # Save outputs
     TargetedEstimation.initialize(outputs)
-    open(output_txt, "w") do io
-        redirect_stdout(io) do
-            TargetedEstimation.save(runner, results, partition, true)
-        end
-    end
-    stdout_content = read(output_txt, String)
-    @test all(occursin("Estimand $i", stdout_content) for i in partition)
+    TargetedEstimation.save(runner, results, partition, true)
 
     # Test Save to JSON
     loaded_results = TMLE.read_json(outputs.json.filename)
@@ -160,7 +102,6 @@ end
     # Clean
     rm("data.csv")
     rm(outputs.jls.filename)
-    rm(output_txt)
     rm(outputs.json.filename)
     rm(outputs.hdf5.filename)
 end

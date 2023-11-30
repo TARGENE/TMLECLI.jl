@@ -61,14 +61,18 @@ end
     compress::Bool = false
 end
 
-function update_file(output::HDF5Output, results, dataset)
-    output.filename === nothing && return
-    results = post_process(results, dataset, output.pval_threshold, output.sample_ids)
+function update_file(output::HDF5Output, results; finalize=false)
     jldopen(output.filename, "a+", compress=output.compress) do io
         batches_keys = keys(io)
         latest_index = isempty(batches_keys) ? 0 : maximum(parse(Int, split(key, "_")[2]) for key in batches_keys)
         io[string("Batch_", latest_index + 1)] = results
     end
+end
+
+function update_file(output::HDF5Output, results, dataset)
+    output.filename === nothing && return
+    results = post_process(results, dataset, output.pval_threshold, output.sample_ids)
+    update_file(output, results)
 end
 
 #####################################################################
@@ -81,10 +85,7 @@ end
     sample_ids::Bool = false
 end
 
-function update_file(output::JLSOutput, results, dataset)
-    output.filename === nothing && return
-    results = post_process(results, dataset, output.pval_threshold, output.sample_ids)
-
+function update_file(output::JLSOutput, results; finalize=false)
     open(output.filename, "a") do io
         for result in results
             serialize(io, result)
@@ -92,27 +93,12 @@ function update_file(output::JLSOutput, results, dataset)
     end
 end
 
-#####################################################################
-#####                       STD OUTPUT                          ####
-#####################################################################
-
-function update_file(doprint, results, partition)
-    if doprint
-        mimetext = MIME"text/plain"()
-        index = 1
-        for (result, estimand_index) in zip(results, partition)
-            show(stdout, mimetext, string("⋆⋆⋆ Estimand ", estimand_index, " ⋆⋆⋆"))
-            println(stdout)
-            show(stdout, mimetext, first(result).estimand)
-            for (key, val) ∈ zip(keys(result), result)
-                show(stdout, mimetext, string("→ Estimation Result From: ", key, ))
-                println(stdout)
-                show(stdout, mimetext, val)
-                index += 1
-            end
-        end
-    end
+function update_file(output::JLSOutput, results, dataset)
+    output.filename === nothing && return
+    results = post_process(results, dataset, output.pval_threshold, output.sample_ids)
+    update_file(output, results)
 end
+
 
 #####################################################################
 #####                         OUTPUTS                            ####
@@ -122,7 +108,6 @@ end
     json::JSONOutput = JSONOutput()
     hdf5::HDF5Output = HDF5Output()
     jls::JLSOutput   = JLSOutput()
-    std::Bool        = false
 end
 
 """

@@ -23,44 +23,6 @@ function align_ic(ic, sample_ids, grm_ids)
     return coalesce.(aligned_ic, 0)
 end
 
-sieve_dataframe() = DataFrame(
-    PARAMETER_TYPE=String[], 
-    TREATMENTS=String[], 
-    CASE=String[], 
-    CONTROL=Union{String, Missing}[], 
-    OUTCOME=String[], 
-    CONFOUNDERS=String[], 
-    COVARIATES=Union{String, Missing}[], 
-    TMLE_ESTIMATE=Float64[],
-)
-
-empty_sieve_output() = DataFrame(
-    PARAMETER_TYPE=String[], 
-    TREATMENTS=String[], 
-    CASE=String[], 
-    CONTROL=Union{String, Missing}[], 
-    OUTCOME=String[], 
-    CONFOUNDERS=String[], 
-    COVARIATES=Union{String, Missing}[], 
-    SIEVE_STD = Float64[],
-    SIEVE_PVALUE = Float64[],
-    SIEVE_LWB = Float64[],
-    SIEVE_UPB = Float64[],
-)
-
-function push_sieveless!(output, Ψ, Ψ̂)
-    target = string(Ψ.target)
-    param_type = param_string(Ψ)
-    treatments = treatment_string(Ψ)
-    case = case_string(Ψ)
-    control = control_string(Ψ)
-    confounders = confounders_string(Ψ)
-    covariates = covariates_string(Ψ)
-    push!(output, (
-        param_type, treatments, case, control, target, confounders, covariates, Ψ̂
-    ))
-end
-
 """
     bit_distances(sample_grm, nτs)
 

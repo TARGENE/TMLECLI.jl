@@ -37,7 +37,7 @@ include("outputs.jl")
 include("runner.jl")
 include("utils.jl")
 include("sieve_variance.jl")
-include("merge.jl")
+include("summary.jl")
 include("resampling.jl")
 include(joinpath("models", "glmnet.jl"))
 include(joinpath("models", "adaptive_interaction_transformer.jl"))
@@ -47,7 +47,7 @@ include(joinpath("models", "biallelic_snp_encoder.jl"))
 """TL CLI."""
 @main
 
-export Runner, tmle, sieve_variance_plateau, merge_csv_files
+export Runner, tmle, sieve_variance_plateau, make_summary
 export GLMNetRegressor, GLMNetClassifier
 export RestrictedInteractionTransformer, BiAllelicSNPEncoder
 export AdaptiveCV, AdaptiveStratifiedCV, JointStratifiedCV

@@ -1,4 +1,11 @@
 using TMLE
+using StableRNGs
+using DataFrames
+using Distributions
+using LogExpFunctions
+using CSV
+using Arrow
+using CategoricalArrays
 
 function statistical_estimands_only_config()
     configuration = Configuration(
@@ -76,4 +83,48 @@ function causal_and_composed_estimands_config()
         scm       = scm
     )
     return configuration
+end
+
+"""
+CONTINUOUS_OUTCOME: 
+- IATE(0->1, 0->1) = E[W₂] = 0.5
+- ATE(0->1, 0->1)  = -4 E[C₁] + 1 + E[W₂] = -2 + 1 + 0.5 = -0.5
+
+BINARY_OUTCOME:
+- IATE(0->1, 0->1) =
+- ATE(0->1, 0->1)  = 
+
+"""
+function build_dataset(;n=1000, format="csv")
+    rng = StableRNG(123)
+    # Confounders
+    W₁ = rand(rng, Uniform(), n)
+    W₂ = rand(rng, Uniform(), n)
+    # Covariates
+    C₁ = rand(rng, n)
+    # Treatment | Confounders
+    T₁ = rand(rng, Uniform(), n) .< logistic.(0.5sin.(W₁) .- 1.5W₂)
+    T₂ = rand(rng, Uniform(), n) .< logistic.(-3W₁ - 1.5W₂)
+    # target | Confounders, Covariates, Treatments
+    μ = 1 .+ 2W₁ .+ 3W₂ .- 4C₁.*T₁ .+ T₁ + T₂.*W₂.*T₁
+    y₁ = μ .+ rand(rng, Normal(0, 0.01), n)
+    y₂ = rand(rng, Uniform(), n) .< logistic.(μ)
+    # Add some missingness
+    y₂ = vcat(missing, y₂[2:end])
+
+    dataset = DataFrame(
+        SAMPLE_ID = 1:n,
+        T1 = categorical(T₁),
+        T2 = categorical(T₂),
+        W1 = W₁, 
+        W2 = W₂,
+        C1 = C₁,
+    )
+    # Comma in name
+    dataset[!, "CONTINUOUS, OUTCOME"] = categorical(y₁)
+    # Slash in name
+    dataset[!, "BINARY/OUTCOME"] = categorical(y₂)
+    dataset[!, "EXTREME_BINARY"] = categorical(vcat(0, ones(n-1)))
+
+    format == "csv" ? CSV.write("data.csv", dataset) : Arrow.write("data.arrow", dataset)
 end
