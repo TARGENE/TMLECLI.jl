@@ -1,6 +1,0 @@
-  Estimands:
-    - type: ATE
-      outcome: EXTREME_BINARY
-      treatment_values: (T1 = (control = 0, case = 1), T2 = (control = 0, case = 1))
-      treatment_confounders: (T1 = [W1, W2], T2 = [W1, W2])
-      outcome_extra_covariates: [C1]
