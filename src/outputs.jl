@@ -3,6 +3,10 @@ FileExistsError(filename) = ArgumentError(string("File ", filename, " already ex
 check_file_exists(filename::Nothing) = nothing
 check_file_exists(filename) = !isfile(filename) || throw(FileExistsError(filename))
 
+Base.tryparse(::Type{Union{String, Nothing}}, x::AbstractString) = x
+Base.tryparse(::Type{Union{Float64, Nothing}}, x::AbstractString) = tryparse(Float64, x)
+Base.tryparse(::Type{Union{T, Nothing}}, x::Nothing) where T = nothing
+
 """
     initialize(output)
 

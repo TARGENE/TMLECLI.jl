@@ -144,12 +144,12 @@ TMLE CLI.
 
 - `-s, --sort_estimands`: Sort estimands to minimize cache usage (A brute force approach will be used, resulting in exponentially long sorting time).
 """
-@cast function tmle(dataset, estimands, estimators; 
-    verbosity=0, 
-    outputs=Outputs(),
-    chunksize=100,
-    rng=123,
-    cache_strategy="release-unusable",
+@cast function tmle(dataset::String, estimands::String, estimators::String; 
+    verbosity::Int=0, 
+    outputs::Outputs=Outputs(),
+    chunksize::Int=100,
+    rng::Int=123,
+    cache_strategy::String="release-unusable",
     sort_estimands::Bool=false
     )
     runner = Runner(dataset, estimands, estimators; 

@@ -30,6 +30,7 @@ using Comonicon
 using Configurations
 
 import MLJModelInterface
+import Base.tryparse
 
 include("failed_estimate.jl")
 include("cache_managers.jl")
