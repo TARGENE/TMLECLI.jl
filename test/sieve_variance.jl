@@ -262,7 +262,7 @@ end
     ]
     stderrors = TargetedEstimation.corrected_stderrors(variances)
     # sanity check
-    stderrors == sqrt.([4., 5., 6.])
+    @test stderrors == sqrt.([4., 5., 6.])
 end
 
 @testset "Test SVP" begin

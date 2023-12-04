@@ -38,10 +38,11 @@ COPY . /TargetedEstimation.jl
 WORKDIR /TargetedEstimation.jl
 
 # Precompile project
-RUN julia -q --project -e'using Pkg; Pkg.instantiate(); Pkg.resolve(); Pkg.precompile()'
+RUN julia --project -e'using Pkg; Pkg.instantiate(); Pkg.resolve(); Pkg.precompile()'
 
 # Precompile Sysimage project
-RUN julia -q --project=/TargetedEstimation.jl/sysimage -e'using Pkg;Pkg.instantiate(); Pkg.resolve(); Pkg.precompile()'
+RUN julia --project -t auto --startup-file=no deps/build.jl app
 
-# Build Sysimage
-RUN julia --project -t auto --startup-file=no sysimage/create_sysimage.jl
+ENV PATH="${PATH}:/TargetedEstimation.jl/build/tmle/bin"
+
+RUN tmle --help
