@@ -41,7 +41,7 @@ WORKDIR /TargetedEstimation.jl
 RUN julia --project -e'using Pkg; Pkg.instantiate(); Pkg.resolve(); Pkg.precompile()'
 
 # Precompile Sysimage project
-RUN julia --project -t auto --startup-file=no deps/build.jl app
+RUN julia --project -t auto --startup-file=no deps/build_app.jl app
 
 ENV PATH="${PATH}:/TargetedEstimation.jl/build/tmle/bin"
 
