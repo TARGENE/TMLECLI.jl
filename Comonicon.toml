@@ -5,16 +5,16 @@ completion = true
 quiet = false
 optimize = 2
 
-# [sysimg]
-# incremental=true
-# filter_stdlibs=false
+[sysimg]
+incremental=true
+filter_stdlibs=false
 
-# [sysimg.precompile]
-# execution_file = ["deps/execute.jl"]
+[sysimg.precompile]
+execution_file = ["deps/execute.jl"]
 
-# [application]
-# incremental=true
-# filter_stdlibs=false
+[application]
+incremental=true
+filter_stdlibs=false
 
-# [application.precompile]
-# execution_file = ["deps/execute.jl"]
+[application.precompile]
+execution_file = ["deps/execute.jl"]
