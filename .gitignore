@@ -19,6 +19,6 @@ docs/site/
 docs/Manifest.toml
 
 test/Manifest.toml
-sysimage/Manifest.toml
+Manifest.toml
 
 build/
