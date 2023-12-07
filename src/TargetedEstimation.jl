@@ -10,7 +10,6 @@ using MLJ
 using CSV
 using Arrow
 using TMLE
-using HighlyAdaptiveLasso
 using EvoTrees
 using MLJXGBoostInterface
 using MLJLinearModels

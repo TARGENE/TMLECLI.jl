@@ -13,7 +13,6 @@ default_models = TMLE.default_models(
     evo_10             = EvoTreeRegressor(nrounds=10),
     evo_20             = EvoTreeRegressor(nrounds=20),
     constant           = ConstantRegressor(),
-    hal                = HALRegressor(max_degree=1, smoothness_orders=1, num_knots=[10, 5], lambda=10, cv_select=false)
     ),
   # For the estimation of E[Y|W, T]: binary target
   Q_binary = Stack(
@@ -26,7 +25,6 @@ default_models = TMLE.default_models(
       cache                   = false
     ),
     constant           = ConstantClassifier(),
-    hal                = HALClassifier(max_degree=1, smoothness_orders=1, num_knots=[10, 5], lambda=10, cv_select=false),
     gridsearch_evo     = TunedModel(
       model = evotree,
       resampling = CV(),
