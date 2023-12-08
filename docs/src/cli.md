@@ -1,6 +1,6 @@
-# The Command Line Interface
+# The Command Line Interface (CLI)
 
-## Installing the CLI
+## CLI Installation
 
 ### Via Docker (requires Docker)
 
@@ -20,7 +20,7 @@ Alternatively, provided you have Julia installed, you can build the app via:
 julia --project deps/build_app.jl app
 ```
 
-Be low is a description of the functionalities offered by the CLI.
+Bellow is a description of the functionalities offered by the CLI.
 
 ## CLI Description
 
@@ -29,23 +29,3 @@ The CLI contains 3 sub-commands:
 - `tmle`: To Run TMLE on a dataset (see [tmle command](@ref)).
 - `sieve-variance-plateau`: To correct the variance of an estimator for non i.i.d data via [Sieve Variance Plateau](https://biostats.bepress.com/ucbbiostat/paper322/) (see [sieve-variance-plateau command](@ref)).
 - `make-summary`: Combines multiple outputs from a `tmle` run into one output file (see [make-summary command](@ref))
-
-### tmle command
-
-Arguments:
-
-- dataset: A dataset either in .csv or .arrow format
-- estimands: A file containing a serialized Configuration object.
-- estimators: A custom julia file containing the estimators to use. Several examples are provided [here](https://github.com/TARGENE/TargetedEstimation.jl/estimators-configs). Alternatively, to point to any of them, the name of the file can be supplied without the ".jl" extension. (e.g. "superlearning").
-
-Options:
-
-- -v, --verbosity: Verbosity level.
-- -o, --outputs: Ouputs to be generated.
-- --chunksize <100::Int>: Results are written in batches of size chunksize.
-- -r, --rng <123::Int>: Random seed (Only used for estimands ordering at the moment).
-- -c, --cache-strategy: Caching Strategy for the nuisance functions, any of ("release-unusable", "no-cache", "max-size").
-
-Flags:
-
-- -s, --sort-estimands: Sort estimands to minimize cache usage. A brute force approach will be used, resulting in exponentially long sorting time (Only appropriate for small number of estimands).

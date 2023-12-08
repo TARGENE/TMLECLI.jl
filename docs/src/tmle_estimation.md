@@ -4,27 +4,25 @@ This is the main script in this package, it provides a command line interface fo
 
 ## Usage
 
-Provided you have the package and all dependencies installed or in the provided docker container, you can run TMLE via the following command:
+Runs TMLE estimation.
 
-```bash
-julia scripts/tmle.jl DATAFILE PARAMFILE OUTFILE
-        --estimator-file=docs/estimators/glmnet.jl
-        --hdf5-out=output.hdf5
-        --pval-threshold=0.05
-        --chunksize=100
-        --verbosity=1
-```
+Args:
 
-where:
+- dataset: A dataset either in .csv or .arrow format
+- estimands: A file containing a serialized Configuration object.
+- estimators: A custom julia file containing the estimators to use. Several examples are provided [here](https://github.com/TARGENE/TargetedEstimation.jl/estimators-configs). Alternatively, to point to any of them, the name of the file can be supplied without the ".jl" extension. (e.g. "superlearning").
 
-- `DATAFILE`: A CSV (.csv) or Arrow (.arrow) file containing the tabular data. The format will be infered from the extension.
-- `PARAMFILE`: A serialized [YAML](https://targene.github.io/TMLE.jl/stable/user_guide/#Reading-Parameters-from-YAML-files) or [bin](https://docs.julialang.org/en/v1/stdlib/Serialization/) file containing the estimands to be estimated. The YAML file can be written by hand or programmatically using the [TMLE.parameters_to_yaml](https://targene.github.io/TMLE.jl/stable/api/#TMLE.parameters_to_yaml-Tuple{Any,%20Any}) function.
-- `OUTFILE`: The output .csv file (see [Output file](@ref))
-- `--estimator-file`: A Julia file describing the TMLE specifications (see [Estimator File](@ref)).
-- `--hdf5-out`: if provided, a path to a file to save the influence curves.
-- `--pval-threshold`: Only "significant" (< this threshold) estimates will actually have their influence curves stored in the previous file.
-- `--chunksize`: To manage memory, the results are appended to the output files in batches the size of which can be controlled via this option.
-- `--verbosity`: The verbosity level.
+Options:
+
+- -v, --verbosity: Verbosity level.
+- -o, --outputs: Ouputs to be generated.
+- --chunksize <100::Int>: Results are written in batches of size chunksize.
+- -r, --rng <123::Int>: Random seed (Only used for estimands ordering at the moment).
+- -c, --cache-strategy: Caching Strategy for the nuisance functions, any of ("release-unusable", "no-cache", "max-size").
+
+Flags:
+
+- -s, --sort-estimands: Sort estimands to minimize cache usage. A brute force approach will be used, resulting in exponentially long sorting time (Only appropriate for small number of estimands).
 
 ## Output file
 
