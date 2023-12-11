@@ -43,8 +43,6 @@ include(joinpath("models", "glmnet.jl"))
 include(joinpath("models", "adaptive_interaction_transformer.jl"))
 include(joinpath("models", "biallelic_snp_encoder.jl"))
 
-
-"""TL CLI."""
 @main
 
 export Runner, tmle, sieve_variance_plateau, make_summary

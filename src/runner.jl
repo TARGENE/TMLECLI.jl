@@ -133,11 +133,11 @@ TMLE CLI.
 # Args
 
 - `dataset`: Data file (either .csv or .arrow)
-- `estimands`: Estimands file (either .json or .yaml)
-- `estimators`: A julia file containing the estimators to use.
 
 # Options
 
+- `--estimands`: A string ("generateATEs") or a serialized TMLE.Configuration (accepted formats: .json | .yaml | .jls)
+- `--estimators`: A julia file containing the estimators to use.
 - `-v, --verbosity`: Verbosity level.
 - `-o, --outputs`: Ouputs to be generated.
 - `--chunksize`: Results are written in batches of size chunksize.
