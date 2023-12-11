@@ -7,7 +7,9 @@ mutable struct Runner
     outputs::Outputs
     verbosity::Int
     failed_nuisance::Set
-    function Runner(dataset, estimands, estimators; 
+    function Runner(dataset; 
+        estimands="generateATEs", 
+        estimators="glmnet",
         verbosity=0, 
         outputs=Outputs(), 
         chunksize=100,
@@ -16,11 +18,11 @@ mutable struct Runner
         sort_estimands=false
         )    
         # Retrieve TMLE specifications
-        estimators = TargetedEstimation.load_tmle_spec(estimators)
+        estimators = TargetedEstimation.load_tmle_spec(file=estimators)
         # Load dataset
         dataset = TargetedEstimation.instantiate_dataset(dataset)
         # Read parameter files
-        estimands = TargetedEstimation.proofread_estimands(estimands, dataset)
+        estimands = TargetedEstimation.build_estimands_list(estimands, dataset)
         if sort_estimands
             estimands = groups_ordering(estimands; 
                 brute_force=true, 
@@ -115,7 +117,9 @@ end
 
 
 """
-    tmle(dataset, estimands, estimators; 
+    tmle(dataset; 
+        estimands="generateATEs", 
+        estimators="glmnet"; 
         verbosity=0, 
         outputs=Outputs(),
         chunksize=100,
@@ -144,7 +148,9 @@ TMLE CLI.
 
 - `-s, --sort_estimands`: Sort estimands to minimize cache usage (A brute force approach will be used, resulting in exponentially long sorting time).
 """
-@cast function tmle(dataset::String, estimands::String, estimators::String; 
+@cast function tmle(dataset::String;
+    estimands::String="default_ATE", 
+    estimators::String="glmnet",
     verbosity::Int=0, 
     outputs::Outputs=Outputs(),
     chunksize::Int=100,
@@ -152,7 +158,9 @@ TMLE CLI.
     cache_strategy::String="release-unusable",
     sort_estimands::Bool=false
     )
-    runner = Runner(dataset, estimands, estimators; 
+    runner = Runner(dataset;
+        estimands=estimands, 
+        estimators=estimators, 
         verbosity=verbosity, 
         outputs=outputs, 
         chunksize=chunksize,

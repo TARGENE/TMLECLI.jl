@@ -74,13 +74,40 @@ function proofread_estimands(filename, dataset)
     return estimands
 end
 
+"""
+This explicitely requires that the following columns belong to the dataset:
+
+- `T`: for the treatment variable
+- `Y`: for the outcome variable
+- `^W`: for the confounding variables
+
+All ATE parameters are generated.
+"""
+function TMLE.generateATEs(dataset)
+    colnames = names(dataset)
+    "T" ∈ colnames || throw(ArgumentError("No column 'T' found in the dataset for the treatment variable."))
+    "Y" ∈ colnames || throw(ArgumentError("No column 'Y' found in the dataset for the outcome variable."))
+    confounding_variables = Tuple(name for name in colnames if occursin(r"^W", name))
+    length(confounding_variables) > 0 || throw(ArgumentError("Could not find any confounding variable (starting with 'W') in the dataset."))
+    
+    return generateATEs(dataset, (:T, ), :Y; confounders=confounding_variables)
+end
+
+function build_estimands_list(estimands_pattern, dataset)
+    estimands = if estimands_pattern == "generateATEs"
+        generateATEs(dataset)
+    else
+        proofread_estimands(estimands_pattern, dataset)
+    end
+    return estimands
+end
+
 #####################################################################
 #####                 ADDITIONAL METHODS                         ####
 #####################################################################
 
 TMLE.emptyIC(nt::NamedTuple{names}, pval_threshold) where names =
     NamedTuple{names}([TMLE.emptyIC(result, pval_threshold) for result in nt])
-
 
 """
     instantiate_dataset(path::String)
@@ -146,18 +173,11 @@ variables(Ψ::TMLE.Estimand) = Set([
     Iterators.flatten(values(Ψ.treatment_confounders))...
     ])
 
-load_tmle_spec(file::Nothing) = (
-    TMLE = TMLEE(
-        models = TMLE.default_models(
-            Q_binary = LogisticClassifier(lambda=0.),
-            Q_continuous = LinearRegressor(),
-            G = LogisticClassifier(lambda=0.)
-        ),
-        weighted = true, 
-        ),
-    )
-
-function load_tmle_spec(file)
+function load_tmle_spec(;file="glmnet")
+    file = endswith(file, ".jl") ? file : joinpath(
+        pkgdir(TargetedEstimation),
+        "estimators-configs",
+        string(file, ".jl"))
     include(abspath(file))
     return ESTIMATORS
 end

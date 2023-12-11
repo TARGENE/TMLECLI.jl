@@ -23,14 +23,23 @@ include(joinpath(TESTDIR, "testutils.jl"))
     config_1 = statistical_estimands_only_config()
     configfile_1 = joinpath(tmpdir, "configuration_1.json")
     TMLE.write_json(configfile_1, config_1)
-    tmle(datafile, configfile_1, estimatorfile; outputs=tmle_output_1, chunksize=3)
+    tmle(datafile; 
+        estimands=configfile_1, 
+        estimators=estimatorfile,
+        outputs=tmle_output_1, 
+        chunksize=3
+    )
     
     # Second Run
     tmle_output_2 = TargetedEstimation.Outputs(hdf5=TargetedEstimation.HDF5Output(filename="tmle_output_2.hdf5"))
     config_2 = causal_and_composed_estimands_config()
     configfile_2 = joinpath(tmpdir, "configuration_2.json")
     TMLE.write_json(configfile_2, config_2)
-    tmle(datafile, configfile_2, estimatorfile; outputs=tmle_output_2)
+    tmle(datafile; 
+        estimands=configfile_2, 
+        estimators=estimatorfile, 
+        outputs=tmle_output_2
+    )
 
     # Make summary files
     outputs = TargetedEstimation.Outputs(

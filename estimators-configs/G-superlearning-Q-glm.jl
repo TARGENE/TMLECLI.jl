@@ -1,13 +1,7 @@
 xgboost_classifier = XGBoostClassifier(tree_method="hist")
 
-tmle_spec = (
-  # Controls caching of data by MLJ machines: turning to `true` may result in faster execution but higher memory usage
-  cache        = false,
-  # Controls whether the fluctuation is weighted or not
-  weighted_fluctuation = false,
-  # Propensity score threshold
-  threshold    = 1e-8,
-  # For the estimation of E[Y|W, T]: continuous target
+default_models = TMLE.default_models(
+  # For the estimation of E[Y|W, T]: continuous outcome
   Q_continuous = LinearRegressor(),
   # For the estimation of E[Y|W, T]: binary target
   Q_binary = LogisticClassifier(lambda=0.),
@@ -30,4 +24,8 @@ tmle_spec = (
         cache=false
     )
   )
+)
+
+ESTIMATORS = (
+  TMLE = TMLEE(models=default_models, weighted=true, ps_lowerbound=1e-8),
 )

@@ -14,27 +14,33 @@ check_type(treatment_value, ::Type{T}) where T = @test treatment_value isa T
 check_type(treatment_values::NamedTuple, ::Type{T}) where T = 
     @test treatment_values.case isa T && treatment_values.control isa T 
 
-TESTDIR = joinpath(pkgdir(TargetedEstimation), "test")
+PKGDIR = pkgdir(TargetedEstimation)
+TESTDIR = joinpath(PKGDIR, "test")
 
 include(joinpath(TESTDIR, "testutils.jl"))
 
-@testset "Test load_tmle_spec: with configuration file" begin
-    estimators = TargetedEstimation.load_tmle_spec(joinpath(TESTDIR, "config", "tmle_ose_config.jl"))
+@testset "Test load_tmle_spec" begin
+    # Default
+    noarg_estimators = TargetedEstimation.load_tmle_spec()
+    default_models = noarg_estimators.TMLE.models
+    @test noarg_estimators.TMLE isa TMLEE
+    @test default_models.Q_binary_default.glm_net_classifier isa GLMNetClassifier
+    @test default_models.Q_continuous_default.glm_net_regressor isa GLMNetRegressor
+    @test default_models.G_default isa GLMNetClassifier
+    # From template name
+    for file in readdir(joinpath(PKGDIR, "estimators-configs"))
+        configname = replace(file, ".jl" => "")
+        estimators = TargetedEstimation.load_tmle_spec(;file=configname)
+        @test estimators.TMLE isa TMLEE
+    end
+    # From explicit file
+    estimators = TargetedEstimation.load_tmle_spec(file=joinpath(TESTDIR, "config", "tmle_ose_config.jl"))
     @test estimators.TMLE isa TMLE.TMLEE
     @test estimators.OSE isa TMLE.OSE
     @test estimators.TMLE.weighted === true
     @test estimators.TMLE.models.G_default === estimators.OSE.models.G_default
     @test estimators.TMLE.models.G_default isa MLJBase.ProbabilisticStack
 end
-
-@testset "Test load_tmle_spec: no configuration file" begin
-    estimators = TargetedEstimation.load_tmle_spec(nothing)
-    @test !haskey(estimators, :OSE)
-    @test haskey(estimators, :TMLE)
-    @test estimators.TMLE.weighted === true
-    @test estimators.TMLE.models.G_default isa LogisticClassifier
-end
-
 @testset "Test convert_treatment_values" begin
     treatment_types = Dict(:T₁=> Union{Missing, Bool}, :T₂=> Int)
     newT = TargetedEstimation.convert_treatment_values((T₁=1,), treatment_types)
@@ -67,6 +73,22 @@ end
     end
     # Clean estimands file
     rm(filename)
+end
+
+@testset "Test generateATEs" begin
+    dataset = DataFrame(C=[1, 2, 3, 4],)
+    @test_throws ArgumentError TargetedEstimation.build_estimands_list("generateATEs", dataset)
+    dataset.T = [0, 1, missing, 2]
+    @test_throws ArgumentError TargetedEstimation.build_estimands_list("generateATEs", dataset)
+    dataset.Y = [0, 1, 2, 2]
+    dataset.W1 = [1, 1, 1, 1]
+    dataset.W_2 = [1, 1, 1, 1]
+    ATEs = TargetedEstimation.build_estimands_list("generateATEs", dataset)
+    @test ATEs == [
+        TMLE.StatisticalATE(:Y, (T = (case = 1, control = 0),), (T = (:W1, :W_2),), ()),
+        TMLE.StatisticalATE(:Y, (T = (case = 2, control = 0),), (T = (:W1, :W_2),), ()),
+        TMLE.StatisticalATE(:Y, (T = (case = 2, control = 1),), (T = (:W1, :W_2),), ())
+    ]
 end
 @testset "Test coerce_types!" begin
     Ψ = IATE(

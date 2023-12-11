@@ -56,7 +56,11 @@ function build_tmle_output_file(sample_ids, estimandfile, outprefix;
     outputs = TargetedEstimation.Outputs(
         hdf5=TargetedEstimation.HDF5Output(filename=string(outprefix, ".hdf5"), pval_threshold=pval, sample_ids=true),
     )
-    tmle("data.csv", estimandfile, estimatorfile, outputs=outputs)
+    tmle("data.csv"; 
+        estimands=estimandfile, 
+        estimators=estimatorfile, 
+        outputs=outputs
+    )
 end
 
 function basic_variance_implementation(matrix_distance, influence_curve, n_obs)

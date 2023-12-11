@@ -26,9 +26,9 @@ include(joinpath(TESTDIR, "testutils.jl"))
         jls=TargetedEstimation.JLSOutput(filename="output.jls", pval_threshold=1e-5),
     )
     runner = Runner(
-        "data.csv", 
-        estimands_filename, 
-        joinpath(CONFIGDIR, "tmle_ose_config.jl"); 
+        "data.csv";
+        estimands=estimands_filename, 
+        estimators=joinpath(CONFIGDIR, "tmle_ose_config.jl"),
         outputs=outputs, 
         cache_strategy="release-unusable",
     )
@@ -121,7 +121,9 @@ end
         datafile = string("data.", format)
         build_dataset(;n=1000, format=format)
         for chunksize in (4, 10)
-            tmle(datafile, estimands_filename, estimatorfile; 
+            tmle(datafile; 
+                estimands=estimands_filename, 
+                estimators=estimatorfile,
                 outputs=outputs,
                 chunksize=chunksize,
             )
@@ -161,7 +163,10 @@ end
     TMLE.write_json(estimandsfile, configuration)
     estimatorfile = joinpath(CONFIGDIR, "ose_config.jl")
     datafile = "data.csv"
-    tmle(datafile, estimandsfile, estimatorfile; outputs=outputs)
+    tmle(datafile; 
+        estimands=estimandsfile, 
+        estimators=estimatorfile,
+        outputs=outputs)
     
     # Essential results
     results_from_json = TMLE.read_json(outputs.json.filename)
@@ -190,7 +195,11 @@ end
     estimatorfile = joinpath(CONFIGDIR, "problematic_tmle_ose_config.jl")
     datafile = "data.csv"
 
-    runner = Runner(datafile, estimandsfile, estimatorfile; outputs=outputs);
+    runner = Runner(datafile; 
+        estimands=estimandsfile, 
+        estimators=estimatorfile,
+        outputs=outputs
+    );
     runner()
 
     # Test failed nuisance estimates (T2 model)
@@ -242,7 +251,12 @@ end
     estimatorfile = joinpath(CONFIGDIR, "ose_config.jl")
     datafile = "data.csv"
 
-    tmle(datafile, estimandsfile, estimatorfile; outputs=outputs, chunksize=2)
+    tmle(datafile;
+        estimands=estimandsfile, 
+        estimators=estimatorfile,
+        outputs=outputs, 
+        chunksize=2
+    )
     
     # JLS Output
     results = []
