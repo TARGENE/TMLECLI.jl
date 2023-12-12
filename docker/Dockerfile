@@ -3,24 +3,27 @@ FROM julia:1.9.4-bullseye
 ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && \
-    apt-get -y install gcc mono-mcs && \
+    apt-get -y install gcc mono-mcs vim && \
     rm -rf /var/lib/apt/lists/*
 
 ENV TZ=Europe/Amsterdam
 
 ENV JULIA_DEPOT_PATH=/opt
 
-# Import project, build and precompile
+# Import the project
 
 COPY . /TargetedEstimation.jl 
 
 WORKDIR /TargetedEstimation.jl
 
-# Precompile project
+# Precompile the project
 RUN julia --project -e'using Pkg; Pkg.instantiate(); Pkg.resolve(); Pkg.precompile()'
 
-# Precompile Sysimage project
-RUN julia --project -t auto --startup-file=no deps/build_app.jl app
+# Build CLI
+RUN julia --project --startup-file=no deps/build_app.jl
 
-ENV PATH="${PATH}:/TargetedEstimation.jl/build/tmle/bin"
+# Add CLI to PATH
+ENV PATH="${PATH}:/opt/bin/"
 
+# Test the CLI runs
+RUN tmle tmle data/sample_dataset.csv
