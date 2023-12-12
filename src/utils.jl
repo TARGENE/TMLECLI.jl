@@ -154,14 +154,19 @@ function coerce_types!(dataset, Ψ::ComposedEstimand)
 end
 
 function coerce_types!(dataset, Ψ)
+    # Make Treatments categorical but preserve order
     categorical_variables = Set(keys(Ψ.treatment_values))
-    continuous_variables = Set(Iterators.flatten(values(Ψ.treatment_confounders)))
-    union!(continuous_variables, Ψ.outcome_extra_covariates) 
-    TMLE.is_binary(dataset, Ψ.outcome) ? 
-        push!(categorical_variables, Ψ.outcome) : 
-        push!(continuous_variables, Ψ.outcome)
     make_categorical!(dataset, categorical_variables, infer_ordered=true)
+    # Make Confounders and extra covariates continuous
+    continuous_variables = Set(Iterators.flatten(values(Ψ.treatment_confounders)))
+    union!(continuous_variables, Ψ.outcome_extra_covariates)
     make_float!(dataset, continuous_variables)
+    # Make outcome categorical if binary but do not infer order 
+    if TMLE.is_binary(dataset, Ψ.outcome)
+        make_categorical!(dataset, Ψ.outcome, infer_ordered=false)
+    else
+        make_float!(dataset, Ψ.outcome)
+    end 
 end
 
 variables(Ψ::TMLE.ComposedEstimand) = union((variables(arg) for arg in Ψ.args)...)
