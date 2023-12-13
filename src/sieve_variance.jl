@@ -79,6 +79,7 @@ function build_work_list(prefix, grm_ids; estimator_key=:TMLE)
                 batch_results = io[key]
                 for nt_result in batch_results
                     result = nt_result[estimator_key]
+                    result isa FailedEstimate && continue
                     sample_ids = nt_result.SAMPLE_IDS
                     update_work_lists_with!(
                         result,
