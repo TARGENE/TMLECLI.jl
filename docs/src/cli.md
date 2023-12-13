@@ -24,8 +24,7 @@ Bellow is a description of the functionalities offered by the CLI.
 
 ## CLI Description
 
-The CLI contains 3 sub-commands:
-
-- `tmle`: To Run TMLE on a dataset (see [tmle command](@ref)).
-- `sieve-variance-plateau`: To correct the variance of an estimator for non i.i.d data via [Sieve Variance Plateau](https://biostats.bepress.com/ucbbiostat/paper322/) (see [sieve-variance-plateau command](@ref)).
-- `make-summary`: Combines multiple outputs from a `tmle` run into one output file (see [make-summary command](@ref))
+```@contents
+Pages = ["tmle_estimation.md", "sieve_variance.md", "make_summary.md"]
+Depth = 5
+```

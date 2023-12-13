@@ -14,7 +14,7 @@ Because [TMLE.jl](https://targene.github.io/TMLE.jl/stable/) is based on top of 
 
 Further support for more packages can be added on request, please fill an [issue](https://github.com/TARGENE/TargetedEstimation.jl/issues).
 
-Also, because the [Estimator File](@ref) is a pure Julia file, it is possible to use it in order to install additional package that can be used to define additional models.
+Also, because the estimator file used by the TMLE CLI is a pure Julia file, it is possible to use it in order to install additional package that can be used to define additional models.
 
 Finally, we also provide some additional models described in [Additional models provided by TargetedEstimation.jl](@ref).
 

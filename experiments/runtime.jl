@@ -2,10 +2,10 @@ using ArgParse
 using TargetedEstimation
 
 const ESTIMATORS = [
-    "docs/src/estimators/glm.jl",
-    "docs/src/estimators/glmnet.jl",
-    "docs/src/estimators/G-superlearning-Q-glmnet.jl",
-    "docs/src/estimators/superlearning.jl"
+    "glm",
+    "glmnet",
+    "G-superlearning-Q-glmnet",
+    "superlearning"
 ]
 const PARAMETERS = [
     "experiments/parameters.phewas.yaml",
