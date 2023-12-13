@@ -57,9 +57,11 @@ function try_estimation(runner, Ψ, estimator)
         return result
     catch e
         # Some nuisance function fits may fail. We do not interrupt on them but log instead.
-        # This also allows to skip fast the next estimands requiring the same nuisance functions.
         if e isa TMLE.FitFailedError
-            push!(runner.failed_nuisance, e.estimand)
+            # This also allows to skip fast the next estimands requiring the same nuisance functions.
+            if !(e.model isa TMLE.Fluctuation)
+                push!(runner.failed_nuisance, e.estimand)
+            end
             return FailedEstimate(Ψ, e.msg)
         # On other errors, rethrow
         else 
