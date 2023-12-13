@@ -225,13 +225,13 @@ Sieve Variance Plateau CLI.
 - `-m, --max_tau`: Maximum distance between any two individuals.
 - `-e, --estimator-key`: Estimator to use to proceed with sieve variance correction.
 """
-@cast function sieve_variance_plateau(input_prefix;
-    out="svp.hdf5",
-    grm_prefix="GRM",
-    verbosity=0, 
-    n_estimators=10, 
-    max_tau=0.8,
-    estimator_key="TMLE"
+@cast function sieve_variance_plateau(input_prefix::String;
+    out::String="svp.hdf5",
+    grm_prefix::String="GRM",
+    verbosity::Int=0, 
+    n_estimators::Int=10, 
+    max_tau::Float64=0.8,
+    estimator_key::String="TMLE"
     )
     estimator_key = Symbol(estimator_key)
     τs = default_τs(n_estimators;max_τ=max_tau)

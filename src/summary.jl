@@ -29,8 +29,8 @@ Combines multiple TMLE .hdf5 output files in a single file. Multiple formats can
 - `-o, --outputs`: Ouptuts configuration.
 """
 @cast function make_summary(
-    prefix; 
-    outputs=Outputs(json=JSONOutput(filename="summary.json"))
+    prefix::String;
+    outputs::Outputs=Outputs()
     )
     
     # Initialize output files
