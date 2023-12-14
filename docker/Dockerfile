@@ -3,7 +3,7 @@ FROM julia:1.9.4-bullseye
 ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && \
-    apt-get -y install gcc mono-mcs vim && \
+    apt-get -y install gcc mono-mcs vim procps && \
     rm -rf /var/lib/apt/lists/*
 
 ENV TZ=Europe/Amsterdam
