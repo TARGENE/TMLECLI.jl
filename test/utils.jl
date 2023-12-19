@@ -83,12 +83,12 @@ end
     dataset.Y = [0, 1, 2, 2]
     dataset.W1 = [1, 1, 1, 1]
     dataset.W_2 = [1, 1, 1, 1]
-    ATEs = TargetedEstimation.build_estimands_list("generateATEs", dataset)
-    @test ATEs == [
+    composedATE = TargetedEstimation.build_estimands_list("generateATEs", dataset)[1]
+    @test composedATE.args == (
         TMLE.StatisticalATE(:Y, (T = (case = 1, control = 0),), (T = (:W1, :W_2),), ()),
         TMLE.StatisticalATE(:Y, (T = (case = 2, control = 0),), (T = (:W1, :W_2),), ()),
         TMLE.StatisticalATE(:Y, (T = (case = 2, control = 1),), (T = (:W1, :W_2),), ())
-    ]
+    )
 end
 @testset "Test coerce_types!" begin
     Ψ = IATE(

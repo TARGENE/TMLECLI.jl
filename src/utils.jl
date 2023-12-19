@@ -90,7 +90,7 @@ function TMLE.generateATEs(dataset)
     confounding_variables = Tuple(name for name in colnames if occursin(r"^W", name))
     length(confounding_variables) > 0 || throw(ArgumentError("Could not find any confounding variable (starting with 'W') in the dataset."))
     
-    return generateATEs(dataset, (:T, ), :Y; confounders=confounding_variables)
+    return [generateATEs(dataset, (:T, ), :Y; confounders=confounding_variables)]
 end
 
 function build_estimands_list(estimands_pattern, dataset)
