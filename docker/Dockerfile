@@ -22,8 +22,5 @@ RUN julia --project -e'using Pkg; Pkg.instantiate(); Pkg.resolve(); Pkg.precompi
 # Build CLI
 RUN julia --project --startup-file=no deps/build_app.jl
 
-# Add CLI to PATH
-ENV PATH="${PATH}:/opt/bin/"
-
 # Test the CLI runs
-RUN tmle tmle data/sample_dataset.csv
+RUN tmle/bin/tmle tmle data/sample_dataset.csv
