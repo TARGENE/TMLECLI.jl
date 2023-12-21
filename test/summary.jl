@@ -41,27 +41,28 @@ include(joinpath(TESTDIR, "testutils.jl"))
         outputs=tmle_output_2
     )
 
-    # Make summary files
-    outputs = TargetedEstimation.Outputs(
-        json=TargetedEstimation.JSONOutput(filename="summary.json"),
-        hdf5=TargetedEstimation.HDF5Output(filename="summary.hdf5"),
-        jls=TargetedEstimation.JLSOutput(filename="summary.jls")
-    )
-    make_summary("tmle_output", outputs=outputs)
+    # Using the main entry point
+    main([
+        "merge", 
+        "tmle_output", 
+        "--json-output", "summary.json", 
+        "--jls-output", "summary.jls",
+        "--hdf5-output", "summary.hdf5"
+    ])
 
     # Test correctness
     hdf5file_1 = jldopen("tmle_output_1.hdf5")
     hdf5file_2 = jldopen("tmle_output_2.hdf5")
     inputs = vcat(hdf5file_1["Batch_1"], hdf5file_1["Batch_2"], hdf5file_2["Batch_1"])
 
-    json_outputs = TMLE.read_json(outputs.json.filename)
+    json_outputs = TMLE.read_json("summary.json")
     jls_outputs = []
-    open(outputs.jls.filename) do io
+    open("summary.jls") do io
         while !eof(io)
             push!(jls_outputs, deserialize(io))
         end
     end
-    hdf5_output = jldopen(outputs.hdf5.filename)
+    hdf5_output = jldopen("summary.hdf5")
     hdf5_outputs = vcat((hdf5_output[key] for key in keys(hdf5_output))...)
 
     @test length(inputs) == 9
@@ -72,9 +73,9 @@ include(joinpath(TESTDIR, "testutils.jl"))
     # cleanup
     rm("tmle_output_1.hdf5")
     rm("tmle_output_2.hdf5")
-    rm(outputs.json.filename)
-    rm(outputs.jls.filename)
-    rm(outputs.hdf5.filename)
+    rm("summary.hdf5")
+    rm("summary.jls")
+    rm("summary.json")
     rm(datafile)
 end
 

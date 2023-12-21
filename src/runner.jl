@@ -150,7 +150,7 @@ TMLE CLI.
 
 - `-s, --sort_estimands`: Sort estimands to minimize cache usage (A brute force approach will be used, resulting in exponentially long sorting time).
 """
-@cast function tmle(dataset::String;
+function tmle(dataset::String;
     estimands::String="generateATEs", 
     estimators::String="glmnet",
     verbosity::Int=0, 

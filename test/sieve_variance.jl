@@ -285,10 +285,13 @@ end
     TMLE.write_json(estimandsfile_2, config_2)
     build_tmle_output_file(grm_ids.SAMPLE_ID, estimandsfile_2, "tmle_output_2"; pval=pval)
 
-    sieve_variance_plateau("tmle_output";
-        grm_prefix=joinpath(TESTDIR, "data", "grm", "test.grm"),
-        max_tau=0.75
-    )
+    # Using the main command
+    main([
+        "svp", 
+        "tmle_output", 
+        "--grm-prefix", joinpath(TESTDIR, "data", "grm", "test.grm"), 
+        "--max-tau", "0.75"
+    ])
 
     io = jldopen("svp.hdf5")
     # Check τs
@@ -332,11 +335,16 @@ end
         "tmle_output";
         estimatorfile=joinpath(TESTDIR, "config", "ose_config.jl")
     )
-    sieve_variance_plateau("tmle_output";
-        grm_prefix=joinpath(TESTDIR, "data", "grm", "test.grm"),
-        max_tau=0.75,
-        estimator_key="OSE"
-    )
+
+    # Using the main command
+    main([
+        "svp", 
+        "tmle_output", 
+        "--grm-prefix", joinpath(TESTDIR, "data", "grm", "test.grm"), 
+        "--max-tau", "0.75",
+        "--estimator-key", "OSE"
+    ])
+
     # The ComposedEstimate std is not updated but each component is.
     src_results = jldopen("tmle_output.hdf5")["Batch_1"]
     io = jldopen("svp.hdf5")

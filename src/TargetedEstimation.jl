@@ -4,6 +4,7 @@ if occursin("Intel", Sys.cpu_info()[1].model)
     using MKL
 end
 
+using ArgParse
 using DataFrames
 using MLJBase
 using MLJ
@@ -25,7 +26,6 @@ using Tables
 using Random
 using YAML
 using JSON
-using Comonicon
 using Configurations
 
 import MLJModelInterface
@@ -42,10 +42,9 @@ include("resampling.jl")
 include(joinpath("models", "glmnet.jl"))
 include(joinpath("models", "adaptive_interaction_transformer.jl"))
 include(joinpath("models", "biallelic_snp_encoder.jl"))
+include("cli.jl")
 
-@main
-
-export Runner, tmle, sieve_variance_plateau, make_summary
+export Runner, tmle, sieve_variance_plateau, make_summary, main
 export GLMNetRegressor, GLMNetClassifier
 export RestrictedInteractionTransformer, BiAllelicSNPEncoder
 export AdaptiveCV, AdaptiveStratifiedCV, JointStratifiedCV
