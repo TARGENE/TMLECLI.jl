@@ -18,17 +18,16 @@ MissingSCMError() = ArgumentError(string("A Structural Causal Model should be pr
 get_identification_method(method::Nothing) = BackdoorAdjustment()
 get_identification_method(method) = method
 
-function read_method(extension)
-    method = if extension == ".json"
-        TMLE.read_json
-    elseif extension == ".yaml"
-        TMLE.read_yaml
-    elseif extension == ".jls"
-        deserialize
+function read_estimands_config(filename)
+    if endswith(filename, ".json")
+        TMLE.read_json(filename, use_mmap=false)
+    elseif endswith(filename, ".yaml")
+        TMLE.read_yaml(filename)
+    elseif endswith(filename, ".jls")
+        return deserialize(filename)
     else
         throw(ArgumentError(string("Can't read from ", extension, " file")))
     end
-    return method
 end
 
 function fix_treatment_values!(treatment_types::AbstractDict, Ψ::ComposedEstimand, dataset)
@@ -62,8 +61,7 @@ Reads estimands from file and ensures that the treatment values in the config fi
 respects the treatment types in the dataset.
 """
 function proofread_estimands(filename, dataset)
-    extension = filename[findlast(isequal('.'), filename):end]
-    config = read_method(extension)(filename)
+    config = read_estimands_config(filename)
     adjustment_method = get_identification_method(config.adjustment)
     estimands = Vector{TMLE.Estimand}(undef, length(config.estimands))
     treatment_types = Dict()
