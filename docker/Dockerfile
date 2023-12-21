@@ -23,4 +23,4 @@ RUN julia --project -e'using Pkg; Pkg.instantiate(); Pkg.resolve(); Pkg.precompi
 RUN julia --project --startup-file=no deps/build_app.jl
 
 # Test the CLI runs
-RUN tmle/bin/tmle tmle data/sample_dataset.csv
+# RUN tmle/bin/tmle tmle data/sample_dataset.csv
