@@ -1,2 +1,2 @@
 using PackageCompiler
-PackageCompiler.create_app(".", "tmle", precompile_execution_file="execute.jl")
+PackageCompiler.create_app(".", "tmle", precompile_execution_file="deps/execute.jl")
