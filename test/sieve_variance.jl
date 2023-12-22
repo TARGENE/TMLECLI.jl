@@ -301,8 +301,8 @@ end
     # Check results
     svp_results = io["results"]
     
-    tmleout1 = jldopen("tmle_output_1.hdf5")["Batch_1"]
-    tmleout2 = jldopen("tmle_output_2.hdf5")["Batch_1"]
+    tmleout1 = jldopen(x -> x["Batch_1"], "tmle_output_1.hdf5")
+    tmleout2 = jldopen(x -> x["Batch_1"], "tmle_output_2.hdf5")
     src_results = [tmleout1..., tmleout2...]
 
     for svp_result in svp_results
@@ -313,8 +313,7 @@ end
         @test src_result.TMLE.n == svp_result.TMLE.n
         @test svp_result.TMLE.IC == []
     end
-    close(tmleout1)
-    close(tmleout2)
+
     close(io)
     # clean
     rm("svp.hdf5")
@@ -348,7 +347,7 @@ end
     ])
 
     # The ComposedEstimate std is not updated but each component is.
-    src_results = jldopen("tmle_output.hdf5")["Batch_1"]
+    src_results = jldopen(x -> x["Batch_1"], "tmle_output.hdf5")
     io = jldopen("svp.hdf5")
     svp_results = io["results"]
     standalone_estimates = svp_results[1:2]
@@ -363,7 +362,6 @@ end
         @test standalone_estimates[i].OSE.std != src_results[i].OSE.std
     end
 
-    close(src_results)
     close(io)
     
     # clean
