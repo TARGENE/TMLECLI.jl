@@ -231,7 +231,7 @@ end
             @test results_from_hdf5[i][estimator].estimand isa TMLE.Estimand
         end
     end
-
+    close(results_from_hdf5)
     # Clean
     rm(outputs.json.filename)
     rm(outputs.hdf5.filename)
@@ -285,11 +285,12 @@ end
     @test length(results_from_json) == 3
 
     # HDF5
-    results_from_json = jldopen("output.hdf5")
-    @test length(results_from_json["Batch_1"]) == 2
-    composed_result = only(results_from_json["Batch_2"])
+    results_from_hdf5 = jldopen("output.hdf5")
+    @test length(results_from_hdf5["Batch_1"]) == 2
+    composed_result = only(results_from_hdf5["Batch_2"])
     @test composed_result.OSE.cov == results[3].OSE.cov
-    
+    close(results_from_hdf5)
+
     rm(datafile)
     rm("output.jls")
     rm("output.json")

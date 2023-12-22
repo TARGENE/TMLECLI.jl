@@ -313,6 +313,8 @@ end
         @test src_result.TMLE.n == svp_result.TMLE.n
         @test svp_result.TMLE.IC == []
     end
+    close(tmleout1)
+    close(tmleout2)
     close(io)
     # clean
     rm("svp.hdf5")
@@ -361,6 +363,7 @@ end
         @test standalone_estimates[i].OSE.std != src_results[i].OSE.std
     end
 
+    close(src_results)
     close(io)
     
     # clean

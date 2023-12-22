@@ -70,6 +70,10 @@ include(joinpath(TESTDIR, "testutils.jl"))
         @test input.OSE.estimand == jls_output.OSE.estimand == hdf5_out.OSE.estimand == json_output[:OSE].estimand
     end
 
+    close(hdf5file_1)
+    close(hdf5file_2)
+    close(hdf5_output)
+
     # cleanup
     rm("tmle_output_1.hdf5")
     rm("tmle_output_2.hdf5")
