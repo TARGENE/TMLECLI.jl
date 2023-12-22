@@ -45,7 +45,7 @@ end
     TargetedEstimation.initialize_json(jsonoutput.filename)
     TargetedEstimation.update_file(jsonoutput, results[1:3])
     TargetedEstimation.update_file(jsonoutput, results[4:end]; finalize=true)
-    loaded_results = TMLE.read_json(jsonoutput.filename)
+    loaded_results = TMLE.read_json(jsonoutput.filename, use_mmap=false)
     @test size(loaded_results) == size(results)
     for (result, loaded_result) in zip(results, loaded_results)
         @test result.TMLE.estimate == loaded_result[:TMLE].estimate

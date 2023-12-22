@@ -55,7 +55,7 @@ include(joinpath(TESTDIR, "testutils.jl"))
     hdf5file_2 = jldopen("tmle_output_2.hdf5")
     inputs = vcat(hdf5file_1["Batch_1"], hdf5file_1["Batch_2"], hdf5file_2["Batch_1"])
 
-    json_outputs = TMLE.read_json("summary.json")
+    json_outputs = TMLE.read_json("summary.json", use_mmap=false)
     jls_outputs = []
     open("summary.jls") do io
         while !eof(io)

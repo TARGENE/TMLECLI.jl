@@ -44,7 +44,7 @@ include(joinpath(TESTDIR, "testutils.jl"))
     TargetedEstimation.save(runner, results, partition, true)
 
     # Test Save to JSON
-    loaded_results = TMLE.read_json(outputs.json.filename)
+    loaded_results = TMLE.read_json(outputs.json.filename, use_mmap=false)
     for (result, loaded_result) in zip(results, loaded_results)
         @test loaded_result[:TMLE] isa TMLE.TMLEstimate
         @test result.TMLE.estimate == loaded_result[:TMLE].estimate
@@ -134,7 +134,7 @@ end
                 end
             end
             results_from_hdf5 = vcat(results_from_hdf5...)
-            results_from_json = TMLE.read_json(outputs.json.filename)
+            results_from_json = TMLE.read_json(outputs.json.filename, use_mmap=false)
 
             for i in 1:6
                 Ψ = configuration.estimands[i]
@@ -171,7 +171,7 @@ end
     )
     
     # Essential results
-    results_from_json = TMLE.read_json("output.json")
+    results_from_json = TMLE.read_json("output.json", use_mmap=false)
     n_IC_empties = 0
     for result in results_from_json
         if result[:OSE].IC != []
@@ -210,7 +210,7 @@ end
     ])
 
     # Check results from JSON
-    results_from_json = TMLE.read_json(outputs.json.filename)
+    results_from_json = TMLE.read_json(outputs.json.filename, use_mmap=false)
     for estimator in (:OSE, :TMLE)
         @test results_from_json[1][estimator][:error] == "Could not fit the following propensity score model: P₀(T2 | W1, W2)"
         @test results_from_json[1][estimator][:estimand] isa TMLE.Estimand
@@ -282,7 +282,7 @@ end
     @test results[3].OSE isa TMLE.ComposedEstimate
     
     # JSON Output
-    results_from_json = TMLE.read_json("output.json")
+    results_from_json = TMLE.read_json("output.json", use_mmap=false)
     @test length(results_from_json) == 3
 
     # HDF5
