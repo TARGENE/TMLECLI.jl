@@ -20,7 +20,7 @@ WORKDIR /TargetedEstimation.jl
 RUN julia --project -e'using Pkg; Pkg.instantiate(); Pkg.resolve(); Pkg.precompile()'
 
 # Build CLI
-RUN julia --project --startup-file=no deps/build_app.jl
+RUN julia --project --startup-file=no deps/build_sysimage.jl
 
 # Test the CLI runs
-RUN /TargetedEstimation.jl/tmle/bin/TargetedEstimation tmle data/sample_dataset.csv
+RUN julia --startup-file=no --project -JTMLESysimage.so tmle.jl tmle data/sample_dataset.csv
