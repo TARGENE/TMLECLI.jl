@@ -10,9 +10,17 @@ function release!(cache_manager::ReleaseUnusableCacheManager, Ψ)
     # Always drop fluctuations
     haskey(cache_manager.cache, :last_fluctuation) && pop!(cache_manager.cache, :last_fluctuation)
 
+    # Drop Basic nuisance functions
     for η in TMLE.nuisance_functions_iterator(Ψ)
         cache_manager.η_counts[η] -= 1
         if cache_manager.η_counts[η] == 0
+            delete!(cache_manager.cache, η)
+        end
+    end
+
+    # Drop aggregate nuisance function
+    for η in keys(cache_manager.cache)
+        if η isa TMLE.CMRelevantFactors
             delete!(cache_manager.cache, η)
         end
     end
@@ -25,13 +33,19 @@ struct MaxSizeCacheManager <: CacheManager
 end
 
 function release!(cache_manager::MaxSizeCacheManager, Ψ)
-    while length(cache_manager.cache) > cache_manager.max_size
-        # Prioritize the release of the last fluctuation
-        if haskey(cache_manager.cache, :last_fluctuation)
-            pop!(cache_manager.cache, :last_fluctuation)
-        else
-            pop!(cache_manager.cache)
+    # Prioritize the release of the last fluctuation
+    if haskey(cache_manager.cache, :last_fluctuation)
+        pop!(cache_manager.cache, :last_fluctuation)
+    end
+    # Drop aggregate nuisance function
+    for η in keys(cache_manager.cache)
+        if η isa TMLE.CMRelevantFactors
+            delete!(cache_manager.cache, η)
         end
+    end
+    # Drop the rest randomly until the size is acceptable
+    while length(cache_manager.cache) > cache_manager.max_size
+        pop!(cache_manager.cache)
     end
 end
 
