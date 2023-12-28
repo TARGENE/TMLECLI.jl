@@ -148,6 +148,7 @@ end
             rm(outputs.hdf5.filename)
             rm(outputs.json.filename)
         end
+        GC.gc() # memory freed for deleting arrow file
         rm(datafile)
     end
 end
