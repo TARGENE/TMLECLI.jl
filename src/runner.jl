@@ -8,7 +8,7 @@ mutable struct Runner
     verbosity::Int
     failed_nuisance::Set
     function Runner(dataset; 
-        estimands="generateATEs", 
+        estimands="factorialATE", 
         estimators="glmnet",
         verbosity=0, 
         outputs=Outputs(), 
@@ -120,7 +120,7 @@ end
 
 """
     tmle(dataset; 
-        estimands="generateATEs", 
+        estimands="factorialATE", 
         estimators="glmnet"; 
         verbosity=0, 
         outputs=Outputs(),
@@ -138,7 +138,7 @@ TMLE CLI.
 
 # Options
 
-- `--estimands`: A string ("generateATEs") or a serialized TMLE.Configuration (accepted formats: .json | .yaml | .jls)
+- `--estimands`: A string ("factorialATE") or a serialized TMLE.Configuration (accepted formats: .json | .yaml | .jls)
 - `--estimators`: A julia file containing the estimators to use.
 - `-v, --verbosity`: Verbosity level.
 - `-o, --outputs`: Ouputs to be generated.
@@ -151,7 +151,7 @@ TMLE CLI.
 - `-s, --sort_estimands`: Sort estimands to minimize cache usage (A brute force approach will be used, resulting in exponentially long sorting time).
 """
 function tmle(dataset::String;
-    estimands::String="generateATEs", 
+    estimands::String="factorialATE", 
     estimators::String="glmnet",
     verbosity::Int=0, 
     outputs::Outputs=Outputs(),

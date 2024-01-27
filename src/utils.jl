@@ -81,19 +81,19 @@ This explicitely requires that the following columns belong to the dataset:
 
 All ATE parameters are generated.
 """
-function TMLE.generateATEs(dataset)
+function TMLE.factorialATE(dataset)
     colnames = names(dataset)
     "T" ∈ colnames || throw(ArgumentError("No column 'T' found in the dataset for the treatment variable."))
     "Y" ∈ colnames || throw(ArgumentError("No column 'Y' found in the dataset for the outcome variable."))
     confounding_variables = Tuple(name for name in colnames if occursin(r"^W", name))
     length(confounding_variables) > 0 || throw(ArgumentError("Could not find any confounding variable (starting with 'W') in the dataset."))
     
-    return [generateATEs(dataset, (:T, ), :Y; confounders=confounding_variables)]
+    return [factorialATE(dataset, (:T, ), :Y; confounders=confounding_variables)]
 end
 
 function build_estimands_list(estimands_pattern, dataset)
-    estimands = if estimands_pattern == "generateATEs"
-        generateATEs(dataset)
+    estimands = if estimands_pattern == "factorialATE"
+        factorialATE(dataset)
     else
         proofread_estimands(estimands_pattern, dataset)
     end

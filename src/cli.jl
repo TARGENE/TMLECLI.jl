@@ -23,8 +23,8 @@ function cli_settings()
 
         "--estimands"
             arg_type = String
-            help = "A string (`generateATEs`) or a serialized TMLE.Configuration (accepted formats: .json | .yaml | .jls)"
-            default = "generateATEs"
+            help = "A string (`factorialATE`) or a serialized TMLE.Configuration (accepted formats: .json | .yaml | .jls)"
+            default = "factorialATE"
 
         "--estimators"
             arg_type = String

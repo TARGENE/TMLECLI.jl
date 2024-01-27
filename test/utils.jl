@@ -75,18 +75,17 @@ end
     rm(filename)
 end
 
-@testset "Test generateATEs" begin
+@testset "Test factorialATE" begin
     dataset = DataFrame(C=[1, 2, 3, 4],)
-    @test_throws ArgumentError TargetedEstimation.build_estimands_list("generateATEs", dataset)
+    @test_throws ArgumentError TargetedEstimation.build_estimands_list("factorialATE", dataset)
     dataset.T = [0, 1, missing, 2]
-    @test_throws ArgumentError TargetedEstimation.build_estimands_list("generateATEs", dataset)
+    @test_throws ArgumentError TargetedEstimation.build_estimands_list("factorialATE", dataset)
     dataset.Y = [0, 1, 2, 2]
     dataset.W1 = [1, 1, 1, 1]
     dataset.W_2 = [1, 1, 1, 1]
-    composedATE = TargetedEstimation.build_estimands_list("generateATEs", dataset)[1]
+    composedATE = TargetedEstimation.build_estimands_list("factorialATE", dataset)[1]
     @test composedATE.args == (
         TMLE.StatisticalATE(:Y, (T = (case = 1, control = 0),), (T = (:W1, :W_2),), ()),
-        TMLE.StatisticalATE(:Y, (T = (case = 2, control = 0),), (T = (:W1, :W_2),), ()),
         TMLE.StatisticalATE(:Y, (T = (case = 2, control = 1),), (T = (:W1, :W_2),), ())
     )
 end
