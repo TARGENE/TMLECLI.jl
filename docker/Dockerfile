@@ -1,4 +1,4 @@
-FROM julia:1.9.0-bullseye
+FROM julia:1.10-bullseye
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -6,42 +6,23 @@ ENV TZ=Europe/Amsterdam
 
 ENV JULIA_DEPOT_PATH=/opt
 
-RUN apt-get update && apt-get install -y wget unzip procps
+RUN apt-get update && \
+    apt-get -y install gcc mono-mcs vim procps wget lsb-release software-properties-common gnupg && \
+    rm -rf /var/lib/apt/lists/*
 
-# Install R and hal9001
+RUN bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
 
-RUN apt-get install -y r-base \
-                    r-base-core \
-                    r-recommended \
-                    r-base-dev
-
-RUN apt-get install -y libssl-dev \
-                libxml2-dev \
-                libcurl4-openssl-dev \
-                libgit2-dev \
-                libharfbuzz-dev \
-                libfribidi-dev \
-                libfontconfig1-dev \
-                libfreetype6-dev \
-                libpng-dev \
-                libtiff5-dev \
-                libjpeg-dev
-
-RUN R -e "install.packages('devtools', repos='http://cran.us.r-project.org', dependecies=TRUE); \
-         require(devtools);\
-         install_version('hal9001', version = '0.4.1', repos = 'http://cran.us.r-project.org')"
-
-# Import project, build and precompile
+# Import the project
 
 COPY . /TargetedEstimation.jl 
 
 WORKDIR /TargetedEstimation.jl
 
-# Precompile project
-RUN julia -q --project -e'using Pkg; Pkg.instantiate(); Pkg.resolve(); Pkg.precompile()'
+# Precompile the project
+RUN julia --project -e'using Pkg; Pkg.instantiate(); Pkg.resolve(); Pkg.precompile()'
 
-# Precompile Sysimage project
-RUN julia -q --project=/TargetedEstimation.jl/sysimage -e'using Pkg;Pkg.instantiate(); Pkg.resolve(); Pkg.precompile()'
+# Build CLI
+RUN julia --project --startup-file=no deps/build_sysimage.jl
 
-# Build Sysimage
-RUN julia --project -t auto --startup-file=no sysimage/create_sysimage.jl
+# Test the CLI runs
+RUN julia --startup-file=no --project -JTMLESysimage.so tmle.jl tmle data/sample_dataset.csv

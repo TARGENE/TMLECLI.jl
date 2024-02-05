@@ -1,9 +1,0 @@
-Parameters:
-  - type: ATE
-    target: CONTINUOUS, TARGET
-    treatment: (T1 = (control = 0, case = 1),)
-    confounders: [W1]
-  - type: CM
-    target: CONTINUOUS, TARGET
-    treatment: (T1 = 0,)
-    confounders: [W1]

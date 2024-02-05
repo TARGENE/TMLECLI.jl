@@ -5,75 +5,152 @@ using TargetedEstimation
 using TMLE
 using DataFrames
 using CSV
+using MLJBase
+using MLJLinearModels
 using CategoricalArrays
 
-@testset "Test CSV writing" begin
+check_type(treatment_value, ::Type{T}) where T = @test treatment_value isa T
+
+check_type(treatment_values::NamedTuple, ::Type{T}) where T = 
+    @test treatment_values.case isa T && treatment_values.control isa T 
+
+PKGDIR = pkgdir(TargetedEstimation)
+TESTDIR = joinpath(PKGDIR, "test")
+
+include(joinpath(TESTDIR, "testutils.jl"))
+
+@testset "Test load_tmle_spec" begin
+    # Default
+    noarg_estimators = TargetedEstimation.load_tmle_spec()
+    default_models = noarg_estimators.TMLE.models
+    @test noarg_estimators.TMLE isa TMLEE
+    @test default_models.Q_binary_default.glm_net_classifier isa GLMNetClassifier
+    @test default_models.Q_continuous_default.glm_net_regressor isa GLMNetRegressor
+    @test default_models.G_default isa GLMNetClassifier
+    # From template name
+    for file in readdir(joinpath(PKGDIR, "estimators-configs"))
+        configname = replace(file, ".jl" => "")
+        estimators = TargetedEstimation.load_tmle_spec(;file=configname)
+        @test estimators.TMLE isa TMLEE
+    end
+    # From explicit file
+    estimators = TargetedEstimation.load_tmle_spec(file=joinpath(TESTDIR, "config", "tmle_ose_config.jl"))
+    @test estimators.TMLE isa TMLE.TMLEE
+    @test estimators.OSE isa TMLE.OSE
+    @test estimators.TMLE.weighted === true
+    @test estimators.TMLE.models.G_default === estimators.OSE.models.G_default
+    @test estimators.TMLE.models.G_default isa MLJBase.ProbabilisticStack
+end
+@testset "Test convert_treatment_values" begin
+    treatment_types = Dict(:T₁=> Union{Missing, Bool}, :T₂=> Int)
+    newT = TargetedEstimation.convert_treatment_values((T₁=1,), treatment_types)
+    @test newT isa Vector{Bool}
+    @test newT == [1]
+
+    newT = TargetedEstimation.convert_treatment_values((T₁=(case=1, control=0.),), treatment_types)
+    @test newT isa Vector{NamedTuple{(:case, :control), Tuple{Bool, Bool}}}
+    @test newT == [(case = true, control = false)]
+
+    newT = TargetedEstimation.convert_treatment_values((T₁=(case=1, control=0.), T₂=(case=true, control=0)), treatment_types)
+    @test newT isa Vector{NamedTuple{(:case, :control)}}
+    @test newT == [(case = true, control = false), (case = 1, control = 0)]
+end
+
+@testset "Test proofread_estimands" for extension in ("yaml", "json")
+    # Write estimands file
+    filename = "statistical_estimands.$extension"
+    eval(Meta.parse("TMLE.write_$extension"))(filename, statistical_estimands_only_config())
+
+    dataset = DataFrame(T1 = [1., 0.], T2=[true, false])
+    estimands = TargetedEstimation.proofread_estimands(filename, dataset)
+    for estimand in estimands
+        if haskey(estimand.treatment_values, :T1)
+            check_type(estimand.treatment_values.T1, Float64)
+        end
+        if haskey(estimand.treatment_values, :T2)
+            check_type(estimand.treatment_values.T2, Bool)
+        end
+    end
+    # Clean estimands file
+    rm(filename)
+end
+
+@testset "Test factorialATE" begin
+    dataset = DataFrame(C=[1, 2, 3, 4],)
+    @test_throws ArgumentError TargetedEstimation.build_estimands_list("factorialATE", dataset)
+    dataset.T = [0, 1, missing, 2]
+    @test_throws ArgumentError TargetedEstimation.build_estimands_list("factorialATE", dataset)
+    dataset.Y = [0, 1, 2, 2]
+    dataset.W1 = [1, 1, 1, 1]
+    dataset.W_2 = [1, 1, 1, 1]
+    composedATE = TargetedEstimation.build_estimands_list("factorialATE", dataset)[1]
+    @test composedATE.args == (
+        TMLE.StatisticalATE(:Y, (T = (case = 1, control = 0),), (T = (:W1, :W_2),), ()),
+        TMLE.StatisticalATE(:Y, (T = (case = 2, control = 1),), (T = (:W1, :W_2),), ())
+    )
+end
+@testset "Test coerce_types!" begin
     Ψ = IATE(
-        target=:Y,
-        treatment=(T₁=(case=1, control=0), T₂=(case="AC", control="CC")),
-        confounders=[:W₁, :W₂]
-    )
-    @test TargetedEstimation.covariates_string(Ψ) === missing
-    @test TargetedEstimation.param_string(Ψ) == "IATE"
-    @test TargetedEstimation.case_string(Ψ) == "1_&_AC"
-    @test TargetedEstimation.control_string(Ψ) == "0_&_CC"
-    @test TargetedEstimation.treatment_string(Ψ) == "T₁_&_T₂"
-    @test TargetedEstimation.confounders_string(Ψ) == "W₁_&_W₂"
-
-    Ψ = CM(
-        target=:Y,
-        treatment=(T₁=1, T₂="AC"),
-        confounders=[:W₁, :W₂],
-        covariates=[:C₁]
+        outcome=:Ycont,
+        treatment_values=(T₁=(case=1, control=0), T₂=(case="AC", control="CC")),
+        treatment_confounders=(T₁=[:W₁, :W₂], T₂=[:W₁, :W₂]),
     )
 
-    @test TargetedEstimation.covariates_string(Ψ) === "C₁"
-    @test TargetedEstimation.param_string(Ψ) == "CM"
-    @test TargetedEstimation.case_string(Ψ) == "1_&_AC"
-    @test TargetedEstimation.control_string(Ψ) === missing
-    @test TargetedEstimation.treatment_string(Ψ) == "T₁_&_T₂"
-    @test TargetedEstimation.confounders_string(Ψ) == "W₁_&_W₂"
+    dataset = DataFrame(
+        Ycont  = [1.1, 2.2, missing],
+        Ycat = [1., 0., missing],
+        T₁ = [1, 0, missing],
+        T₂ = [missing, "AC", "CC"],
+        W₁ = [1., 0., 0.],
+        W₂ = [missing, 0., 0.],
+        C = [1, 2, 3]
+    )
+    TargetedEstimation.coerce_types!(dataset, Ψ)
 
+    @test dataset.T₁ isa CategoricalArray
+    @test dataset.T₂ isa CategoricalArray
+    for var in [:W₁, :W₂, :Ycont]
+        @test eltype(dataset[!, var]) <: Union{Missing, Float64}
+    end
+
+    Ψ = IATE(
+        outcome=:Ycat,
+        treatment_values=(T₂=(case="AC", control="CC"), ),
+        treatment_confounders=(T₂=[:W₂],),
+        outcome_extra_covariates=[:C]
+    )
+    TargetedEstimation.coerce_types!(dataset, Ψ)
+
+    @test dataset.Ycat isa CategoricalArray
+    @test eltype(dataset.C) <: Union{Missing, Float64}
 end
 
-@testset "Test variables" begin
-    parameters = [
-        IATE(
-        target=:Y,
-        treatment=(T₁=(case=1, control=0), T₂=(case="AC", control="CC")),
-        confounders=[:W₁, :W₂]),
-        CM(
-        target=:Y₂,
-        treatment=(T₁=1, T₃="AC"),
-        confounders=[:W₃, :W₂],
-        covariates=[:C₁])
-    ]
-    dataset = DataFrame(Y=[1.1, 2.2, missing], Y₂=[1, 0, missing])
-    variables = TargetedEstimation.variables(parameters, dataset)
-    @test variables == (
-        treatments = Set([:T₃, :T₁, :T₂]),
-        confounders = Set([:W₁, :W₃, :W₂]),
-        covariates = Set([:C₁]),
-        binarytargets = Set([:Y₂]),
-        continuoustargets = Set([:Y])
+@testset "Test misc" begin
+    Ψ = ATE(
+        outcome = :Y,
+        treatment_values = (
+            T₁ = (case=1, control=0), 
+            T₂ = (case=1, control=0)),
+        treatment_confounders = (
+            T₁=[:W₁, :W₂], 
+            T₂=[:W₂, :W₃]
+        ),
+        outcome_extra_covariates = [:C]
     )
-
-    variables = TargetedEstimation.variables(parameters[1])
-    @test variables == (
-        target = :Y,
-        covariates = Symbol[],
-        confounders = [:W₁, :W₂],
-        treatments = (:T₁, :T₂)
+    variables = TargetedEstimation.variables(Ψ)
+    @test variables == Set([:Y, :C, :T₁, :T₂, :W₁, :W₂, :W₃])
+    Ψ = ATE(
+        outcome = :Y,
+        treatment_values = (
+            T₁ = (case=1, control=0), 
+            T₂ = (case=1, control=0)),
+        treatment_confounders = (
+            T₁=[:W₁, :W₂], 
+            T₂=[:W₁, :W₂]
+        ),
     )
-end
-
-@testset "Test get_sample_ids" begin
-    variables = (
-        target = :Y,
-        covariates = Symbol[],
-        confounders = [:W₁, :W₂],
-        treatments = (:T₁, :T₂)
-    )
+    variables = TargetedEstimation.variables(Ψ)
+    @test variables == Set([:Y, :T₁, :T₂, :W₁, :W₂])
     data = DataFrame(
         SAMPLE_ID  = [1, 2, 3, 4, 5],
         Y          = [1, 2, 3, missing, 5],
@@ -82,73 +159,11 @@ end
         T₁         = [1, 2, 3, 4, 5],
         T₂         = [1, 2, 3, 4, missing],
     )
-    sample_ids = TargetedEstimation.get_sample_ids(data, variables)
+    sample_ids = TargetedEstimation.sample_ids_from_variables(data, variables)
     @test sample_ids == [2, 3]
     data.W₁ = [1, 2, missing, 4, 5]
-    sample_ids = TargetedEstimation.get_sample_ids(data, variables)
+    sample_ids = TargetedEstimation.sample_ids_from_variables(data, variables)
     @test sample_ids == [2]
-end
-
-@testset "Test treatment_values" begin
-    treatment_types = Dict(:T₁=> Union{Missing, Bool}, :T₂=> Int)
-    Ψ = CM(target=:Y, treatment=(T₁=1,), confounders=[:W₁])
-    newT = TargetedEstimation.treatment_values(Ψ, (:T₁,), treatment_types)
-    @test newT isa Vector{Bool}
-    @test newT == [1]
-
-    Ψ = ATE(target=:Y, treatment=(T₁=(case=1, control=0.),), confounders=[:W₁])
-    newT = TargetedEstimation.treatment_values(Ψ, (:T₁,), treatment_types)
-    @test newT isa Vector{NamedTuple{(:case, :control), Tuple{Bool, Bool}}}
-    @test newT == [(case = true, control = false)]
-
-    Ψ = ATE(target=:Y, treatment=(T₁=(case=1, control=0.), T₂=(case=true, control=0)), confounders=[:W₁])
-    newT = TargetedEstimation.treatment_values(Ψ, (:T₁, :T₂), treatment_types)
-    @test newT isa Vector{NamedTuple{(:case, :control)}}
-    @test newT == [(case = true, control = false), (case = 1, control = 0)]
-end
-
-@testset "Test read_parameters" for param_file in ("parameters.yaml", "parameters.bin")
-    param_file = joinpath("config", param_file)
-    dataset = DataFrame(T1 = [1., 0.], T2=[true, false])
-    params = TargetedEstimation.read_parameters(param_file, dataset)
-    for param in params
-        if haskey(param.treatment, :T1)
-            @test param.treatment.T1.case isa Float64
-            @test param.treatment.T1.control isa Float64
-        end
-        if haskey(param.treatment, :T2)
-            @test param.treatment.T2.case isa Bool
-            @test param.treatment.T2.control isa Bool
-        end
-    end
-end
-
-
-@testset "Test write_target_results with missing values" begin
-    filename = "test.csv"
-    parameters = [
-        CM(
-        target=:Y,
-        treatment=(T₁=1, T₂="AC"),
-        confounders=[:W₁, :W₂],
-        covariates=[:C₁]
-    )]
-    tmle_results = [TargetedEstimation.MissingTMLEResult(parameters[1])]
-    logs = ["Error X"]
-    TargetedEstimation.append_csv(filename, tmle_results, logs)
-    out = CSV.read(filename, DataFrame)
-    expected_out = ["CM", "T₁_&_T₂", "1_&_AC", missing, "Y", "W₁_&_W₂", "C₁", 
-        missing, missing, missing, missing, missing, missing,
-        missing, missing, missing, missing, missing,
-        "Error X"]
-    for (x, y) in zip(first(out), expected_out)
-        if x === missing 
-            @test x === y
-        else
-            @test x == y
-        end
-    end
-    rm(filename)
 end
 
 @testset "Test make_categorical! and make_float!" begin
@@ -176,6 +191,9 @@ end
     TargetedEstimation.make_float!(dataset, [:C₁])
     @test eltype(dataset.C₁) == Float64
 
+    # If the type is already coerced then no-operation is applied 
+    TargetedEstimation.make_float(dataset.C₁) === dataset.C₁
+    TargetedEstimation.make_categorical(dataset.T₁, true) === dataset.T₁
 end
 
 end;

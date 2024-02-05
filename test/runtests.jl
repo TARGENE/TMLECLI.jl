@@ -1,9 +1,17 @@
-include("tmle.jl")
-include("load_tmle_spec.jl")
-include("utils.jl")
-include("sieve_variance.jl")
-include("merge.jl")
-include("resampling.jl")
-include(joinpath("models", "glmnet.jl"))
-include(joinpath("models", "adaptive_interaction_transformer.jl"))
-include(joinpath("models", "biallelic_snp_encoder.jl"))
+using TargetedEstimation
+using Test
+
+TESTDIR = joinpath(pkgdir(TargetedEstimation), "test")
+
+@time begin
+    @test include(joinpath(TESTDIR, "outputs.jl"))
+    @test include(joinpath(TESTDIR, "cache_managers.jl"))
+    @test include(joinpath(TESTDIR, "utils.jl"))
+    @test include(joinpath(TESTDIR, "sieve_variance.jl"))
+    @test include(joinpath(TESTDIR, "runner.jl"))
+    @test include(joinpath(TESTDIR, "summary.jl"))
+    @test include(joinpath(TESTDIR, "resampling.jl"))
+    @test include(joinpath(TESTDIR, "models", "glmnet.jl"))
+    @test include(joinpath(TESTDIR, "models", "adaptive_interaction_transformer.jl"))
+    @test include(joinpath(TESTDIR, "models", "biallelic_snp_encoder.jl"))
+end

@@ -1,188 +1,111 @@
-
-
 #####################################################################
-#####                       CSV OUTPUT                           ####
+#####           Read TMLE Estimands Configuration                ####
 #####################################################################
 
-
-empty_tmle_output(;size=0) = DataFrame(
-    PARAMETER_TYPE=Vector{String}(undef, size), 
-    TREATMENTS=Vector{String}(undef, size), 
-    CASE=Vector{String}(undef, size), 
-    CONTROL=Vector{Union{Missing, String}}(undef, size), 
-    TARGET=Vector{String}(undef, size), 
-    CONFOUNDERS=Vector{String}(undef, size), 
-    COVARIATES=Vector{Union{Missing, String}}(undef, size), 
-    INITIAL_ESTIMATE=Vector{Union{Missing, Float64}}(undef, size), 
-    TMLE_ESTIMATE=Vector{Union{Missing, Float64}}(undef, size),
-    TMLE_STD=Vector{Union{Missing, Float64}}(undef, size),
-    TMLE_PVALUE=Vector{Union{Missing, Float64}}(undef, size),
-    TMLE_LWB=Vector{Union{Missing, Float64}}(undef, size),
-    TMLE_UPB=Vector{Union{Missing, Float64}}(undef, size),
-    ONESTEP_ESTIMATE=Vector{Union{Missing, Float64}}(undef, size),
-    ONESTEP_STD=Vector{Union{Missing, Float64}}(undef, size),
-    ONESTEP_PVALUE=Vector{Union{Missing, Float64}}(undef, size),
-    ONESTEP_LWB=Vector{Union{Missing, Float64}}(undef, size),
-    ONESTEP_UPB=Vector{Union{Missing, Float64}}(undef, size),
-    LOG=Vector{Union{Missing, String}}(undef, size)
-)
-
-covariates_string(Ψ; join_string="_&_") = 
-    length(Ψ.covariates) != 0 ? join(Ψ.covariates, join_string) : missing
-
-function param_string(param::T) where T <: TMLE.Parameter
-    str = string(T)
-    return startswith(str, "TMLE.") ? str[6:end] : str
-end
-
-case(nt::NamedTuple) = nt.case
-case(x) = x
-case_string(Ψ; join_string="_&_") = join((case(x) for x in values(Ψ.treatment)), join_string)
-
-control_string(t::Tuple{Vararg{NamedTuple}}; join_string="_&_") = 
-    join((val.control for val in t), join_string)
-
-control_string(t; join_string="_&_") = missing
-
-control_string(Ψ::TMLE.Parameter; join_string="_&_") = 
-    control_string(values(Ψ.treatment); join_string=join_string)
-
-treatment_string(Ψ; join_string="_&_") = join(keys(Ψ.treatment), join_string)
-confounders_string(Ψ; join_string="_&_") = join(Ψ.confounders, join_string)
-
-
-function statistics_from_estimator(estimator)
-    Ψ̂ = TMLE.estimate(estimator)
-    std = √(var(estimator))
-    testresult = OneSampleTTest(estimator)
-    pval = pvalue(testresult)
-    l, u = confint(testresult)
-    return (Ψ̂, std, pval, l, u)
-end
-
-function statistics_from_result(result::TMLE.TMLEResult)
-    Ψ̂₀ = result.initial
-    # TMLE stats
-    tmle_stats = statistics_from_estimator(result.tmle) 
-    # OneStep stats
-    onestep_stats = statistics_from_estimator(result.onestep)
-    return Ψ̂₀, tmle_stats, onestep_stats
-end
-
-statistics_from_result(result::MissingTMLEResult) = 
-    missing, 
-    (missing, missing, missing, missing, missing), 
-    (missing, missing, missing, missing, missing)
-
-function append_csv(filename, tmle_results, logs)
-    data = empty_tmle_output(size=size(tmle_results, 1))
-    for (i, (result, log)) in enumerate(zip(tmle_results, logs))
-        Ψ = result.parameter
-        param_type = param_string(Ψ)
-        treatments = treatment_string(Ψ)
-        case = case_string(Ψ)
-        control = control_string(Ψ)
-        confounders = confounders_string(Ψ)
-        covariates = covariates_string(Ψ)
-        Ψ̂₀, tmle_stats, onestep_stats = statistics_from_result(result)
-        data[i, :] = (
-            param_type, treatments, case, control, string(Ψ.target), confounders, covariates, 
-            Ψ̂₀, tmle_stats..., onestep_stats..., log
-        )
-    end
-    CSV.write(filename, data, append=true, header=!isfile(filename))
-end
-
-
-#####################################################################
-#####                       JLD2 OUTPUT                          ####
-#####################################################################
-
-update_jld2_output(jld2_file::Nothing, partition, tmle_results, dataset; pval_threshold=0.05) = nothing
-
-function update_jld2_output(jld2_file::String, partition, tmle_results, dataset; pval_threshold=0.05)
-    if jld2_file !== nothing
-        jldopen(jld2_file, "a+", compress=true) do io
-        # Append only with results passing the threshold
-            previous_variables = nothing
-            sample_ids_idx = nothing
-
-            for (partition_index, param_index) in enumerate(partition)
-                r = tmle_results[partition_index]
-                if (r isa TMLE.TMLEResult) && (pvalue(OneSampleZTest(r.tmle)) <= pval_threshold)
-                    current_variables = variables(r.parameter)
-                    if previous_variables != current_variables
-                        sample_ids = TargetedEstimation.get_sample_ids(dataset, current_variables)
-                        io["$param_index/sample_ids"] = sample_ids
-                        sample_ids_idx = param_index
-                    end
-                    io["$param_index/result"] = r
-                    io["$param_index/sample_ids_idx"] = sample_ids_idx
-
-                    previous_variables = current_variables
-                end
-            end
-        end
-    end
-end
-
-#####################################################################
-#####                    Read Parameters                         ####
-#####################################################################
-
-
-function treatment_values(Ψ::Union{IATE, ATE}, treatment_names, treatment_types)
+function convert_treatment_values(treatment_levels::NamedTuple{names, <:Tuple{Vararg{NamedTuple}}}, treatment_types) where names
     return [(
-        case = convert(treatment_types[tn], Ψ.treatment[tn].case), 
-        control = convert(treatment_types[tn], Ψ.treatment[tn].control)
+        case = convert(treatment_types[tn], treatment_levels[tn].case), 
+        control = convert(treatment_types[tn], treatment_levels[tn].control)
     ) 
-        for tn in treatment_names]
+        for tn in names]
 end
 
-treatment_values(Ψ::CM, treatment_names, treatment_types) = 
-    [convert(treatment_types[tn], Ψ.treatment[tn]) for tn in treatment_names]
+convert_treatment_values(treatment_levels::NamedTuple{names,}, treatment_types) where names = 
+    [convert(treatment_types[tn], treatment_levels[tn]) for tn in names]
 
-"""
-    parameters_from_yaml(param_file, dataset)
+MissingSCMError() = ArgumentError(string("A Structural Causal Model should be provided in the configuration file in order to identify causal estimands."))
 
-Reads parameters from file and ensures that the parameters treatment in the config file
-respect the treatment types in the dataset.
-"""
-function read_parameters(param_file, dataset)
-    parameters = if any(endswith(param_file, ext) for ext in ("yaml", "yml"))
-        parameters_from_yaml(param_file)
+get_identification_method(method::Nothing) = BackdoorAdjustment()
+get_identification_method(method) = method
+
+function read_estimands_config(filename)
+    if endswith(filename, ".json")
+        TMLE.read_json(filename, use_mmap=false)
+    elseif endswith(filename, ".yaml")
+        TMLE.read_yaml(filename)
+    elseif endswith(filename, ".jls")
+        return deserialize(filename)
     else
-        deserialize(param_file)
+        throw(ArgumentError(string("Can't read from ", extension, " file")))
     end
+end
 
-    treatment_types = Dict()
-    for index in eachindex(parameters)
-        Ψ = parameters[index]
-        treatment_names = keys(Ψ.treatment)
-        for tn in treatment_names
-            haskey(treatment_types, tn) ? nothing : treatment_types[tn] = eltype(dataset[!, tn])
-        end
-        new_treatment = NamedTuple{treatment_names}(
-            treatment_values(Ψ, treatment_names, treatment_types)
-        )
-        parameters[index] = typeof(Ψ)(
-            target = Ψ.target,
-            treatment = new_treatment,
-            confounders = Ψ.confounders,
-            covariates = Ψ.covariates
-        )
+function fix_treatment_values!(treatment_types::AbstractDict, Ψ::ComposedEstimand, dataset)
+    new_args = Tuple(fix_treatment_values!(treatment_types, arg, dataset) for arg in Ψ.args)
+    return ComposedEstimand(Ψ.f, new_args)
+end
+
+"""
+Uses the values found in the dataset to create a new estimand with adjusted values.
+"""
+function fix_treatment_values!(treatment_types::AbstractDict, Ψ, dataset)
+    treatment_names = keys(Ψ.treatment_values)
+    for tn in treatment_names
+        haskey(treatment_types, tn) ? nothing : treatment_types[tn] = eltype(dataset[!, tn])
     end
-    return collect(parameters)
+    new_treatment = NamedTuple{treatment_names}(
+        convert_treatment_values(Ψ.treatment_values, treatment_types)
+    )
+    return typeof(Ψ)(
+        outcome = Ψ.outcome,
+        treatment_values = new_treatment,
+        treatment_confounders = Ψ.treatment_confounders,
+        outcome_extra_covariates = Ψ.outcome_extra_covariates
+    )
+end
+
+"""
+    proofread_estimands(param_file, dataset)
+
+Reads estimands from file and ensures that the treatment values in the config file
+respects the treatment types in the dataset.
+"""
+function proofread_estimands(filename, dataset)
+    config = read_estimands_config(filename)
+    adjustment_method = get_identification_method(config.adjustment)
+    estimands = Vector{TMLE.Estimand}(undef, length(config.estimands))
+    treatment_types = Dict()
+    for (index, Ψ) in enumerate(config.estimands)
+        statisticalΨ = identify(Ψ, config.scm, method=adjustment_method)
+        estimands[index] = fix_treatment_values!(treatment_types, statisticalΨ, dataset)
+    end
+    return estimands
+end
+
+"""
+This explicitely requires that the following columns belong to the dataset:
+
+- `T`: for the treatment variable
+- `Y`: for the outcome variable
+- `^W`: for the confounding variables
+
+All ATE parameters are generated.
+"""
+function TMLE.factorialATE(dataset)
+    colnames = names(dataset)
+    "T" ∈ colnames || throw(ArgumentError("No column 'T' found in the dataset for the treatment variable."))
+    "Y" ∈ colnames || throw(ArgumentError("No column 'Y' found in the dataset for the outcome variable."))
+    confounding_variables = Tuple(name for name in colnames if occursin(r"^W", name))
+    length(confounding_variables) > 0 || throw(ArgumentError("Could not find any confounding variable (starting with 'W') in the dataset."))
+    
+    return [factorialATE(dataset, (:T, ), :Y; confounders=confounding_variables)]
+end
+
+function build_estimands_list(estimands_pattern, dataset)
+    estimands = if estimands_pattern == "factorialATE"
+        factorialATE(dataset)
+    else
+        proofread_estimands(estimands_pattern, dataset)
+    end
+    return estimands
 end
 
 #####################################################################
 #####                 ADDITIONAL METHODS                         ####
 #####################################################################
 
-function get_sample_ids(data, variables)
-    cols = [:SAMPLE_ID, variables.target, variables.treatments..., variables.confounders..., variables.covariates...]
-    return dropmissing(data[!, cols]).SAMPLE_ID
-end
+TMLE.emptyIC(nt::NamedTuple{names}, pval_threshold) where names =
+    NamedTuple{names}([TMLE.emptyIC(result, pval_threshold) for result in nt])
 
 """
     instantiate_dataset(path::String)
@@ -194,13 +117,15 @@ instantiate_dataset(path::String) =
 
 isbinary(col, dataset) = Set(unique(skipmissing(dataset[!, col]))) == Set([0, 1])
 
+make_categorical(x::CategoricalVector, ordered) = x
+make_categorical(x, ordered) = categorical(x, ordered=ordered)
 
 function make_categorical!(dataset, colname::Union{String, Symbol}; infer_ordered=false)
     ordered = false
     if infer_ordered
         ordered = eltype(dataset[!, colname]) <: Real
     end
-    dataset[!, colname] = categorical(dataset[!, colname], ordered=ordered)
+    dataset[!, colname] = make_categorical(dataset[!, colname], ordered)
 end
 
 function make_categorical!(dataset, colnames; infer_ordered=false)
@@ -209,8 +134,10 @@ function make_categorical!(dataset, colnames; infer_ordered=false)
     end
 end
 
+make_float(x) = float(x)
+
 make_float!(dataset, colname::Union{String, Symbol}) = 
-    dataset[!, colname] = float(dataset[!, colname])
+    dataset[!, colname] = make_float(dataset[!, colname])
 
 function make_float!(dataset, colnames)
     for colname in colnames
@@ -218,55 +145,45 @@ function make_float!(dataset, colnames)
     end
 end
 
-function coerce_types!(dataset, variables)
-    # Treatment columns are converted to categorical
-    make_categorical!(dataset, variables.treatments, infer_ordered=true)
-    # Confounders and Covariates are converted to Float64
-    make_float!(dataset, vcat(variables.confounders, variables.covariates))
-    # Binary targets are converted to categorical
-    make_categorical!(dataset, variables.binarytargets, infer_ordered=false)
-    # Continuous targets are converted to Float64
-    make_float!(dataset, variables.continuoustargets)
-end
-
-variables(Ψ::TMLE.Parameter) = (
-    target = Ψ.target, 
-    covariates = Ψ.covariates, 
-    confounders = Ψ.confounders,
-    treatments = keys(Ψ.treatment)
-    )
-
-function variables(parameters::Vector{<:TMLE.Parameter}, dataset)
-    treatments = Set{Symbol}()
-    confounders = Set{Symbol}()
-    covariates = Set{Symbol}()
-    binarytargets = Set{Symbol}()
-    continuoustargets = Set{Symbol}()
-    for Ψ in parameters
-        push!(treatments, keys(Ψ.treatment)...)
-        push!(confounders, Ψ.confounders...)
-        length(Ψ.covariates) > 0 && push!(covariates, Ψ.covariates...)
-        isbinary(Ψ.target, dataset) ? push!(binarytargets, Ψ.target) : push!(continuoustargets, Ψ.target)
+function coerce_types!(dataset, Ψ::ComposedEstimand)
+    for arg in Ψ.args
+        coerce_types!(dataset, arg)
     end
-    return (
-        treatments=treatments, 
-        confounders=confounders, 
-        covariates=covariates, 
-        binarytargets=binarytargets,
-        continuoustargets
-    )
 end
 
-load_tmle_spec(file::Nothing) = (
-    cache        = false,
-    weighted_fluctuation = false,
-    threshold    = 1e-8,
-    Q_continuous = LinearRegressor(),
-    Q_binary = LogisticClassifier(lambda=0.),
-    G = LogisticClassifier(lambda=0.)
-  )
+function coerce_types!(dataset, Ψ)
+    # Make Treatments categorical but preserve order
+    categorical_variables = Set(keys(Ψ.treatment_values))
+    make_categorical!(dataset, categorical_variables, infer_ordered=true)
+    # Make Confounders and extra covariates continuous
+    continuous_variables = Set(Iterators.flatten(values(Ψ.treatment_confounders)))
+    union!(continuous_variables, Ψ.outcome_extra_covariates)
+    make_float!(dataset, continuous_variables)
+    # Make outcome categorical if binary but do not infer order 
+    if TMLE.is_binary(dataset, Ψ.outcome)
+        make_categorical!(dataset, Ψ.outcome, infer_ordered=false)
+    else
+        make_float!(dataset, Ψ.outcome)
+    end 
+end
 
-function load_tmle_spec(file)
+variables(Ψ::TMLE.ComposedEstimand) = union((variables(arg) for arg in Ψ.args)...)
+
+variables(Ψ::TMLE.Estimand) = Set([
+    Ψ.outcome,
+    keys(Ψ.treatment_values)...,
+    Ψ.outcome_extra_covariates..., 
+    Iterators.flatten(values(Ψ.treatment_confounders))...
+    ])
+
+function load_tmle_spec(;file="glmnet")
+    file = endswith(file, ".jl") ? file : joinpath(
+        pkgdir(TargetedEstimation),
+        "estimators-configs",
+        string(file, ".jl"))
     include(abspath(file))
-    return merge(load_tmle_spec(nothing), tmle_spec::NamedTuple)
+    return ESTIMATORS
 end
+
+TMLE.to_dict(nt::NamedTuple{names, <:Tuple{Vararg{Union{TMLE.EICEstimate, FailedEstimate, TMLE.ComposedEstimate}}}}) where names = 
+    Dict(key => TMLE.to_dict(val) for (key, val) ∈ zip(keys(nt), nt))

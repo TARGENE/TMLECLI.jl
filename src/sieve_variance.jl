@@ -23,44 +23,6 @@ function align_ic(ic, sample_ids, grm_ids)
     return coalesce.(aligned_ic, 0)
 end
 
-sieve_dataframe() = DataFrame(
-    PARAMETER_TYPE=String[], 
-    TREATMENTS=String[], 
-    CASE=String[], 
-    CONTROL=Union{String, Missing}[], 
-    TARGET=String[], 
-    CONFOUNDERS=String[], 
-    COVARIATES=Union{String, Missing}[], 
-    TMLE_ESTIMATE=Float64[],
-)
-
-empty_sieve_output() = DataFrame(
-    PARAMETER_TYPE=String[], 
-    TREATMENTS=String[], 
-    CASE=String[], 
-    CONTROL=Union{String, Missing}[], 
-    TARGET=String[], 
-    CONFOUNDERS=String[], 
-    COVARIATES=Union{String, Missing}[], 
-    SIEVE_STD = Float64[],
-    SIEVE_PVALUE = Float64[],
-    SIEVE_LWB = Float64[],
-    SIEVE_UPB = Float64[],
-)
-
-function push_sieveless!(output, Ψ, Ψ̂)
-    target = string(Ψ.target)
-    param_type = param_string(Ψ)
-    treatments = treatment_string(Ψ)
-    case = case_string(Ψ)
-    control = control_string(Ψ)
-    confounders = confounders_string(Ψ)
-    covariates = covariates_string(Ψ)
-    push!(output, (
-        param_type, treatments, case, control, target, confounders, covariates, Ψ̂
-    ))
-end
-
 """
     bit_distances(sample_grm, nτs)
 
@@ -80,40 +42,59 @@ end
 
 default_τs(nτs;max_τ=2) = Float32[max_τ*(i-1)/(nτs-1) for i in 1:nτs]
 
+retrieve_sample_ids(sample_ids::AbstractVector, batch_results) = sample_ids
 
-function build_work_list(prefix, grm_ids)
+retrieve_sample_ids(index::Int, batch_results) = batch_results[index].SAMPLE_IDS
+
+function update_work_lists_with!(result::TMLE.ComposedEstimate, sample_ids, batch_results, grm_ids, results, influence_curves, n_obs)
+    for estimate in result.estimates
+        update_work_lists_with!(estimate, sample_ids, batch_results, grm_ids, results, influence_curves, n_obs)
+    end
+end
+
+function update_work_lists_with!(result, sample_ids, batch_results, grm_ids, results, influence_curves, n_obs)
+    if length(result.IC) > 0
+        sample_ids = string.(retrieve_sample_ids(sample_ids, batch_results))
+        push!(influence_curves, align_ic(result.IC, sample_ids, grm_ids))
+        push!(n_obs, size(sample_ids, 1))
+        push!(results, result)
+    end
+end
+
+function build_work_list(prefix, grm_ids; estimator_key=:TMLE)
     dirname_, prefix_ = splitdir(prefix)
     dirname__ = dirname_ == "" ? "." : dirname_
     hdf5files = filter(
             x -> startswith(x, prefix_) && endswith(x, ".hdf5"), 
             readdir(dirname__)
     )
-    hdf5files = [joinpath(dirname_, x) for x in hdf5files]
+    hdf5files = sort([joinpath(dirname_, x) for x in hdf5files])
 
     influence_curves = Vector{Float32}[]
     n_obs = Int[]
-    sieve_df = sieve_dataframe()
+    results = []
     for hdf5file in hdf5files
         jldopen(hdf5file) do io
-            # templateΨs = io["parameters"]
-            # results = io["results"]
             for key in keys(io)
-                result_group = io[key]
-                tmleresult = io[key]["result"]
-                Ψ = tmleresult.parameter
-                sample_ids = haskey(result_group, "sample_ids") ? result_group["sample_ids"] :
-                    io[string(result_group["sample_ids_idx"])]["sample_ids"]
-                sample_ids = string.(sample_ids)
-                Ψ̂ = TMLE.estimate(tmleresult.tmle)
-
-                push!(influence_curves, align_ic(tmleresult.tmle.IC, sample_ids, grm_ids))
-                push!(n_obs, size(sample_ids, 1))
-                push_sieveless!(sieve_df, Ψ, Ψ̂)
+                batch_results = io[key]
+                for nt_result in batch_results
+                    result = nt_result[estimator_key]
+                    result isa FailedEstimate && continue
+                    sample_ids = nt_result.SAMPLE_IDS
+                    update_work_lists_with!(
+                        result,
+                        sample_ids,
+                        batch_results, 
+                        grm_ids, results, 
+                        influence_curves, 
+                        n_obs
+                    )
+                end
             end
         end
     end
     influence_curves = length(influence_curves) > 0 ? reduce(vcat, transpose(influence_curves)) : Matrix{Float32}(undef, 0, 0)
-    return sieve_df, influence_curves, n_obs
+    return results, influence_curves, n_obs
 end
 
 
@@ -184,7 +165,6 @@ function compute_variances(influence_curves, grm, τs, n_obs)
     return variances
 end
 
-
 function grm_rows_bounds(n_samples)
     bounds = Pair{Int, Int}[]
     start_idx = 1
@@ -198,59 +178,77 @@ function grm_rows_bounds(n_samples)
     return bounds
 end
 
-
-function save_results(outprefix, output, τs, variances)
-    CSV.write(string(outprefix, ".csv"), output)
-    jldopen(string(outprefix, ".hdf5"), "w") do io
+function save_results(filename, results, τs, variances)
+    jldopen(filename, "w") do io
         io["taus"] = τs
         io["variances"] = variances
+        io["results"] = results
     end
 end
 
+corrected_stderrors(variances) =
+    sqrt.(view(maximum(variances, dims=1), 1, :))
 
-corrected_stderrors(variances, n_obs) =
-    sqrt.(view(maximum(variances, dims=1), 1, :) ./ n_obs)
+with_updated_std(estimate::T, std) where T = T(
+    estimate.estimand,
+    estimate.estimate,
+    convert(Float64, std),
+    estimate.n,
+    Float64[]
+)
 
-function update_sieve_df!(df, stds)
-    n = size(stds, 1)
-    df.SIEVE_STD = Vector{Float64}(undef, n)
-    df.SIEVE_PVALUE = Vector{Float64}(undef, n)
-    df.SIEVE_LWB = Vector{Float64}(undef, n)
-    df.SIEVE_UPB = Vector{Float64}(undef, n)
+with_updated_std(results, stds, estimator_key) =
+    [NamedTuple{(estimator_key,)}([with_updated_std(result, std)]) for (result, std) in zip(results, stds)]
 
-    for index in 1:n
-        std = stds[index]
-        estimate = df.TMLE_ESTIMATE[index]
-        testresult = OneSampleZTest(estimate, std, 1)
-        lwb, upb = confint(testresult)
-        df.SIEVE_STD[index] = std
-        df.SIEVE_PVALUE[index] = pvalue(testresult)
-        df.SIEVE_LWB[index] = lwb
-        df.SIEVE_UPB[index] = upb
-    end
 
-    select!(df, Not(:TMLE_ESTIMATE))
-end
+"""
+    sieve_variance_plateau(input_prefix;
+        out="svp.hdf5",
+        grm_prefix="GRM",
+        verbosity=0, 
+        n_estimators=10, 
+        max_tau=0.8,
+        estimator_key="TMLE"
+    )
 
-function sieve_variance_plateau(parsed_args)
-    prefix = parsed_args["prefix"]
-    outprefix = parsed_args["out-prefix"]
-    verbosity = parsed_args["verbosity"]
+Sieve Variance Plateau CLI.
 
-    τs = default_τs(parsed_args["nb-estimators"];max_τ=parsed_args["max-tau"])
-    grm, grm_ids = readGRM(parsed_args["grm-prefix"])
+# Args
+
+- `input-prefix`: Input prefix to HDF5 files generated by the tmle CLI.
+
+# Options
+
+- `-o, --out`: Output filename.
+- `-g, --grm-prefix`: Prefix to the aggregated GRM.
+- `-v, --verbosity`: Verbosity level.
+- `-n, --n_estimators`: Number of variance estimators to build for each estimate. 
+- `-m, --max_tau`: Maximum distance between any two individuals.
+- `-e, --estimator-key`: Estimator to use to proceed with sieve variance correction.
+"""
+function sieve_variance_plateau(input_prefix::String;
+    out::String="svp.hdf5",
+    grm_prefix::String="GRM",
+    verbosity::Int=0, 
+    n_estimators::Int=10, 
+    max_tau::Float64=0.8,
+    estimator_key::String="TMLE"
+    )
+    estimator_key = Symbol(estimator_key)
+    τs = default_τs(n_estimators;max_τ=max_tau)
+    grm, grm_ids = readGRM(grm_prefix)
     verbosity > 0 && @info "Preparing work list."
-    sieve_df, influence_curves, n_obs = build_work_list(prefix, grm_ids)
+    results, influence_curves, n_obs = build_work_list(input_prefix, grm_ids, estimator_key=estimator_key)
 
     if length(influence_curves) > 0
         verbosity > 0 && @info "Computing variance estimates."
         variances = compute_variances(influence_curves, grm, τs, n_obs)
-        std_errors = corrected_stderrors(variances, n_obs)
-        update_sieve_df!(sieve_df, std_errors)
+        std_errors = corrected_stderrors(variances)
+        results = with_updated_std(results, std_errors, estimator_key)
     else
         variances = Float32[]
     end
-    save_results(outprefix, sieve_df, τs, variances)
+    save_results(out, results, τs, variances)
 
     verbosity > 0 && @info "Done."
     return 0

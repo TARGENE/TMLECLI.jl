@@ -76,7 +76,6 @@ end
     @test stratification_col == ["_0", "_0", "_1", "_0", "_1", "_0", "_missing"]
 end
 
-
 @testset "Test JointStratifiedCV" begin
     X = (
         X1 = [0, 0, 1, 0, 1, 0, missing],
@@ -105,6 +104,6 @@ end
     @test length(ttp) == 5
 end
 
-true
-
 end
+
+true

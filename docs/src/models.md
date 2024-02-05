@@ -11,11 +11,10 @@ Because [TMLE.jl](https://targene.github.io/TMLE.jl/stable/) is based on top of 
 - [EvoTrees.jl](https://evovest.github.io/EvoTrees.jl/stable/): A pure Julia implementation of histogram based gradient boosting trees (subset of XGBoost)
 - [GLMNet](https://github.com/JuliaStats/GLMNet.jl): A Julia wrapper of the [glmnet](https://glmnet.stanford.edu/articles/glmnet.html) package. See the [GLMNet](@ref) section.
 - [MLJModels](https://github.com/JuliaAI/MLJModels.jl): General utilities such as the `OneHotEncoder` or `InteractionTransformer`.
-- [HighlyAdaptiveLasso](https://github.com/olivierlabayle/HighlyAdaptiveLasso.jl): A Julia wrapper of the [HAL](https://tlverse.org/hal9001/) algorithm, experimental.
 
 Further support for more packages can be added on request, please fill an [issue](https://github.com/TARGENE/TargetedEstimation.jl/issues).
 
-Also, because the [Estimator File](@ref) is a pure Julia file, it is possible to use it in order to install additional package that can be used to define additional models.
+Also, because the estimator file used by the TMLE CLI is a pure Julia file, it is possible to use it in order to install additional package that can be used to define additional models.
 
 Finally, we also provide some additional models described in [Additional models provided by TargetedEstimation.jl](@ref).
 

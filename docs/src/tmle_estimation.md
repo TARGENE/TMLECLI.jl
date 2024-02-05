@@ -4,96 +4,19 @@ This is the main script in this package, it provides a command line interface fo
 
 ## Usage
 
-Provided you have the package and all dependencies installed or in the provided docker container, you can run TMLE via the following command:
-
 ```bash
-julia scripts/tmle.jl DATAFILE PARAMFILE OUTFILE
-        --estimator-file=docs/estimators/glmnet.jl
-        --hdf5-out=output.hdf5
-        --pval-threshold=0.05
-        --chunksize=100
-        --verbosity=1
+tmle tmle --help
 ```
 
-where:
-
-- `DATAFILE`: A CSV (.csv) or Arrow (.arrow) file containing the tabular data. The format will be infered from the extension.
-- `PARAMFILE`: A serialized [YAML](https://targene.github.io/TMLE.jl/stable/user_guide/#Reading-Parameters-from-YAML-files) or [bin](https://docs.julialang.org/en/v1/stdlib/Serialization/) file containing the estimands to be estimated. The YAML file can be written by hand or programmatically using the [TMLE.parameters_to_yaml](https://targene.github.io/TMLE.jl/stable/api/#TMLE.parameters_to_yaml-Tuple{Any,%20Any}) function.
-- `OUTFILE`: The output .csv file (see [Output file](@ref))
-- `--estimator-file`: A Julia file describing the TMLE specifications (see [Estimator File](@ref)).
-- `--hdf5-out`: if provided, a path to a file to save the influence curves.
-- `--pval-threshold`: Only "significant" (< this threshold) estimates will actually have their influence curves stored in the previous file.
-- `--chunksize`: To manage memory, the results are appended to the output files in batches the size of which can be controlled via this option.
-- `--verbosity`: The verbosity level.
-
-## Output file
-
-The output file is a plain CSV file containing one line per estimand in the input `PARAMFILE`. The file contains the following columns:
-
-- `PARAMETER_TYPE`: The estimand type (e.g. "ATE", "IATE", ...).
-- `TREATMENTS`: A "_&_" separated string containing all treatment variables associated with the estimand.
-- `CASE`: A "_&_" separated string containing the treatment variables' case values in the same order as `TREATMENTS`.
-- `CONTROL`: A "_&_" separated string containing the treatment variables' control values in the same order as `TREATMENTS`.
-- `TARGET`: The outcome variable.
-- `CONFOUNDERS`: A "_&_" separated string containing the confounding variables.
-- `COVARIATES`: A "_&_" separated string containing the extra covariates used to estimate the outcome's mean.
-- `INITIAL_ESTIMATE`: The initial estimate before the targeting step.
-- `TMLE_ESTIMATE`: The targeted estimate.
-- `TMLE_STD`: The standard deviation associated with the targeted estimate.
-- `TMLE_PVALUE`: The p-value associated with the targeted estimate.
-- `TMLE_LWB`: The 95% confidence interval lower bound associated with the targeted estimate.
-- `TMLE_UPB`: The 95% confidence interval upper bound associated with the targeted estimate.
-- `ONESTEP_ESTIMATE`: The one step estimate.
-- `ONESTEP_STD`: The standard deviation associated with the one step estimate.
-- `ONESTEP_PVALUE`: The p-value associated with the one step estimate.
-- `ONESTEP_LWB`: The 95% confidence interval lower bound associated with the one step estimate.
-- `ONESTEP_UPB`: The 95% confidence interval upper bound associated with the one step estimate.
-- `LOG`: A log message if estimation failed.
-
-## Estimator File
-
-TMLE is an adaptive procedure that depends on the specification of learning algorithms for the estimation of the nuisance parameters (see [TMLE.jl](https://targene.github.io/TMLE.jl/stable/) for a description of the assumed setting). In our case, there are two nuisance parameters for which we need to specify learning algorithms:
-
-- `E[Y|T, W, C]`: The mean outcome given the treatment, confounders and extra covariates. It is commonly denoted by `Q` in the Targeted Learning litterature.
-- `p(T|W)`: The propensity score. It is commonly denoted by `G` in the Targeted Learning litterature.
-
-### Description of the file
-
-In order to provide maximum flexibility as to the choice of learning algorithms, the estimator file is a plain [Julia](https://julialang.org/) file. This file is optional and omitting it defaults to using generalized linear models. If provided, it must define a [NamedTuple](https://docs.julialang.org/en/v1/base/base/#Core.NamedTuple) called `tmle_spec` containing any of the following fields as follows (default configuration):
-
-```julia
-
-tmle_spec = (
-  Q_continuous = LinearRegressor(),
-  Q_binary     = LogisticClassifier(lambda=0.),
-  G            = LogisticClassifier(lambda=0.),
-  threshold    = 1e-8,
-  cache        = false,
-  weighted_fluctuation = false
-)
+```@docs
+tmle
 ```
 
-where:
+## Note on TMLE Outputs
 
-- `Q_continuous`: is a MLJ model used for the estimation of `E[Y|T, W, C]` when the outcome `Y` is continuous.
-- `Q_binary`: is a MLJ model used for the estimation of `E[Y|T, W, C]` when the outcome `Y` is binary.
-- `G`: is a MLJ model used for the estimation of `p(T|W)`.
-- `threshold`: is the minimum value the propensity score `G` is allowed to take.
-- `cache`: controls caching of data by [MLJ machines](https://alan-turing-institute.github.io/MLJ.jl/dev/machines/). Setting it to `true` may result in faster runtime but higher memory usage.
-- `weighted_fluctuation`: controls whether the fluctuation for `Q` is a weighted glm or not. If some of the treatment values are rare it may lead to more robust estimation.
+We can output results in three different formats: HDF5, JSON and JLS. By default no output is written, so you need to specify at least one. An output can be generated by specifying an output filename for it. For instance `--outputs.json.filename=output.json` will output a JSON file. Note that you can generate multiple formats at once, e.g. `--outputs.json.filename=output.json --outputs.hdf5.filename=output.hdf5` will output both JSON and HDF5 result files. Another important output option is the `pval_threshold`. Each estimation result is accompanied by an influence curve vector and by default these vectors are erased before saving the results because they typically take up too much space and are not usually needed. In some occasions you might want to keep them and this can be achieved by specifiying the output's `pval_threhsold`. For instance `--outputs.hdf5.pval_threshold=1.` will keep all such vectors because all p-values lie in between 0 and 1.
 
-Typically, `Q_continuous`, `Q_binary` and `G` will be adjusted and other fields can be left unspecified.
-
-### Ready to use estimator files
-
-We recognize not everyone will be familiar with [Julia](https://julialang.org/). We thus provide a set of ready to use estimator files that can be simplified or extended as needed:
-
-- Super Learning: [with](./estimators/superlearning-with-interactions-for-Q.jl) and [without](./estimators/superlearning.jl) interaction terms in the GLM models for Q.
-- Super Learning for G and GLMNet for Q: [here](./estimators/G-superlearning-Q-glmnet.jl).
-- Super Learning for G and GLM for Q: [here](./estimators/G-superlearning-Q-glm.jl).
-- GLMNet: [with](./estimators/glmnet-with-interactions-for-Q.jl) and [without](./estimators/glmnet.jl) interaction terms in the GLM models for Q.
-- GLM: [with](./estimators/glm-with-interactions-for-Q.jl) and [without](./estimators/glm.jl) interaction terms in the GLM models for Q.
-- XGBoost: [with tuning](./estimators/tuned-xgboost.jl).
+In order to run sieve variance plateau correction after a TMLE run you need to save the results in HDF5 format with influence curve vectors. Furthermore, you will need to save the sample-ids associated with each result. A complete option set for this could be: `--outputs.hdf5.filename=output.hdf5 --outputs.hdf5.pval_threshold=0.05 --sample_ids=true`. In this case, only those results with an individual p-value of less than ``0.05`` will keep track of their influence curves and be considered for sieve variance correction.
 
 ## Runtime
 
@@ -113,8 +36,8 @@ In what follows, `Y` is an outcome of interest, `W` a set of confounding variabl
 
 For all the following experiments:
 
-- The Julia script can be found at `experiments/runtime.jl`.
-- The various estimators used below are further described in [Ready to use estimator files](@ref).
+- The Julia script can be found at [experiments/runtime.jl](https://github.com/TARGENE/TargetedEstimation.jl/tree/main/experiments/runtime.jl).
+- The various estimators used below are further described in the[estimators-configs](https://github.com/TARGENE/TargetedEstimation.jl/tree/main/estimators-configs) folder.
 
 ### Multiple treatment contrasts
 
@@ -138,12 +61,12 @@ In a PheWAS, one is interested in the effect of a genetic variation across many 
 
 With this setup in mind, the computational complexity is mostly driven by the specification of the learning algorithms for `Q`, which will have to be fitted for each outcome. For 10 outcomes, we estimate the 3 Average Treatment Effects corresponding to the 3 possible treatment contrasts defined in the previous section. There are thus two levels of reuse of `G` and `Q` in this study design. In the table below are presented some runtimes for various specifications of `G` and `Q` using a single cpu. The "Unit runtime" is the average runtime across all estimands and can roughly be extrapolated to bigger studies.
 
-| Estimator file | Unit runtime (s) | Extrapolated runtime to 1000 outcomes |
+| Estimator | Unit runtime (s) | Extrapolated runtime to 1000 outcomes |
 | --- | :---: | :---: |
-| `docs/src/estimators/glm.jl` | 4.65 | ≈ 1h20 |
-| `docs/src/estimators/glmnet.jl` | 7.19 | ≈ 2h |
-| `docs/src/estimators/G-superlearning-Q-glmnet.jl` | 50.05| ≈ 13h45 |
-| `docs/src/estimators/superlearning.jl` | 168.98 | ≈ 46h |
+| `glm.` | 4.65 | ≈ 1h20 |
+| `glmnet` | 7.19 | ≈ 2h |
+| `G-superlearning-Q-glmnet` | 50.05| ≈ 13h45 |
+| `superlearning` | 168.98 | ≈ 46h |
 
 Depending on the exact setup, this means one can probably afford to use Super Learning for at least the estimation of `G` (and potentially also for `Q` for a single PheWAS). This turns out to be a great news because TMLE is a double robust estimator. As a reminder, it means that only one of the estimators for `G` or `Q` needs to converge sufficiently fast to the ground truth to guarantee that our estimates will be asymptotically unbiased.
 
@@ -168,9 +91,9 @@ Again, we estimate the 3 Average Treatment Effects corresponding to the 3 possib
 
 | Estimator file | Continuous outcome unit runtime (s) | Binary outcome unit runtime (s) | Projected Time on HPC (200 folds //) |
 | --- | :---: | :---: | :---: |
-| `docs/src/estimators/glm.jl` | 5.64 | 6.14 | ≈ 6h30 |
-| `docs/src/estimators/glmnet.jl` | 17.46 | 22.24 | ≈ 22h |
-| `docs/src/estimators/G-superlearning-Q-glmnet.jl` | 430.54 | 438.67 | ≈ 20 days |
-| `docs/src/estimators/superlearning.jl` | 511.26 | 567.72 | ≈ 24 days |
+| `glm` | 5.64 | 6.14 | ≈ 6h30 |
+| `glmnet` | 17.46 | 22.24 | ≈ 22h |
+| `G-superlearning-Q-glmnet` | 430.54 | 438.67 | ≈ 20 days |
+| `superlearning` | 511.26 | 567.72 | ≈ 24 days |
 
 We can see that modern high performance computing platforms definitely enable this study design when using GLMs or GLMNets. It is unlikely however, that you will be able to use Super Learning for any of `P(V|W)` or `E[Y|V, W]` if you don't have privileged access to such platform. While the double robustness guarantees will generally not be satisfied, our estimate will still be targeted, which means that its bias will be reduced compared to classic inference using a parametric model.

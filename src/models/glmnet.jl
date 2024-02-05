@@ -73,6 +73,10 @@ end
 function MLJBase.fit(model::GLMNetModel, verbosity::Int, X, y)
     folds = getfolds(model.resampling, X, y)
     res = glmnetcv(MLJBase.matrix(X), y; folds=folds, model.params...)
+    # This is currently not caught by the GLMNet package
+    if length(res.meanloss) == 0
+        throw(error("glmnetcv's mean loss is empty. Probably meaning convergence failed at the first lambda for some fold."))
+    end
     return make_fitresult(model, res, y), nothing, nothing
 end
 
