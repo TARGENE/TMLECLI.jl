@@ -34,12 +34,12 @@ jobs:
         with:
           files: lcov.info
       - uses: julia-actions/julia-processcoverage@v1
-      - name: Build App
-        run: julia --project --startup-file=no deps/build_app.jl
-      - uses: actions/upload-artifact@v4
-        with:
-          name: tmle-${{ matrix.os }}-${{ matrix.arch }}
-          path: tmle
+      # - name: Build App
+      #   run: julia --project --startup-file=no deps/build_app.jl
+      # - uses: actions/upload-artifact@v4
+      #   with:
+      #     name: tmle-${{ matrix.os }}-${{ matrix.arch }}
+      #     path: tmle
   docs:
     name: Documentation
     runs-on: ubuntu-latest
