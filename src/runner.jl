@@ -1,3 +1,15 @@
+instantiate_estimators(file::AbstractString) = load_tmle_spec(;file=file)
+instantiate_estimators(estimators) = estimators
+
+function load_tmle_spec(;file="glmnet")
+    file = endswith(file, ".jl") ? file : joinpath(
+        pkgdir(TargetedEstimation),
+        "estimators-configs",
+        string(file, ".jl"))
+    include(abspath(file))
+    return ESTIMATORS
+end
+
 mutable struct Runner
     estimators::NamedTuple
     estimands::Vector{TMLE.Estimand}
@@ -18,7 +30,7 @@ mutable struct Runner
         sort_estimands=false
         )    
         # Retrieve TMLE specifications
-        estimators = TargetedEstimation.load_tmle_spec(file=estimators)
+        estimators = instantiate_estimators(estimators)
         # Load dataset
         dataset = TargetedEstimation.instantiate_dataset(dataset)
         # Read parameter files

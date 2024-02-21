@@ -5,7 +5,6 @@ using TargetedEstimation
 using TMLE
 using DataFrames
 using CSV
-using MLJBase
 using MLJLinearModels
 using CategoricalArrays
 
@@ -14,33 +13,10 @@ check_type(treatment_value, ::Type{T}) where T = @test treatment_value isa T
 check_type(treatment_values::NamedTuple, ::Type{T}) where T = 
     @test treatment_values.case isa T && treatment_values.control isa T 
 
-PKGDIR = pkgdir(TargetedEstimation)
-TESTDIR = joinpath(PKGDIR, "test")
+TESTDIR = joinpath(pkgdir(TargetedEstimation), "test")
 
 include(joinpath(TESTDIR, "testutils.jl"))
 
-@testset "Test load_tmle_spec" begin
-    # Default
-    noarg_estimators = TargetedEstimation.load_tmle_spec()
-    default_models = noarg_estimators.TMLE.models
-    @test noarg_estimators.TMLE isa TMLEE
-    @test default_models.Q_binary_default.glm_net_classifier isa GLMNetClassifier
-    @test default_models.Q_continuous_default.glm_net_regressor isa GLMNetRegressor
-    @test default_models.G_default isa GLMNetClassifier
-    # From template name
-    for file in readdir(joinpath(PKGDIR, "estimators-configs"))
-        configname = replace(file, ".jl" => "")
-        estimators = TargetedEstimation.load_tmle_spec(;file=configname)
-        @test estimators.TMLE isa TMLEE
-    end
-    # From explicit file
-    estimators = TargetedEstimation.load_tmle_spec(file=joinpath(TESTDIR, "config", "tmle_ose_config.jl"))
-    @test estimators.TMLE isa TMLE.TMLEE
-    @test estimators.OSE isa TMLE.OSE
-    @test estimators.TMLE.weighted === true
-    @test estimators.TMLE.models.G_default === estimators.OSE.models.G_default
-    @test estimators.TMLE.models.G_default isa MLJBase.ProbabilisticStack
-end
 @testset "Test convert_treatment_values" begin
     treatment_types = Dict(:T₁=> Union{Missing, Bool}, :T₂=> Int)
     newT = TargetedEstimation.convert_treatment_values((T₁=1,), treatment_types)

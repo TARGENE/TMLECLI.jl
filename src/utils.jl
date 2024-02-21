@@ -176,14 +176,5 @@ variables(Ψ::TMLE.Estimand) = Set([
     Iterators.flatten(values(Ψ.treatment_confounders))...
     ])
 
-function load_tmle_spec(;file="glmnet")
-    file = endswith(file, ".jl") ? file : joinpath(
-        pkgdir(TargetedEstimation),
-        "estimators-configs",
-        string(file, ".jl"))
-    include(abspath(file))
-    return ESTIMATORS
-end
-
 TMLE.to_dict(nt::NamedTuple{names, <:Tuple{Vararg{Union{TMLE.EICEstimate, FailedEstimate, TMLE.ComposedEstimate}}}}) where names = 
     Dict(key => TMLE.to_dict(val) for (key, val) ∈ zip(keys(nt), nt))

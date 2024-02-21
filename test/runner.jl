@@ -8,12 +8,32 @@ using CSV
 using Serialization
 using YAML
 using JSON
+using MLJBase
 
-TESTDIR = joinpath(pkgdir(TargetedEstimation), "test")
-
+PKGDIR = pkgdir(TargetedEstimation)
+TESTDIR = joinpath(PKGDIR, "test")
 CONFIGDIR = joinpath(TESTDIR, "config")
 
 include(joinpath(TESTDIR, "testutils.jl"))
+
+@testset "Test instantiate_estimators" begin
+    # From template name
+    for file in readdir(joinpath(PKGDIR, "estimators-configs"))
+        configname = replace(file, ".jl" => "")
+        estimators = TargetedEstimation.instantiate_estimators(configname)
+        @test estimators.TMLE isa TMLEE
+    end
+    # From explicit file
+    estimators = TargetedEstimation.instantiate_estimators(joinpath(TESTDIR, "config", "tmle_ose_config.jl"))
+    @test estimators.TMLE isa TMLE.TMLEE
+    @test estimators.OSE isa TMLE.OSE
+    @test estimators.TMLE.weighted === true
+    @test estimators.TMLE.models.G_default === estimators.OSE.models.G_default
+    @test estimators.TMLE.models.G_default isa MLJBase.ProbabilisticStack
+    # From already constructed estimators
+    estimators_new = TargetedEstimation.instantiate_estimators(estimators)
+    @test estimators_new === estimators
+end
 
 @testset "Integration Test" begin
     build_dataset(;n=1000, format="csv")
