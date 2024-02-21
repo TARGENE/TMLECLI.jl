@@ -1,3 +1,15 @@
+instantiate_estimators(file::AbstractString) = load_tmle_spec(;file=file)
+instantiate_estimators(estimators) = estimators
+
+function load_tmle_spec(;file="glmnet")
+    file = endswith(file, ".jl") ? file : joinpath(
+        pkgdir(TargetedEstimation),
+        "estimators-configs",
+        string(file, ".jl"))
+    include(abspath(file))
+    return ESTIMATORS
+end
+
 mutable struct Runner
     estimators::NamedTuple
     estimands::Vector{TMLE.Estimand}
@@ -8,8 +20,8 @@ mutable struct Runner
     verbosity::Int
     failed_nuisance::Set
     function Runner(dataset; 
-        estimands="factorialATE", 
-        estimators="glmnet",
+        estimands_config="factorialATE", 
+        estimators_spec="glmnet",
         verbosity=0, 
         outputs=Outputs(), 
         chunksize=100,
@@ -18,11 +30,11 @@ mutable struct Runner
         sort_estimands=false
         )    
         # Retrieve TMLE specifications
-        estimators = TargetedEstimation.load_tmle_spec(file=estimators)
+        estimators = instantiate_estimators(estimators_spec)
         # Load dataset
-        dataset = TargetedEstimation.instantiate_dataset(dataset)
+        dataset = instantiate_dataset(dataset)
         # Read parameter files
-        estimands = TargetedEstimation.build_estimands_list(estimands, dataset)
+        estimands = instantiate_estimands(estimands_config, dataset)
         if sort_estimands
             estimands = groups_ordering(estimands; 
                 brute_force=true, 
@@ -161,8 +173,8 @@ function tmle(dataset::String;
     sort_estimands::Bool=false
     )
     runner = Runner(dataset;
-        estimands=estimands, 
-        estimators=estimators, 
+        estimands_config=estimands, 
+        estimators_spec=estimators, 
         verbosity=verbosity, 
         outputs=outputs, 
         chunksize=chunksize,

@@ -8,27 +8,47 @@ using CSV
 using Serialization
 using YAML
 using JSON
+using MLJBase
 
-TESTDIR = joinpath(pkgdir(TargetedEstimation), "test")
-
+PKGDIR = pkgdir(TargetedEstimation)
+TESTDIR = joinpath(PKGDIR, "test")
 CONFIGDIR = joinpath(TESTDIR, "config")
 
 include(joinpath(TESTDIR, "testutils.jl"))
 
+@testset "Test instantiate_estimators" begin
+    # From template name
+    for file in readdir(joinpath(PKGDIR, "estimators-configs"))
+        configname = replace(file, ".jl" => "")
+        estimators = TargetedEstimation.instantiate_estimators(configname)
+        @test estimators.TMLE isa TMLEE
+    end
+    # From explicit file
+    estimators = TargetedEstimation.instantiate_estimators(joinpath(TESTDIR, "config", "tmle_ose_config.jl"))
+    @test estimators.TMLE isa TMLE.TMLEE
+    @test estimators.OSE isa TMLE.OSE
+    @test estimators.TMLE.weighted === true
+    @test estimators.TMLE.models.G_default === estimators.OSE.models.G_default
+    @test estimators.TMLE.models.G_default isa MLJBase.ProbabilisticStack
+    # From already constructed estimators
+    estimators_new = TargetedEstimation.instantiate_estimators(estimators)
+    @test estimators_new === estimators
+end
+
 @testset "Integration Test" begin
-    build_dataset(;n=1000, format="csv")
+    dataset = build_dataset(;n=1000)
     tmpdir = mktempdir(cleanup=true)
-    estimands_filename = joinpath(tmpdir, "configuration.yaml")
-    TMLE.write_json(estimands_filename, statistical_estimands_only_config())
+    config = statistical_estimands_only_config()
     outputs = TargetedEstimation.Outputs(
         json=TargetedEstimation.JSONOutput(filename="output.json"),
         hdf5=TargetedEstimation.HDF5Output(filename="output.hdf5", pval_threshold=1., sample_ids=true),
         jls=TargetedEstimation.JLSOutput(filename="output.jls", pval_threshold=1e-5),
     )
+    estimators = TargetedEstimation.instantiate_estimators(joinpath(CONFIGDIR, "tmle_ose_config.jl"))
     runner = Runner(
-        "data.csv";
-        estimands=estimands_filename, 
-        estimators=joinpath(CONFIGDIR, "tmle_ose_config.jl"),
+        dataset;
+        estimands_config=config, 
+        estimators_spec=estimators,
         outputs=outputs, 
         cache_strategy="release-unusable",
     )
@@ -100,7 +120,6 @@ include(joinpath(TESTDIR, "testutils.jl"))
     close(hdf5file)
 
     # Clean
-    rm("data.csv")
     rm(outputs.jls.filename)
     rm(outputs.json.filename)
     rm(outputs.hdf5.filename)
@@ -119,7 +138,7 @@ end
     # Run tests over CSV and Arrow data formats
     for format in ("csv", "arrow")
         datafile = string("data.", format)
-        build_dataset(;n=1000, format=format)
+        write_dataset(;n=1000, format=format)
         for chunksize in (4, 10)
             tmle(datafile; 
                 estimands=estimands_filename, 
@@ -154,7 +173,7 @@ end
 end
 
 @testset "Test tmle: lower p-value threshold only JSON output" begin
-    build_dataset(;n=1000, format="csv")
+    write_dataset(;n=1000, format="csv")
     tmpdir = mktempdir(cleanup=true)
     estimandsfile = joinpath(tmpdir, "configuration.json")
     configuration = statistical_estimands_only_config()
@@ -186,7 +205,7 @@ end
 end
 
 @testset "Test tmle: Failing estimands" begin
-    build_dataset(;n=1000, format="csv")
+    write_dataset(;n=1000, format="csv")
     outputs = TargetedEstimation.Outputs(
         json=TargetedEstimation.JSONOutput(filename="output.json"),
         hdf5=TargetedEstimation.HDF5Output(filename="output.hdf5")
@@ -199,8 +218,8 @@ end
     datafile = "data.csv"
 
     runner = Runner(datafile; 
-        estimands=estimandsfile, 
-        estimators=estimatorfile,
+        estimands_config=estimandsfile, 
+        estimators_spec=estimatorfile,
         outputs=outputs
     );
     runner()
@@ -241,7 +260,7 @@ end
 end
 
 @testset "Test tmle: Causal and Composed Estimands" begin
-    build_dataset(;n=1000, format="csv")
+    write_dataset(;n=1000, format="csv")
     tmpdir = mktempdir(cleanup=true)
     estimandsfile = joinpath(tmpdir, "configuration.jls")
 
