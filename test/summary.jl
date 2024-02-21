@@ -14,7 +14,7 @@ CONFIGDIR = joinpath(TESTDIR, "config")
 include(joinpath(TESTDIR, "testutils.jl"))
 
 @testset "Test make_summary" begin
-    build_dataset()
+    write_dataset()
     datafile = "data.csv"
     estimatorfile = joinpath(CONFIGDIR, "ose_config.jl")
     tmpdir = mktempdir(cleanup=true)

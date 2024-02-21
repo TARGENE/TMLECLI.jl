@@ -35,13 +35,16 @@ function fix_treatment_values!(treatment_types::AbstractDict, Ψ::ComposedEstima
     return ComposedEstimand(Ψ.f, new_args)
 end
 
+wrapped_type(x) = x
+wrapped_type(x::Type{<:CategoricalValue{T,}}) where T = T
+
 """
 Uses the values found in the dataset to create a new estimand with adjusted values.
 """
 function fix_treatment_values!(treatment_types::AbstractDict, Ψ, dataset)
     treatment_names = keys(Ψ.treatment_values)
     for tn in treatment_names
-        haskey(treatment_types, tn) ? nothing : treatment_types[tn] = eltype(dataset[!, tn])
+        haskey(treatment_types, tn) ? nothing : treatment_types[tn] = wrapped_type(eltype(dataset[!, tn]))
     end
     new_treatment = NamedTuple{treatment_names}(
         convert_treatment_values(Ψ.treatment_values, treatment_types)
@@ -55,13 +58,11 @@ function fix_treatment_values!(treatment_types::AbstractDict, Ψ, dataset)
 end
 
 """
-    proofread_estimands(param_file, dataset)
+    proofread_estimands(config, dataset)
 
-Reads estimands from file and ensures that the treatment values in the config file
-respects the treatment types in the dataset.
+Ensures that the treatment values in the config respect the treatment types in the dataset.
 """
-function proofread_estimands(filename, dataset)
-    config = read_estimands_config(filename)
+function proofread_estimands(config, dataset)
     adjustment_method = get_identification_method(config.adjustment)
     estimands = Vector{TMLE.Estimand}(undef, length(config.estimands))
     treatment_types = Dict()
@@ -91,11 +92,15 @@ function TMLE.factorialATE(dataset)
     return [factorialATE(dataset, (:T, ), :Y; confounders=confounding_variables)]
 end
 
-function build_estimands_list(estimands_pattern, dataset)
+instantiate_config(file::AbstractString) = read_estimands_config(file)
+instantiate_config(config) = config
+
+function instantiate_estimands(estimands_pattern, dataset)
     estimands = if estimands_pattern == "factorialATE"
         factorialATE(dataset)
     else
-        proofread_estimands(estimands_pattern, dataset)
+        config = instantiate_config(estimands_pattern)
+        proofread_estimands(config, dataset)
     end
     return estimands
 end
@@ -112,8 +117,10 @@ TMLE.emptyIC(nt::NamedTuple{names}, pval_threshold) where names =
 
 Returns a DataFrame wrapper around a dataset, either in CSV format.
 """
-instantiate_dataset(path::String) =
+instantiate_dataset(path::AbstractString) =
     endswith(path, ".csv") ? CSV.read(path, DataFrame, ntasks=1) : DataFrame(Arrow.Table(path))
+
+instantiate_dataset(dataset) = dataset
 
 isbinary(col, dataset) = Set(unique(skipmissing(dataset[!, col]))) == Set([0, 1])
 

@@ -126,5 +126,10 @@ function build_dataset(;n=1000, format="csv")
     dataset[!, "BINARY/OUTCOME"] = categorical(y₂)
     dataset[!, "EXTREME_BINARY"] = categorical(vcat(0, ones(n-1)))
 
+    return dataset
+end
+
+function write_dataset(;n=1000, format="csv")
+    dataset = build_dataset(;n=1000)
     format == "csv" ? CSV.write("data.csv", dataset) : Arrow.write("data.arrow", dataset)
 end

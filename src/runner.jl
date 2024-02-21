@@ -32,9 +32,9 @@ mutable struct Runner
         # Retrieve TMLE specifications
         estimators = instantiate_estimators(estimators)
         # Load dataset
-        dataset = TargetedEstimation.instantiate_dataset(dataset)
+        dataset = instantiate_dataset(dataset)
         # Read parameter files
-        estimands = TargetedEstimation.build_estimands_list(estimands, dataset)
+        estimands = instantiate_estimands(estimands, dataset)
         if sort_estimands
             estimands = groups_ordering(estimands; 
                 brute_force=true, 

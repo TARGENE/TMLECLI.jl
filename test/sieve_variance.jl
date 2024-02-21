@@ -15,7 +15,7 @@ TESTDIR = joinpath(pkgdir(TargetedEstimation), "test")
 
 include(joinpath(TESTDIR, "testutils.jl"))
 
-function build_dataset(sample_ids)
+function write_sieve_dataset(sample_ids)
     rng = StableRNG(123)
     n = size(sample_ids, 1)
     # Confounders
@@ -52,7 +52,7 @@ function build_tmle_output_file(sample_ids, estimandfile, outprefix;
     pval=1., 
     estimatorfile=joinpath(TESTDIR, "config", "tmle_ose_config.jl")
     )
-    build_dataset(sample_ids)
+    write_sieve_dataset(sample_ids)
     outputs = TargetedEstimation.Outputs(
         hdf5=TargetedEstimation.HDF5Output(filename=string(outprefix, ".hdf5"), pval_threshold=pval, sample_ids=true),
     )

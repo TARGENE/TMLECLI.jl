@@ -32,13 +32,14 @@ include(joinpath(TESTDIR, "testutils.jl"))
     @test newT == [(case = true, control = false), (case = 1, control = 0)]
 end
 
-@testset "Test proofread_estimands" for extension in ("yaml", "json")
+@testset "Test instantiate_config" for extension in ("yaml", "json")
     # Write estimands file
     filename = "statistical_estimands.$extension"
     eval(Meta.parse("TMLE.write_$extension"))(filename, statistical_estimands_only_config())
 
     dataset = DataFrame(T1 = [1., 0.], T2=[true, false])
-    estimands = TargetedEstimation.proofread_estimands(filename, dataset)
+    config = TargetedEstimation.instantiate_config(filename)
+    estimands = TargetedEstimation.proofread_estimands(config, dataset)
     for estimand in estimands
         if haskey(estimand.treatment_values, :T1)
             check_type(estimand.treatment_values.T1, Float64)
@@ -53,13 +54,13 @@ end
 
 @testset "Test factorialATE" begin
     dataset = DataFrame(C=[1, 2, 3, 4],)
-    @test_throws ArgumentError TargetedEstimation.build_estimands_list("factorialATE", dataset)
+    @test_throws ArgumentError TargetedEstimation.instantiate_estimands("factorialATE", dataset)
     dataset.T = [0, 1, missing, 2]
-    @test_throws ArgumentError TargetedEstimation.build_estimands_list("factorialATE", dataset)
+    @test_throws ArgumentError TargetedEstimation.instantiate_estimands("factorialATE", dataset)
     dataset.Y = [0, 1, 2, 2]
     dataset.W1 = [1, 1, 1, 1]
     dataset.W_2 = [1, 1, 1, 1]
-    composedATE = TargetedEstimation.build_estimands_list("factorialATE", dataset)[1]
+    composedATE = TargetedEstimation.instantiate_estimands("factorialATE", dataset)[1]
     @test composedATE.args == (
         TMLE.StatisticalATE(:Y, (T = (case = 1, control = 0),), (T = (:W1, :W_2),), ()),
         TMLE.StatisticalATE(:Y, (T = (case = 2, control = 1),), (T = (:W1, :W_2),), ())
