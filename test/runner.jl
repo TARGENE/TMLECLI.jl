@@ -47,8 +47,8 @@ end
     estimators = TargetedEstimation.instantiate_estimators(joinpath(CONFIGDIR, "tmle_ose_config.jl"))
     runner = Runner(
         dataset;
-        estimands=config, 
-        estimators=estimators,
+        estimands_config=config, 
+        estimators_spec=estimators,
         outputs=outputs, 
         cache_strategy="release-unusable",
     )
@@ -218,8 +218,8 @@ end
     datafile = "data.csv"
 
     runner = Runner(datafile; 
-        estimands=estimandsfile, 
-        estimators=estimatorfile,
+        estimands_config=estimandsfile, 
+        estimators_spec=estimatorfile,
         outputs=outputs
     );
     runner()

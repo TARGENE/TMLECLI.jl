@@ -20,8 +20,8 @@ mutable struct Runner
     verbosity::Int
     failed_nuisance::Set
     function Runner(dataset; 
-        estimands="factorialATE", 
-        estimators="glmnet",
+        estimands_config="factorialATE", 
+        estimators_spec="glmnet",
         verbosity=0, 
         outputs=Outputs(), 
         chunksize=100,
@@ -30,11 +30,11 @@ mutable struct Runner
         sort_estimands=false
         )    
         # Retrieve TMLE specifications
-        estimators = instantiate_estimators(estimators)
+        estimators = instantiate_estimators(estimators_spec)
         # Load dataset
         dataset = instantiate_dataset(dataset)
         # Read parameter files
-        estimands = instantiate_estimands(estimands, dataset)
+        estimands = instantiate_estimands(estimands_config, dataset)
         if sort_estimands
             estimands = groups_ordering(estimands; 
                 brute_force=true, 
@@ -173,8 +173,8 @@ function tmle(dataset::String;
     sort_estimands::Bool=false
     )
     runner = Runner(dataset;
-        estimands=estimands, 
-        estimators=estimators, 
+        estimands_config=estimands, 
+        estimators_spec=estimators, 
         verbosity=verbosity, 
         outputs=outputs, 
         chunksize=chunksize,
