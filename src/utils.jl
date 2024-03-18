@@ -82,14 +82,14 @@ This explicitely requires that the following columns belong to the dataset:
 
 All ATE parameters are generated.
 """
-function TMLE.factorialATE(dataset)
+function factorialATE(dataset)
     colnames = names(dataset)
     "T" ∈ colnames || throw(ArgumentError("No column 'T' found in the dataset for the treatment variable."))
     "Y" ∈ colnames || throw(ArgumentError("No column 'Y' found in the dataset for the outcome variable."))
     confounding_variables = Tuple(name for name in colnames if occursin(r"^W", name))
     length(confounding_variables) > 0 || throw(ArgumentError("Could not find any confounding variable (starting with 'W') in the dataset."))
     
-    return [factorialATE(dataset, (:T, ), :Y; confounders=confounding_variables)]
+    return [factorialEstimand(ATE, dataset, (:T, ), :Y; confounders=confounding_variables)]
 end
 
 instantiate_config(file::AbstractString) = read_estimands_config(file)
