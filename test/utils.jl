@@ -141,6 +141,16 @@ end
     data.W₁ = [1, 2, missing, 4, 5]
     sample_ids = TargetedEstimation.sample_ids_from_variables(data, variables)
     @test sample_ids == [2]
+    # wrapped_ype
+    col = categorical(["AC", "CC"])
+    @test TargetedEstimation.wrapped_type(eltype(col)) == String
+    col = categorical(["AC", "CC", missing])
+    @test TargetedEstimation.wrapped_type(eltype(col)) == String
+    col = [1, missing, 0.3]
+    @test TargetedEstimation.wrapped_type(eltype(col)) == Float64
+    col = [1, 2, 3]
+    @test TargetedEstimation.wrapped_type(eltype(col)) == Int64
+
 end
 
 @testset "Test make_categorical! and make_float!" begin

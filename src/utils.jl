@@ -37,7 +37,7 @@ end
 
 wrapped_type(x) = x
 wrapped_type(x::Type{<:CategoricalValue{T,}}) where T = T
-
+wrapped_type(x::Type{Union{Missing, T}}) where T = wrapped_type(T)
 """
 Uses the values found in the dataset to create a new estimand with adjusted values.
 """
@@ -137,7 +137,7 @@ end
 
 function make_categorical!(dataset, colnames; infer_ordered=false)
     for colname in colnames
-        make_categorical!(dataset, colname;infer_ordered=infer_ordered)
+        make_categorical!(dataset, colname; infer_ordered=infer_ordered)
     end
 end
 
