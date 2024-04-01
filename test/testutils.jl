@@ -114,17 +114,17 @@ function build_dataset(;n=1000, format="csv")
 
     dataset = DataFrame(
         SAMPLE_ID = 1:n,
-        T1 = categorical(T₁),
-        T2 = categorical(T₂),
+        T1 = T₁,
+        T2 = T₂,
         W1 = W₁, 
         W2 = W₂,
         C1 = C₁,
     )
     # Comma in name
-    dataset[!, "CONTINUOUS, OUTCOME"] = categorical(y₁)
+    dataset[!, "CONTINUOUS, OUTCOME"] = y₁
     # Slash in name
-    dataset[!, "BINARY/OUTCOME"] = categorical(y₂)
-    dataset[!, "EXTREME_BINARY"] = categorical(vcat(0, ones(n-1)))
+    dataset[!, "BINARY/OUTCOME"] = y₂
+    dataset[!, "EXTREME_BINARY"] = vcat(0, ones(n-1))
 
     return dataset
 end

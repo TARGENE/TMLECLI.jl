@@ -7,6 +7,7 @@ using DataFrames
 using CSV
 using MLJLinearModels
 using CategoricalArrays
+using MLJBase
 
 check_type(treatment_value, ::Type{T}) where T = @test treatment_value isa T
 
@@ -74,21 +75,21 @@ end
     )
 
     dataset = DataFrame(
-        Ycont  = [1.1, 2.2, missing],
-        Ycat = [1., 0., missing],
-        T₁ = [1, 0, missing],
-        T₂ = [missing, "AC", "CC"],
-        W₁ = [1., 0., 0.],
-        W₂ = [missing, 0., 0.],
-        C = [1, 2, 3]
+        Ycont  = [1.1, 2.2, missing, 3.5, 6.6, 0., 4.],
+        Ycat = [1., 0., missing, 1., 0, 0, 0],
+        T₁ = [1, 0, missing, 0, 0, 0, missing],
+        T₂ = [missing, "AC", "CC", "CC", missing, "AA", "AA"],
+        W₁ = [1., 0., 0., 1., 0., 1, 1],
+        W₂ = [missing, 0., 0., 0., 0., 0., 0.],
+        C = [1, 2, 3, 4, 5, 6, 6]
     )
     TargetedEstimation.coerce_types!(dataset, Ψ)
 
-    @test dataset.T₁ isa CategoricalArray
-    @test dataset.T₂ isa CategoricalArray
-    for var in [:W₁, :W₂, :Ycont]
-        @test eltype(dataset[!, var]) <: Union{Missing, Float64}
-    end
+    @test scitype(dataset.T₁) == AbstractVector{Union{Missing, OrderedFactor{2}}}
+    @test scitype(dataset.T₂) == AbstractVector{Union{Missing, Multiclass{3}}}
+    @test scitype(dataset.Ycont) == AbstractVector{Union{Missing, MLJBase.Continuous}}
+    @test scitype(dataset.W₁) == AbstractVector{OrderedFactor{2}}
+    @test scitype(dataset.W₂) == AbstractVector{Union{Missing, OrderedFactor{1}}}
 
     Ψ = IATE(
         outcome=:Ycat,
@@ -98,8 +99,8 @@ end
     )
     TargetedEstimation.coerce_types!(dataset, Ψ)
 
-    @test dataset.Ycat isa CategoricalArray
-    @test eltype(dataset.C) <: Union{Missing, Float64}
+    @test scitype(dataset.Ycat) == AbstractVector{Union{Missing, OrderedFactor{2}}}
+    @test scitype(dataset.C) == AbstractVector{Count}
 end
 
 @testset "Test misc" begin
