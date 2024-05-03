@@ -44,6 +44,7 @@ function write_sieve_dataset(sample_ids)
 
     dataset[!, "CONTINUOUS, OUTCOME"] = y₁
     dataset[!, "BINARY/OUTCOME"] = categorical(y₂)
+    dataset[!, "COUNT_OUTCOME"] = rand(rng, [1, 2, 3, 4], n)
 
     CSV.write("data.csv", dataset)
 end

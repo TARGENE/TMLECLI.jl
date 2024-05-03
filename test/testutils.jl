@@ -51,7 +51,7 @@ function statistical_estimands_only_config()
                 outcome_extra_covariates = (:C1,)
             ),
             CM(
-                outcome = Symbol("CONTINUOUS, OUTCOME"), 
+                outcome = Symbol("COUNT_OUTCOME"), 
                 treatment_values = (
                     T1 = true, 
                     T2 = false), 
@@ -124,7 +124,7 @@ function build_dataset(;n=1000, format="csv")
     dataset[!, "CONTINUOUS, OUTCOME"] = y₁
     # Slash in name
     dataset[!, "BINARY/OUTCOME"] = y₂
-    dataset[!, "EXTREME_BINARY"] = vcat(0, ones(n-1))
+    dataset[!, "COUNT_OUTCOME"] = rand(rng, [1, 2, 3, 4], n)
 
     return dataset
 end

@@ -152,14 +152,34 @@ function make_float!(dataset, colnames)
     end
 end
 
-function coerce_types!(dataset, colnames)
-    infered_types = autotype(dataset[!, colnames])
+function coerce_types!(dataset, colnames; rules=:few_to_finite)
+    infered_types = autotype(dataset[!, colnames], rules)
     coerce!(dataset, infered_types)
 end
 
-coerce_types!(dataset, Ψ::TMLE.Estimand) =
-    coerce_types!(dataset, collect(variables(Ψ)))
+"""
+Outcomes and Treatment variables must be dealt with differently until there are models dealing specificaly with Count data.
 
+- Outcomes need to be binary, i.e. OrderedFactor{2} or Continuous
+- Treatments need to be Categorical
+- Other variables can be dealt with either way
+"""
+function coerce_types!(dataset, Ψ::TMLE.Estimand)
+    all_outcomes = outcomes(Ψ)
+    for outcome in all_outcomes
+        if isbinary(outcome, dataset)
+            coerce_types!(dataset, [outcome], rules=:few_to_finite)
+        else
+            coerce_types!(dataset, [outcome], rules=:discrete_to_continuous)
+        end
+    end
+    other_variables = collect(setdiff(variables(Ψ), all_outcomes))
+    coerce_types!(dataset, other_variables, rules=:few_to_finite)
+end
+
+outcomes(Ψ::TMLE.Estimand) = Set([Ψ.outcome])
+
+outcomes(Ψ::TMLE.ComposedEstimand) = union((outcomes(arg) for arg in Ψ.args)...)
 
 variables(Ψ::TMLE.ComposedEstimand) = union((variables(arg) for arg in Ψ.args)...)
 

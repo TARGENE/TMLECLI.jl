@@ -68,39 +68,48 @@ end
     )
 end
 @testset "Test coerce_types!" begin
-    Ψ = IATE(
-        outcome=:Ycont,
-        treatment_values=(T₁=(case=1, control=0), T₂=(case="AC", control="CC")),
-        treatment_confounders=(T₁=[:W₁, :W₂], T₂=[:W₁, :W₂]),
-    )
-
     dataset = DataFrame(
         Ycont  = [1.1, 2.2, missing, 3.5, 6.6, 0., 4.],
-        Ycat = [1., 0., missing, 1., 0, 0, 0],
+        Ybin = [1., 0., missing, 1., 0, 0, 0],
+        Ycount = [1, 0., missing, 1, 2, 0, 3],
         T₁ = [1, 0, missing, 0, 0, 0, missing],
         T₂ = [missing, "AC", "CC", "CC", missing, "AA", "AA"],
         W₁ = [1., 0., 0., 1., 0., 1, 1],
         W₂ = [missing, 0., 0., 0., 0., 0., 0.],
         C = [1, 2, 3, 4, 5, 6, 6]
     )
+    # Continuous Outcome
+    Ψ = IATE(
+        outcome=:Ycont,
+        treatment_values=(T₁=(case=1, control=0), T₂=(case="AC", control="CC")),
+        treatment_confounders=(T₁=[:W₁, :W₂], T₂=[:W₁, :W₂]),
+    )
     TargetedEstimation.coerce_types!(dataset, Ψ)
-
     @test scitype(dataset.T₁) == AbstractVector{Union{Missing, OrderedFactor{2}}}
     @test scitype(dataset.T₂) == AbstractVector{Union{Missing, Multiclass{3}}}
     @test scitype(dataset.Ycont) == AbstractVector{Union{Missing, MLJBase.Continuous}}
     @test scitype(dataset.W₁) == AbstractVector{OrderedFactor{2}}
     @test scitype(dataset.W₂) == AbstractVector{Union{Missing, OrderedFactor{1}}}
-
+    
+    # Binary Outcome
     Ψ = IATE(
-        outcome=:Ycat,
+        outcome=:Ybin,
         treatment_values=(T₂=(case="AC", control="CC"), ),
         treatment_confounders=(T₂=[:W₂],),
         outcome_extra_covariates=[:C]
     )
     TargetedEstimation.coerce_types!(dataset, Ψ)
-
-    @test scitype(dataset.Ycat) == AbstractVector{Union{Missing, OrderedFactor{2}}}
+    @test scitype(dataset.Ybin) == AbstractVector{Union{Missing, OrderedFactor{2}}}
     @test scitype(dataset.C) == AbstractVector{Count}
+
+    # Count Outcome
+    Ψ = IATE(
+        outcome=:Ycount,
+        treatment_values=(T₂=(case="AC", control="CC"), ),
+        treatment_confounders=(T₂=[:W₂],),
+    )
+    TargetedEstimation.coerce_types!(dataset, Ψ)
+    @test scitype(dataset.Ycount) == AbstractVector{Union{Missing, MLJBase.Continuous}}
 end
 
 @testset "Test misc" begin
