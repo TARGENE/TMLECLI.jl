@@ -1,4 +1,4 @@
-module TestMergeCSVFiles
+module TestSummary
 
 using TargetedEstimation
 using Test
@@ -32,7 +32,7 @@ include(joinpath(TESTDIR, "testutils.jl"))
     
     # Second Run
     tmle_output_2 = TargetedEstimation.Outputs(hdf5=TargetedEstimation.HDF5Output(filename="tmle_output_2.hdf5"))
-    config_2 = causal_and_composed_estimands_config()
+    config_2 = causal_and_joint_estimands_config()
     configfile_2 = joinpath(tmpdir, "configuration_2.json")
     TMLE.write_json(configfile_2, config_2)
     tmle(datafile; 

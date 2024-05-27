@@ -30,9 +30,9 @@ function read_estimands_config(filename)
     end
 end
 
-function fix_treatment_values!(treatment_types::AbstractDict, Ψ::ComposedEstimand, dataset)
+function fix_treatment_values!(treatment_types::AbstractDict, Ψ::JointEstimand, dataset)
     new_args = Tuple(fix_treatment_values!(treatment_types, arg, dataset) for arg in Ψ.args)
-    return ComposedEstimand(Ψ.f, new_args)
+    return JointEstimand(new_args...)
 end
 
 wrapped_type(x) = x
@@ -89,7 +89,7 @@ function factorialATE(dataset)
     confounding_variables = Tuple(name for name in colnames if occursin(r"^W", name))
     length(confounding_variables) > 0 || throw(ArgumentError("Could not find any confounding variable (starting with 'W') in the dataset."))
     
-    return [factorialEstimand(ATE, dataset, (:T, ), :Y; confounders=confounding_variables)]
+    return [factorialEstimand(ATE, (:T,), :Y; dataset=dataset, confounders=confounding_variables)]
 end
 
 instantiate_config(file::AbstractString) = read_estimands_config(file)
@@ -179,9 +179,9 @@ end
 
 outcomes(Ψ::TMLE.Estimand) = Set([Ψ.outcome])
 
-outcomes(Ψ::TMLE.ComposedEstimand) = union((outcomes(arg) for arg in Ψ.args)...)
+outcomes(Ψ::TMLE.JointEstimand) = union((outcomes(arg) for arg in Ψ.args)...)
 
-variables(Ψ::TMLE.ComposedEstimand) = union((variables(arg) for arg in Ψ.args)...)
+variables(Ψ::TMLE.JointEstimand) = union((variables(arg) for arg in Ψ.args)...)
 
 variables(Ψ::TMLE.Estimand) = Set([
     Ψ.outcome,
@@ -190,5 +190,5 @@ variables(Ψ::TMLE.Estimand) = Set([
     Iterators.flatten(values(Ψ.treatment_confounders))...
     ])
 
-TMLE.to_dict(nt::NamedTuple{names, <:Tuple{Vararg{Union{TMLE.EICEstimate, FailedEstimate, TMLE.ComposedEstimate}}}}) where names = 
+TMLE.to_dict(nt::NamedTuple{names, <:Tuple{Vararg{Union{TMLE.EICEstimate, FailedEstimate, TMLE.JointEstimate}}}}) where names = 
     Dict(key => TMLE.to_dict(val) for (key, val) ∈ zip(keys(nt), nt))

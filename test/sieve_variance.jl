@@ -327,7 +327,7 @@ end
     # Generate data
     grm_ids = TargetedEstimation.GRMIDs(joinpath(TESTDIR, "data", "grm", "test.grm.id"))
     tmpdir = mktempdir(cleanup=true)
-    configuration = causal_and_composed_estimands_config()
+    configuration = causal_and_joint_estimands_config()
     pval = 1.
     configfile = joinpath(tmpdir, "configuration.json")
     TMLE.write_json(configfile, configuration)
@@ -347,7 +347,7 @@ end
         "--estimator-key", "OSE"
     ])
 
-    # The ComposedEstimate std is not updated but each component is.
+    # The JointEstimate std is not updated but each component is.
     src_results = jldopen(x -> x["Batch_1"], "tmle_output.hdf5")
     io = jldopen("svp.hdf5")
     svp_results = io["results"]

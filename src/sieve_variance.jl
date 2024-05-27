@@ -46,7 +46,7 @@ retrieve_sample_ids(sample_ids::AbstractVector, batch_results) = sample_ids
 
 retrieve_sample_ids(index::Int, batch_results) = batch_results[index].SAMPLE_IDS
 
-function update_work_lists_with!(result::TMLE.ComposedEstimate, sample_ids, batch_results, grm_ids, results, influence_curves, n_obs)
+function update_work_lists_with!(result::TMLE.JointEstimate, sample_ids, batch_results, grm_ids, results, influence_curves, n_obs)
     for estimate in result.estimates
         update_work_lists_with!(estimate, sample_ids, batch_results, grm_ids, results, influence_curves, n_obs)
     end

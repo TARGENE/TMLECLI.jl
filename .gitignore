@@ -20,6 +20,6 @@ docs/site/
 docs/Manifest.toml
 
 test/Manifest.toml
-Manifest.toml
+# Manifest.toml
 
 build/

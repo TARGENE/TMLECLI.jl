@@ -261,12 +261,12 @@ end
     rm(datafile)
 end
 
-@testset "Test tmle: Causal and Composed Estimands" begin
+@testset "Test tmle: Causal and Joint Estimands" begin
     write_dataset(;n=1000, format="csv")
     tmpdir = mktempdir(cleanup=true)
     estimandsfile = joinpath(tmpdir, "configuration.jls")
 
-    configuration = causal_and_composed_estimands_config()
+    configuration = causal_and_joint_estimands_config()
     serialize(estimandsfile, configuration)
     estimatorfile = joinpath(CONFIGDIR, "ose_config.jl")
     datafile = "data.csv"
@@ -295,13 +295,13 @@ end
     end
     # The components of the diff should match the estimands 1 and 2
     for index in 1:2
-        ATE_from_diff = results[3].OSE.estimates[index] 
+        ATE_from_joint = results[3].OSE.estimates[index] 
         ATE_standalone = results[index].OSE
-        @test ATE_from_diff.estimand == ATE_standalone.estimand
-        @test ATE_from_diff.estimate == ATE_standalone.estimate
-        @test ATE_from_diff.std == ATE_standalone.std
+        @test ATE_from_joint.estimand == ATE_standalone.estimand
+        @test ATE_from_joint.estimate == ATE_standalone.estimate
+        @test ATE_from_joint.std == ATE_standalone.std
     end
-    @test results[3].OSE isa TMLE.ComposedEstimate
+    @test results[3].OSE isa TMLE.JointEstimate
     
     # JSON Output
     results_from_json = TMLE.read_json("output.json", use_mmap=false)
@@ -310,8 +310,8 @@ end
     # HDF5
     jldopen("output.hdf5") do io
         @test length(io["Batch_1"]) == 2
-        composed_result = only(io["Batch_2"])
-        @test composed_result.OSE.cov == results[3].OSE.cov
+        jointresult = only(io["Batch_2"])
+        @test jointresult.OSE.cov == results[3].OSE.cov
     end
 
     rm(datafile)

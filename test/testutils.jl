@@ -63,7 +63,7 @@ function statistical_estimands_only_config()
     return configuration
 end
 
-function causal_and_composed_estimands_config()
+function causal_and_joint_estimands_config()
     ATE₁ = ATE(
         outcome = Symbol("CONTINUOUS, OUTCOME"), 
         treatment_values = (T1 = (case = true, control = false),), 
@@ -72,14 +72,14 @@ function causal_and_composed_estimands_config()
         outcome = Symbol("CONTINUOUS, OUTCOME"), 
         treatment_values = (T1 = (case = false, control = true),), 
     )
-    diff = ComposedEstimand(-, (ATE₁, ATE₂))
+    joint = JointEstimand(ATE₁, ATE₂)
     scm = StaticSCM(
         outcomes = ["CONTINUOUS, OUTCOME"],
         treatments = ["T1"],
         confounders = [:W1, :W2]
     )
     configuration = Configuration(
-        estimands = [ATE₁, ATE₂, diff],
+        estimands = [ATE₁, ATE₂, joint],
         scm       = scm
     )
     return configuration
