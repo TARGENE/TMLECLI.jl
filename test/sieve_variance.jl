@@ -15,7 +15,7 @@ TESTDIR = joinpath(pkgdir(TargetedEstimation), "test")
 
 include(joinpath(TESTDIR, "testutils.jl"))
 
-function write_sieve_dataset(sample_ids)
+function write_sieve_dataset(datafile, sample_ids)
     rng = StableRNG(123)
     n = size(sample_ids, 1)
     # Confounders
@@ -46,21 +46,24 @@ function write_sieve_dataset(sample_ids)
     dataset[!, "BINARY/OUTCOME"] = categorical(y₂)
     dataset[!, "COUNT_OUTCOME"] = rand(rng, [1, 2, 3, 4], n)
 
-    CSV.write("data.csv", dataset)
+    CSV.write(datafile, dataset)
 end
 
-function build_tmle_output_file(sample_ids, estimandfile, outprefix; 
-    pval=1., 
+function build_tmle_output_file(dir, sample_ids, estimandfile, outprefix; 
+    pvalue_threshold=1., 
     estimatorfile=joinpath(TESTDIR, "config", "tmle_ose_config.jl")
     )
-    write_sieve_dataset(sample_ids)
+    datafile = joinpath(dir, "data.csv")
+    write_sieve_dataset(datafile, sample_ids)
     outputs = TargetedEstimation.Outputs(
-        hdf5=TargetedEstimation.HDF5Output(filename=string(outprefix, ".hdf5"), pval_threshold=pval, sample_ids=true),
+        hdf5=joinpath(dir, string(outprefix, ".hdf5")),
     )
-    tmle("data.csv"; 
+    tmle(datafile; 
         estimands=estimandfile, 
         estimators=estimatorfile, 
-        outputs=outputs
+        outputs=outputs,
+        pvalue_threshold=pvalue_threshold,
+        save_sample_ids=true
     )
 end
 
@@ -113,7 +116,7 @@ end
 
 @testset "Test build_work_list" begin
     grm_ids = TargetedEstimation.GRMIDs(joinpath(TESTDIR, "data", "grm", "test.grm.id"))
-    tmpdir = mktempdir(cleanup=true)
+    tmpdir = mktempdir()
     configuration = statistical_estimands_only_config()
 
     # CASE_1: pval = 1.
@@ -121,14 +124,14 @@ end
     config_1 = TMLE.Configuration(estimands=configuration.estimands[1:3])
     estimandsfile_1 = joinpath(tmpdir, "configuration_1.json")
     TMLE.write_json(estimandsfile_1, config_1)
-    build_tmle_output_file(grm_ids.SAMPLE_ID, estimandsfile_1, "tmle_output_1")
+    build_tmle_output_file(tmpdir, grm_ids.SAMPLE_ID, estimandsfile_1, "tmle_output_1")
 
     config_2 = TMLE.Configuration(estimands=configuration.estimands[4:end])
     estimandsfile_2 = joinpath(tmpdir, "configuration_2.json")
     TMLE.write_json(estimandsfile_2, config_2)
-    build_tmle_output_file(grm_ids.SAMPLE_ID, estimandsfile_2, "tmle_output_2")
+    build_tmle_output_file(tmpdir, grm_ids.SAMPLE_ID, estimandsfile_2, "tmle_output_2")
 
-    results, influence_curves, n_obs = TargetedEstimation.build_work_list("tmle_output", grm_ids)
+    results, influence_curves, n_obs = TargetedEstimation.build_work_list(joinpath(tmpdir, "tmle_output"), grm_ids)
     # Check n_obs
     @test n_obs == [194, 194, 194, 193, 193, 194]
     # Check influence curves
@@ -139,16 +142,14 @@ end
     # Check results
     all(x isa TMLE.TMLEstimate for x in results)
     all(size(x.IC, 1) > 0 for x in results)
-    # clean
-    rm("tmle_output_1.hdf5")
-    rm("tmle_output_2.hdf5")
 
     # CASE_2: pval = 0.1
-    pval = 0.1
+    tmpdir = mktempdir()
+    pvalue_threshold = 0.1
     estimandsfile = joinpath(tmpdir, "configuration.json")
     TMLE.write_json(estimandsfile, configuration)
-    build_tmle_output_file(grm_ids.SAMPLE_ID, estimandsfile, "tmle_output"; pval=pval)
-    results, influence_curves, n_obs = TargetedEstimation.build_work_list("tmle_output", grm_ids)
+    build_tmle_output_file(tmpdir, grm_ids.SAMPLE_ID, estimandsfile, "tmle_output"; pvalue_threshold=pvalue_threshold)
+    results, influence_curves, n_obs = TargetedEstimation.build_work_list(joinpath(tmpdir, "tmle_output"), grm_ids)
     # Check n_obs
     @test n_obs == [194, 193, 193, 194]
     # Check influence curves
@@ -157,11 +158,8 @@ end
         @test convert(Vector{Float32}, expected_influence_curves[rowindex]) == influence_curves[rowindex, :]
     end
     # Check results
-    all(x isa TMLE.TMLEstimate for x in results)
-    all(size(x.IC, 1) > 0 for x in results)
-    # Clean
-    rm("tmle_output.hdf5")
-    rm("data.csv")
+    @test all(x isa TMLE.TMLEstimate for x in results)
+    @test all(size(x.IC, 1) > 0 for x in results)
 end
 
 @testset "Test bit_distance" begin
@@ -273,28 +271,30 @@ end
 @testset "Test SVP" begin
     # Generate data
     grm_ids = TargetedEstimation.GRMIDs(joinpath(TESTDIR, "data", "grm", "test.grm.id"))
-    tmpdir = mktempdir(cleanup=true)
+    tmpdir = mktempdir()
     configuration = statistical_estimands_only_config()
-    pval = 0.1
+    pvalue_threshold = 0.1
     config_1 = TMLE.Configuration(estimands=configuration.estimands[1:3])
     estimandsfile_1 = joinpath(tmpdir, "configuration_1.json")
     TMLE.write_json(estimandsfile_1, config_1)
-    build_tmle_output_file(grm_ids.SAMPLE_ID, estimandsfile_1, "tmle_output_1"; pval=pval)
+    build_tmle_output_file(tmpdir, grm_ids.SAMPLE_ID, estimandsfile_1, "tmle_output_1"; pvalue_threshold=pvalue_threshold)
 
     config_2 = TMLE.Configuration(estimands=configuration.estimands[4:end])
     estimandsfile_2 = joinpath(tmpdir, "configuration_2.json")
     TMLE.write_json(estimandsfile_2, config_2)
-    build_tmle_output_file(grm_ids.SAMPLE_ID, estimandsfile_2, "tmle_output_2"; pval=pval)
+    build_tmle_output_file(tmpdir, grm_ids.SAMPLE_ID, estimandsfile_2, "tmle_output_2"; pvalue_threshold=pvalue_threshold)
 
     # Using the main command
+    output = joinpath(tmpdir, "svp.hdf5")
     main([
         "svp", 
-        "tmle_output", 
+        joinpath(tmpdir, "tmle_output"),
+        "--out", output,
         "--grm-prefix", joinpath(TESTDIR, "data", "grm", "test.grm"), 
         "--max-tau", "0.75"
     ])
 
-    io = jldopen("svp.hdf5")
+    io = jldopen(output)
     # Check τs
     @test io["taus"] == TargetedEstimation.default_τs(10; max_τ=0.75)
     # Check variances
@@ -302,8 +302,8 @@ end
     # Check results
     svp_results = io["results"]
     
-    tmleout1 = jldopen(x -> x["Batch_1"], "tmle_output_1.hdf5")
-    tmleout2 = jldopen(x -> x["Batch_1"], "tmle_output_2.hdf5")
+    tmleout1 = jldopen(x -> x["Batch_1"], joinpath(tmpdir, "tmle_output_1.hdf5"))
+    tmleout2 = jldopen(x -> x["Batch_1"], joinpath(tmpdir, "tmle_output_2.hdf5"))
     src_results = [tmleout1..., tmleout2...]
 
     for svp_result in svp_results
@@ -316,22 +316,17 @@ end
     end
 
     close(io)
-    # clean
-    rm("svp.hdf5")
-    rm("tmle_output_1.hdf5")
-    rm("tmle_output_2.hdf5")
-    rm("data.csv")
 end
 
 @testset "Test SVP: causal and composed estimands" begin
     # Generate data
     grm_ids = TargetedEstimation.GRMIDs(joinpath(TESTDIR, "data", "grm", "test.grm.id"))
-    tmpdir = mktempdir(cleanup=true)
+    tmpdir = mktempdir()
     configuration = causal_and_joint_estimands_config()
-    pval = 1.
     configfile = joinpath(tmpdir, "configuration.json")
     TMLE.write_json(configfile, configuration)
     build_tmle_output_file(
+        tmpdir,
         grm_ids.SAMPLE_ID, 
         configfile, 
         "tmle_output";
@@ -339,17 +334,19 @@ end
     )
 
     # Using the main command
+    output = joinpath(tmpdir, "svp.hdf5")
     main([
         "svp", 
-        "tmle_output", 
+        joinpath(tmpdir, "tmle_output"),
+        "--out", output,
         "--grm-prefix", joinpath(TESTDIR, "data", "grm", "test.grm"), 
         "--max-tau", "0.75",
         "--estimator-key", "OSE"
     ])
 
     # The JointEstimate std is not updated but each component is.
-    src_results = jldopen(x -> x["Batch_1"], "tmle_output.hdf5")
-    io = jldopen("svp.hdf5")
+    src_results = jldopen(x -> x["Batch_1"], joinpath(tmpdir, "tmle_output.hdf5"))
+    io = jldopen(output)
     svp_results = io["results"]
     standalone_estimates = svp_results[1:2]
     from_composite = svp_results[3:4]
@@ -364,11 +361,6 @@ end
     end
 
     close(io)
-    
-    # clean
-    rm("svp.hdf5")
-    rm("tmle_output.hdf5")
-    rm("data.csv")
 end
 
 end

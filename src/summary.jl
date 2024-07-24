@@ -1,16 +1,20 @@
+append_results_from_key!(results, io, key) = append!(results, io[key])
 
-function files_matching_prefix_and_suffix(prefix, suffix)
-    dirname_, prefix_ = splitdir(prefix)
-    dirname__ = dirname_ == "" ? "." : dirname_
-    files = filter(
-            x -> startswith(x, prefix_) && endswith(x, suffix), 
-            readdir(dirname__)
-    )
-    return [joinpath(dirname_, x) for x in files]
+function append_results_from_file!(results, file)
+    jldopen(file) do io
+        for key in keys(io)
+            append_results_from_key!(results, io, key)
+        end
+    end
 end
 
-read_output_with_types(file) = 
-    CSV.read(file, DataFrame, types=Dict(key => String for key in joining_keys()))
+function read_results_from_files(files)
+    results = []
+    for file in files
+        append_results_from_file!(results, file)
+    end
+    return results
+end
 
 """
     make_summary(
@@ -32,12 +36,6 @@ function make_summary(
     prefix::String;
     outputs::Outputs=Outputs()
     )
-    
-    # Initialize output files
-    initialize(outputs)
-    actual_outputs = [getfield(outputs, field) for field ∈ fieldnames(Outputs) 
-        if getfield(outputs, field).filename !== nothing]
-
     # Get all input .hdf5 files
     dirname_, prefix_ = splitdir(prefix)
     dirname__ = dirname_ == "" ? "." : dirname_
@@ -45,23 +43,10 @@ function make_summary(
             x -> startswith(x, prefix_), 
             readdir(dirname__)
     ))
-    nfiles = length(files)
-
-    # Write to files
-    for (file_index, filename) in enumerate(files)
-        filepath = joinpath(dirname_, filename)
-        jldopen(filepath) do io
-            batch_keys = collect(keys(io))
-            nbatches = length(batch_keys)
-            for (batch_index, batch_key) in enumerate(batch_keys)
-                results = io[batch_key]
-                finalize = file_index == nfiles && batch_index == nbatches
-                for output in actual_outputs
-                    update_file(output, results; finalize=finalize)
-                end
-            end
-        end
-    end
+    # Combine all results in a single vector
+    results = read_results_from_files(joinpath.(dirname_, files))
+    # Write to outputs
+    write(outputs, results)
 
     return 0
 end

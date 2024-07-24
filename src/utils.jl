@@ -190,5 +190,17 @@ variables(Ψ::TMLE.Estimand) = Set([
     Iterators.flatten(values(Ψ.treatment_confounders))...
     ])
 
-TMLE.to_dict(nt::NamedTuple{names, <:Tuple{Vararg{Union{TMLE.EICEstimate, FailedEstimate, TMLE.JointEstimate}}}}) where names = 
-    Dict(key => TMLE.to_dict(val) for (key, val) ∈ zip(keys(nt), nt))
+TMLE.to_dict(nt::NamedTuple{names}) where names = 
+    Dict(key => TMLE.to_dict(val) for (key, val) ∈ zip(names, nt))
+
+get_all_treatments(Ψ) = keys(Ψ.treatment_values)
+
+get_all_treatments(Ψ::JointEstimand) = union((get_all_treatments(Ψᵢ) for Ψᵢ ∈ Ψ.args)...)
+
+function treatments_from_estimands(estimands)
+    treatments = Set{Symbol}([])
+    for Ψ ∈ estimands
+        union!(treatments, get_all_treatments(Ψ))
+    end
+    return treatments
+end

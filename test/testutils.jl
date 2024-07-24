@@ -129,7 +129,7 @@ function build_dataset(;n=1000, format="csv")
     return dataset
 end
 
-function write_dataset(;n=1000, format="csv")
-    dataset = build_dataset(;n=1000)
-    format == "csv" ? CSV.write("data.csv", dataset) : Arrow.write("data.arrow", dataset)
+function write_dataset(filename; n=1000)
+    dataset = build_dataset(;n=n)
+    endswith(filename, "csv") ? CSV.write(filename, dataset) : Arrow.write(filename, dataset)
 end

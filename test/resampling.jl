@@ -74,6 +74,9 @@ end
     # y is continuous and is not considered
     TargetedEstimation.aggretate_finite_col!(stratification_col, y)
     @test stratification_col == ["_0", "_0", "_1", "_0", "_1", "_0", "_missing"]
+    # Used by registry
+    @test TargetedEstimation.matches_patterns("T1", [r"^T1$", r"^T2$"])
+    @test !TargetedEstimation.matches_patterns("T3", [r"^T1$", r"^T2$"])
 end
 
 @testset "Test JointStratifiedCV" begin

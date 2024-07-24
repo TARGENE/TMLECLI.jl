@@ -1,55 +1,33 @@
-FileExistsError(filename) = ArgumentError(string("File ", filename, " already exists."))
-
-check_file_exists(filename::Nothing) = nothing
-check_file_exists(filename) = !isfile(filename) || throw(FileExistsError(filename))
-
-Base.tryparse(::Type{Union{String, Nothing}}, x::AbstractString) = x
-Base.tryparse(::Type{Union{Float64, Nothing}}, x::AbstractString) = tryparse(Float64, x)
-Base.tryparse(::Type{Union{T, Nothing}}, x::Nothing) where T = nothing
-
-"""
-    initialize(output)
-
-Default intialization procedure only checks that file does not exist.
-"""
-initialize(output) = check_file_exists(output.filename)
-
 #####################################################################
 #####                       JSON OUTPUT                          ####
 #####################################################################
 
-@option struct JSONOutput
-    filename::Union{Nothing, String} = nothing
-    pval_threshold::Union{Nothing, Float64} = nothing
+write_json(filename, results) = open(filename, "w") do io
+    JSON.print(io, TMLE.to_dict(results))
 end
 
-"""
-    initialize(output::JSONOutput)
-
-Checks that file does not exist and inialize the json file
-"""
-function initialize(output::JSONOutput)
-    check_file_exists(output.filename)
-    initialize_json(output.filename)
-end
-
-initialize_json(filename::Nothing) = nothing
+initialize_json(filename::Nothing) = 0
 
 initialize_json(filename::String) = open(filename, "w") do io
     print(io, '[')
 end
 
-function update_file(output::JSONOutput, results; finalize=false)
-    output.filename === nothing && return
-    open(output.filename, "a") do io
+finalize_json(filename::Nothing) = 0
+
+function finalize_json(filename::String)
+    open(filename, "a") do io
+        skip(io, -1) # get rid of the last comma which JSON doesn't allow
+        print(io, ']')
+    end
+end
+
+update_json(filename::Nothing, result) = 0
+
+function update_json(filename, results)
+    open(filename, "a") do io
         for result in results
-            result = TMLE.emptyIC(result, output.pval_threshold)
             JSON.print(io, TMLE.to_dict(result))
             print(io, ',')
-        end
-        if finalize
-            skip(io, -1) # get rid of the last comma which JSON doesn't allow
-            print(io, ']')
         end
     end
 end
@@ -58,60 +36,61 @@ end
 #####                       HDF5 OUTPUT                          ####
 #####################################################################
 
-@option struct HDF5Output
-    filename::Union{Nothing, String} = nothing
-    pval_threshold::Union{Nothing, Float64} = nothing
-    sample_ids::Bool = false
-    compress::Bool = false
-end
+write_hdf5(filename, results)= jldopen(io -> io["results"] = results, filename, "w")
 
-function update_file(output::HDF5Output, results; finalize=false)
-    jldopen(output.filename, "a+", compress=output.compress) do io
+update_hdf5(filename::Nothing, results) = 0
+
+function update_hdf5(filename, results)
+    jldopen(filename, "a+") do io
         batches_keys = keys(io)
         latest_index = isempty(batches_keys) ? 0 : maximum(parse(Int, split(key, "_")[2]) for key in batches_keys)
         io[string("Batch_", latest_index + 1)] = results
     end
 end
 
-function update_file(output::HDF5Output, results, dataset)
-    output.filename === nothing && return
-    results = post_process(results, dataset, output.pval_threshold, output.sample_ids)
-    update_file(output, results)
-end
-
 #####################################################################
 #####                        JLS OUTPUT                          ####
 #####################################################################
 
-@option struct JLSOutput
-    filename::Union{Nothing, String} = nothing
-    pval_threshold::Union{Nothing, Float64} = nothing
-    sample_ids::Bool = false
-end
+write_jls(filename, results) = serialize(filename, results)
 
-function update_file(output::JLSOutput, results; finalize=false)
-    open(output.filename, "a") do io
+update_jls(filename::Nothing, results) = 0
+
+function update_jls(filename, results)
+    open(filename, "a") do io
         for result in results
             serialize(io, result)
         end
     end
 end
 
-function update_file(output::JLSOutput, results, dataset)
-    output.filename === nothing && return
-    results = post_process(results, dataset, output.pval_threshold, output.sample_ids)
-    update_file(output, results)
-end
-
-
 #####################################################################
 #####                         OUTPUTS                            ####
 #####################################################################
 
-@option struct Outputs
-    json::JSONOutput = JSONOutput()
-    hdf5::HDF5Output = HDF5Output()
-    jls::JLSOutput   = JLSOutput()
+struct Outputs
+    json::Union{String, Nothing}
+    hdf5::Union{String, Nothing}
+    jls::Union{String, Nothing}
+end
+
+Outputs(;json=nothing, hdf5=nothing, jls=nothing) = Outputs(json, hdf5, jls)
+
+function write(outputs::Outputs, results)
+    # Append JSON Output
+    write_json(outputs.json, results)
+    # Append JLS Output
+    write_jls(outputs.jls, results)
+    # Append HDF5 Output
+    write_hdf5(outputs.hdf5, results)
+end
+
+clean_output_file(::Nothing) = 0
+
+function clean_output_file(file)
+    if isfile(file)
+        rm(file)
+    end
 end
 
 """
@@ -120,18 +99,27 @@ end
 Initializes all outputs in output.
 """
 function initialize(outputs::Outputs)
-    initialize(outputs.json)
-    initialize(outputs.jls)
-    initialize(outputs.hdf5)
+    for file in (outputs.json, outputs.hdf5, outputs.jls)
+        clean_output_file(file)
+    end
+    # Initialize JSON file if specified
+    initialize_json(outputs.json)
 end
 
-function post_process(results, dataset, pval_threshold, save_sample_ids)
-    results = [TMLE.emptyIC(result, pval_threshold) for result ∈ results]
-    if save_sample_ids
-        sample_ids = get_sample_ids(dataset, results)
-        results = [(result..., SAMPLE_IDS=s_ids) for (result, s_ids) in zip(results, sample_ids)]
-    end
-    return results
+function update(outputs::Outputs, results)
+    # Append JSON Output
+    update_json(outputs.json, results)
+    # Append JLS Output
+    update_jls(outputs.jls, results)
+    # Append HDF5 Output
+    update_hdf5(outputs.hdf5, results)
+end
+
+finalize(outputs::Outputs) = finalize_json(outputs.json)
+
+function add_sample_ids_to_results(results, dataset)
+    sample_ids = get_sample_ids(dataset, results)
+    return [(result..., SAMPLE_IDS=s_ids) for (result, s_ids) in zip(results, sample_ids)]
 end
 
 sample_ids_from_variables(dataset, variables) = dropmissing(dataset[!, [:SAMPLE_ID, variables...]]).SAMPLE_ID

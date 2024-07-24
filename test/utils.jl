@@ -33,6 +33,29 @@ include(joinpath(TESTDIR, "testutils.jl"))
     @test newT == [(case = true, control = false), (case = 1, control = 0)]
 end
 
+@testset "Test treatments_from_estimands" begin
+    estimands = [
+        ATE(
+            outcome = Symbol("CONTINUOUS, OUTCOME"), 
+            treatment_values = (T1 = (case = true, control = false),), 
+        ),
+        ATE(
+            outcome = Symbol("CONTINUOUS, OUTCOME"), 
+            treatment_values = (T2 = (case = false, control = true),), 
+        ),
+        JointEstimand(
+            CM(
+            outcome = Symbol("CONTINUOUS, OUTCOME"), 
+            treatment_values = (T3 = (case = true, control = false),), 
+        ), 
+            IATE(
+            outcome = Symbol("CONTINUOUS, OUTCOME"), 
+            treatment_values = (T1 = (case = true, control = false), T4 = (case = true, control = false),), 
+        ))
+    ]
+    @test TargetedEstimation.treatments_from_estimands(estimands) == Set([:T1, :T2, :T3, :T4])
+end
+
 @testset "Test instantiate_config" for extension in ("yaml", "json")
     # Write estimands file
     filename = "statistical_estimands.$extension"

@@ -66,6 +66,15 @@ function cli_settings()
         "--sort-estimands"
             help = "Sort estimands to minimize cache usage (A brute force approach will be used, resulting in exponentially long sorting time)."
             action = :store_true
+        
+        "--save-sample-ids"
+            help = "If hdf5-output is provided, save sample ids (SAMPLE_ID column) used for each estimand (only used by TarGene)."
+            action = :store_true
+
+        "--pvalue-threshold"
+            arg_type = Float64
+            help = "Save influence curves for estimates with pvalue < pvalue-threshold."
+
     end
 
     @add_arg_table! s["svp"] begin
@@ -125,27 +134,16 @@ function cli_settings()
     return s
 end
 
-
-makeOutput(T::Type, ::Nothing) = T()
-
-function makeOutput(T::Type, str)
-    args = split(str, ",")
-    kwargs = Dict(fn => tryparse(ft, val) for (val, fn, ft) ∈ zip(args, fieldnames(T), fieldtypes(T)))
-    return T(;kwargs...)
-end
-
-make_outputs(hdf5_string, json_string, jls_tring) = Outputs(
-    hdf5=makeOutput(HDF5Output, hdf5_string),
-    json=makeOutput(JSONOutput, json_string),
-    jls=makeOutput(JLSOutput, jls_tring)
-)
-
 function main(args=ARGS)
     settings = parse_args(args, cli_settings())
     cmd = settings["%COMMAND%"]
     cmd_settings = settings[cmd]
     if cmd ∈ ("tmle", "merge")
-        outputs = make_outputs(cmd_settings["hdf5-output"], cmd_settings["json-output"], cmd_settings["jls-output"])
+        outputs = Outputs(
+            hdf5=cmd_settings["hdf5-output"], 
+            json=cmd_settings["json-output"], 
+            jls=cmd_settings["jls-output"]
+        )
         if cmd == "tmle"
             tmle(cmd_settings["dataset"];
                 estimands=cmd_settings["estimands"], 
@@ -155,7 +153,9 @@ function main(args=ARGS)
                 chunksize=cmd_settings["chunksize"],
                 rng=cmd_settings["rng"],
                 cache_strategy=cmd_settings["cache-strategy"],
-                sort_estimands=cmd_settings["sort-estimands"]
+                sort_estimands=cmd_settings["sort-estimands"],
+                save_sample_ids=cmd_settings["save-sample-ids"],
+                pvalue_threshold=cmd_settings["pvalue-threshold"]
             )
         else
             make_summary(cmd_settings["prefix"];
