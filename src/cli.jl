@@ -29,7 +29,7 @@ function cli_settings()
         "--estimators"
             arg_type = String
             help = "A julia file containing the estimators to use."
-            default = "glmnet"
+            default = "wtmle-ose"
 
         "--verbosity"
             arg_type = Int
