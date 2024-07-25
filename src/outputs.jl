@@ -2,6 +2,8 @@
 #####                       JSON OUTPUT                          ####
 #####################################################################
 
+write_json(filename::Nothing, results) = 0
+
 write_json(filename, results) = open(filename, "w") do io
     JSON.print(io, TMLE.to_dict(results))
 end
@@ -36,7 +38,9 @@ end
 #####                       HDF5 OUTPUT                          ####
 #####################################################################
 
-write_hdf5(filename, results)= jldopen(io -> io["results"] = results, filename, "w")
+write_hdf5(filename::Nothing, results) = 0
+
+write_hdf5(filename, results) = jldopen(io -> io["results"] = results, filename, "w")
 
 update_hdf5(filename::Nothing, results) = 0
 
@@ -51,6 +55,8 @@ end
 #####################################################################
 #####                        JLS OUTPUT                          ####
 #####################################################################
+
+write_jls(filename::Nothing, results) = 0
 
 write_jls(filename, results) = serialize(filename, results)
 
