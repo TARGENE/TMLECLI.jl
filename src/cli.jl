@@ -110,7 +110,7 @@ function cli_settings()
         "--estimator-key"
             arg_type = String
             help = "Estimator to use to proceed with sieve variance correction."
-            default = "TMLE"
+            default = "1"
     end
 
     @add_arg_table! s["merge"] begin

@@ -11,12 +11,12 @@ using MLJLinearModels
     # Default configuration results in GLMNets with interactions of order 2
     estimators = TargetedEstimation.estimators_from_string(config_string="wtmle-ose", treatment_variables=Set([:T1, :T2]))
     ## Check estimators
-    @test estimators.WTMLE isa TMLEE
-    @test estimators.WTMLE.weighted === true
-    @test estimators.WTMLE.resampling === nothing
+    @test estimators.WTMLE_GLMNET_GLMNET isa TMLEE
+    @test estimators.WTMLE_GLMNET_GLMNET.weighted === true
+    @test estimators.WTMLE_GLMNET_GLMNET.resampling === nothing
 
-    @test estimators.OSE isa OSE
-    @test estimators.OSE.resampling === nothing
+    @test estimators.OSE_GLMNET_GLMNET isa OSE
+    @test estimators.OSE_GLMNET_GLMNET.resampling === nothing
     ## Check models
     expected_resampling = JointStratifiedCV(
         patterns = Regex[r"^T2$", r"^T1$"],
@@ -47,12 +47,12 @@ end
         resampling=StratifiedCV(nfolds=3)
         )
     ## Check estimators
-    @test estimators.CVTMLE isa TMLEE
-    @test estimators.CVTMLE.weighted === false
-    @test estimators.CVTMLE.resampling == expected_resampling
+    @test estimators.CVTMLE_TUNEDXGBOOST_TUNEDXGBOOST isa TMLEE
+    @test estimators.CVTMLE_TUNEDXGBOOST_TUNEDXGBOOST.weighted === false
+    @test estimators.CVTMLE_TUNEDXGBOOST_TUNEDXGBOOST.resampling == expected_resampling
 
-    @test estimators.CVOSE isa OSE
-    @test estimators.CVOSE.resampling == expected_resampling
+    @test estimators.CVOSE_TUNEDXGBOOST_TUNEDXGBOOST isa OSE
+    @test estimators.CVOSE_TUNEDXGBOOST_TUNEDXGBOOST.resampling == expected_resampling
     ## Check models
     for estimator in estimators
         @test estimator.models.Q_binary_default.probabilistic_tuned_model.model isa XGBoostClassifier
@@ -65,9 +65,9 @@ end
     # 2 model is provided for nuisance functions
     estimators = TargetedEstimation.estimators_from_string(config_string="tmle--sl--glm", treatment_variables=["Coco"])
     ## Check estimators
-    @test estimators.TMLE isa TMLEE
-    @test estimators.TMLE.weighted === false
-    @test estimators.TMLE.resampling === nothing
+    @test estimators.TMLE_SL_GLM isa TMLEE
+    @test estimators.TMLE_SL_GLM.weighted === false
+    @test estimators.TMLE_SL_GLM.resampling === nothing
     ## Check models
     expected_resampling = JointStratifiedCV(
         patterns = Regex[r"^Coco$"],

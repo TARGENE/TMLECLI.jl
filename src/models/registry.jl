@@ -144,32 +144,24 @@ function estimators_from_string(;config_string="wtmle-ose", treatment_variables=
         ## There is an estimator specification, a Q specification and a G specification
         q_string = components[2]
         g_string = components[3]
-        Q_continuous = model_from_string(string(q_string, "_REGRESSOR"), treatment_variables)
-        Q_binary = model_from_string(string(q_string, "_CLASSIFIER"), treatment_variables)
-        G = model_from_string(string(g_string, "_CLASSIFIER"), treatment_variables; interactions=false)
     elseif length(components) == 2
         ## There is an estimator specification and a single model specification
-        model_string = components[2]
-        Q_continuous = model_from_string(string(model_string, "_REGRESSOR"), treatment_variables)
-        Q_binary = model_from_string(string(model_string, "_CLASSIFIER"), treatment_variables)
-        G = model_from_string(string(model_string, "_CLASSIFIER"), treatment_variables; interactions=false)
+        q_string = g_string = components[2]
     else
-        ## There is an estimator specification
-        Q_continuous = model_from_string("GLMNET_REGRESSOR", treatment_variables)
-        Q_binary = model_from_string("GLMNET_CLASSIFIER", treatment_variables)
-        G = model_from_string("GLMNET_CLASSIFIER", treatment_variables; interactions=false)
+        q_string = g_string = "GLMNET"
     end
     models = TMLE.default_models(
         ## For the estimation of E[Y|W, T]: continuous outcome
-        Q_continuous = Q_continuous,
+        Q_continuous = model_from_string(string(q_string, "_REGRESSOR"), treatment_variables),
         ## For the estimation of E[Y|W, T]: binary outcome
-        Q_binary = Q_binary,
+        Q_binary = model_from_string(string(q_string, "_CLASSIFIER"), treatment_variables),
         ## For the estimation of p(T| W)
-        G = G,
+        G = model_from_string(string(g_string, "_CLASSIFIER"), treatment_variables; interactions=false),
     )
     # Create Estimators
     resampling = RESAMPLING(treatment_variables)
     estimators_strings = split(components[1], "-")
     estimators = [estimator_from_string(estimator_string, models, resampling) for estimator_string in estimators_strings]
-    return NamedTuple{Tuple(Symbol.(estimators_strings))}(estimators)
+    estimator_names = Tuple(Symbol(estimator_string, :_, q_string, :_, g_string) for estimator_string in estimators_strings)
+    return NamedTuple{estimator_names}(estimators)
 end

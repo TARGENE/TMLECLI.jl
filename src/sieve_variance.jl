@@ -61,7 +61,7 @@ function update_work_lists_with!(result, sample_ids, batch_results, grm_ids, res
     end
 end
 
-function build_work_list(prefix, grm_ids; estimator_key=:TMLE)
+function build_work_list(prefix, grm_ids; estimator_key=1)
     dirname_, prefix_ = splitdir(prefix)
     dirname__ = dirname_ == "" ? "." : dirname_
     hdf5files = filter(
@@ -189,7 +189,7 @@ end
 corrected_stderrors(variances) =
     sqrt.(view(maximum(variances, dims=1), 1, :))
 
-with_updated_std(estimate::T, std) where T = T(
+with_updated_std(estimate::T, std) where T <: TMLE.Estimate = T(
     estimate.estimand,
     estimate.estimate,
     convert(Float64, std),
@@ -197,8 +197,8 @@ with_updated_std(estimate::T, std) where T = T(
     Float64[]
 )
 
-with_updated_std(results, stds, estimator_key) =
-    [NamedTuple{(estimator_key,)}([with_updated_std(result, std)]) for (result, std) in zip(results, stds)]
+with_updated_std(results::AbstractVector, stds) =
+    [NamedTuple{(:SVP,)}([with_updated_std(result, std)]) for (result, std) in zip(results, stds)]
 
 
 """
@@ -208,7 +208,7 @@ with_updated_std(results, stds, estimator_key) =
         verbosity=0, 
         n_estimators=10, 
         max_tau=0.8,
-        estimator_key="TMLE"
+        estimator_key=1
     )
 
 Sieve Variance Plateau CLI.
@@ -232,9 +232,10 @@ function sieve_variance_plateau(input_prefix::String;
     verbosity::Int=0, 
     n_estimators::Int=10, 
     max_tau::Float64=0.8,
-    estimator_key::String="TMLE"
+    estimator_key::String="1"
     )
-    estimator_key = Symbol(estimator_key)
+    estimator_key_ = tryparse(Int, estimator_key)
+    estimator_key = estimator_key_ === nothing ? Symbol(estimator_key) : estimator_key_
     τs = default_τs(n_estimators;max_τ=max_tau)
     grm, grm_ids = readGRM(grm_prefix)
     verbosity > 0 && @info "Preparing work list."
@@ -244,7 +245,7 @@ function sieve_variance_plateau(input_prefix::String;
         verbosity > 0 && @info "Computing variance estimates."
         variances = compute_variances(influence_curves, grm, τs, n_obs)
         std_errors = corrected_stderrors(variances)
-        results = with_updated_std(results, std_errors, estimator_key)
+        results = with_updated_std(results, std_errors)
     else
         variances = Float32[]
     end

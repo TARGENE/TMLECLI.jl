@@ -307,12 +307,12 @@ end
     src_results = [tmleout1..., tmleout2...]
 
     for svp_result in svp_results
-        src_result_index = findall(x.TMLE.estimand == svp_result.TMLE.estimand for x in src_results)
+        src_result_index = findall(x.TMLE.estimand == svp_result.SVP.estimand for x in src_results)
         src_result = src_results[only(src_result_index)]
-        @test src_result.TMLE.std != svp_result.TMLE.std
-        @test src_result.TMLE.estimate == svp_result.TMLE.estimate
-        @test src_result.TMLE.n == svp_result.TMLE.n
-        @test svp_result.TMLE.IC == []
+        @test src_result.TMLE.std != svp_result.SVP.std
+        @test src_result.TMLE.estimate == svp_result.SVP.estimate
+        @test src_result.TMLE.n == svp_result.SVP.n
+        @test svp_result.SVP.IC == []
     end
 
     close(io)
@@ -350,14 +350,14 @@ end
     svp_results = io["results"]
     standalone_estimates = svp_results[1:2]
     from_composite = svp_results[3:4]
-    @test standalone_estimates[1].OSE.estimand == from_composite[1].OSE.estimand
-    @test standalone_estimates[2].OSE.estimand == from_composite[2].OSE.estimand
+    @test standalone_estimates[1].SVP.estimand == from_composite[1].SVP.estimand
+    @test standalone_estimates[2].SVP.estimand == from_composite[2].SVP.estimand
 
     # Check std has been updated
     for i in 1:2
-        @test standalone_estimates[i].OSE.estimand == src_results[i].OSE.estimand
-        @test standalone_estimates[i].OSE.estimate == src_results[i].OSE.estimate
-        @test standalone_estimates[i].OSE.std != src_results[i].OSE.std
+        @test standalone_estimates[i].SVP.estimand == src_results[i].OSE.estimand
+        @test standalone_estimates[i].SVP.estimate == src_results[i].OSE.estimate
+        @test standalone_estimates[i].SVP.std != src_results[i].OSE.std
     end
 
     close(io)

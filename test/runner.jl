@@ -168,7 +168,7 @@ end
     results_from_json = TMLE.read_json(output, use_mmap=false)
     n_IC_empties = 0
     for result in results_from_json
-        if result[:OSE].IC != []
+        if result[:OSE_GLM_GLM].IC != []
             n_IC_empties += 1
         end
     end
@@ -283,7 +283,6 @@ end
         @test jointresult.OSE.cov == results[3].OSE.cov
     end
 end
-
 
 end;
 

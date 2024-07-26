@@ -63,7 +63,7 @@ include(joinpath(TESTDIR, "testutils.jl"))
 
     @test length(inputs) == 9
     for (input, jls_output, hdf5_out, json_output) in zip(inputs, jls_outputs, hdf5_outputs, json_outputs)
-        @test input.WTMLE.estimand == jls_output.WTMLE.estimand == hdf5_out.WTMLE.estimand == json_output[:WTMLE].estimand
+        @test input.WTMLE_GLMNET_GLMNET.estimand == jls_output.WTMLE_GLMNET_GLMNET.estimand == hdf5_out.WTMLE_GLMNET_GLMNET.estimand == json_output[:WTMLE_GLMNET_GLMNET].estimand
     end
 end
 
