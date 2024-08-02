@@ -2,16 +2,18 @@
 #####           Read TMLE Estimands Configuration                ####
 #####################################################################
 
-function convert_treatment_values(treatment_levels::NamedTuple{names, <:Tuple{Vararg{NamedTuple}}}, treatment_types) where names
-    return [(
-        case = convert(treatment_types[tn], treatment_levels[tn].case), 
-        control = convert(treatment_types[tn], treatment_levels[tn].control)
-    ) 
-        for tn in names]
+convert_estimand_treatment_values(Ψ, treatment_types) = Dict(
+    T => convert_treatment_values(val, treatment_types[T]) for (T, val) ∈ Ψ.treatment_values
+)
+
+function convert_treatment_values(treatment_levels::NamedTuple{(:control, :case)}, treatment_type)
+    return (
+        control = convert(treatment_type, treatment_levels.control),
+        case = convert(treatment_type, treatment_levels.case)
+    )
 end
 
-convert_treatment_values(treatment_levels::NamedTuple{names,}, treatment_types) where names = 
-    [convert(treatment_types[tn], treatment_levels[tn]) for tn in names]
+convert_treatment_values(treatment_level, treatment_type) = convert(treatment_type, treatment_level)
 
 MissingSCMError() = ArgumentError(string("A Structural Causal Model should be provided in the configuration file in order to identify causal estimands."))
 
@@ -38,6 +40,7 @@ end
 wrapped_type(x) = x
 wrapped_type(x::Type{<:CategoricalValue{T,}}) where T = T
 wrapped_type(x::Type{Union{Missing, T}}) where T = wrapped_type(T)
+
 """
 Uses the values found in the dataset to create a new estimand with adjusted values.
 """
@@ -46,9 +49,7 @@ function fix_treatment_values!(treatment_types::AbstractDict, Ψ, dataset)
     for tn in treatment_names
         haskey(treatment_types, tn) ? nothing : treatment_types[tn] = wrapped_type(eltype(dataset[!, tn]))
     end
-    new_treatment = NamedTuple{treatment_names}(
-        convert_treatment_values(Ψ.treatment_values, treatment_types)
-    )
+    new_treatment = convert_estimand_treatment_values(Ψ, treatment_types)
     return typeof(Ψ)(
         outcome = Ψ.outcome,
         treatment_values = new_treatment,

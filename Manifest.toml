@@ -1,6 +1,6 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.10.3"
+julia_version = "1.10.4"
 manifest_format = "2.0"
 project_hash = "b62f3762a6535538ed6b74bdb53c6ce6255c32d6"
 
@@ -155,6 +155,12 @@ deps = ["UnsafeAtomics"]
 git-tree-sha1 = "c06a868224ecba914baa6942988e2f2aade419be"
 uuid = "a9b6321e-bd34-4604-b9c9-b65b8de01458"
 version = "0.1.0"
+
+[[deps.AutoHashEquals]]
+deps = ["Pkg"]
+git-tree-sha1 = "daaeb6f7f77b88c072a83a2451801818acb5c63b"
+uuid = "15f4f7f2-30c1-5605-9d31-71845cf9641f"
+version = "2.1.0"
 
 [[deps.BSON]]
 git-tree-sha1 = "4c3e506685c527ac6a54ccc0c8c76fd6f91b42fb"
@@ -1633,12 +1639,12 @@ uuid = "bea87d4a-7f5b-5778-9afe-8cc45184846c"
 version = "7.2.1+1"
 
 [[deps.TMLE]]
-deps = ["AbstractDifferentiation", "CategoricalArrays", "Combinatorics", "Distributions", "GLM", "Graphs", "HypothesisTests", "LogExpFunctions", "MLJBase", "MLJGLMInterface", "MLJModels", "MetaGraphsNext", "Missings", "PrecompileTools", "Random", "SplitApplyCombine", "Statistics", "TableOperations", "Tables", "Zygote"]
-git-tree-sha1 = "7e2a58b276c5468de5ac5194b41d880657919eea"
-repo-rev = "agnostic_composed"
+deps = ["AbstractDifferentiation", "AutoHashEquals", "CategoricalArrays", "Combinatorics", "Distributions", "GLM", "Graphs", "HypothesisTests", "LogExpFunctions", "MLJBase", "MLJGLMInterface", "MLJModels", "MetaGraphsNext", "Missings", "OrderedCollections", "PrecompileTools", "Random", "SplitApplyCombine", "Statistics", "TableOperations", "Tables", "Zygote"]
+git-tree-sha1 = "4ae1fe54bc361c2073cbb76f9f9a07c294655eed"
+repo-rev = "treatment_values"
 repo-url = "https://github.com/TARGENE/TMLE.jl"
 uuid = "8afdd2fb-6e73-43df-8b62-b1650cd9c8cf"
-version = "0.16.1"
+version = "0.17.0"
 weakdeps = ["JSON", "YAML"]
 
     [deps.TMLE.extensions]

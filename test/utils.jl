@@ -20,17 +20,20 @@ include(joinpath(TESTDIR, "testutils.jl"))
 
 @testset "Test convert_treatment_values" begin
     treatment_types = Dict(:T₁=> Union{Missing, Bool}, :T₂=> Int)
-    newT = TargetedEstimation.convert_treatment_values((T₁=1,), treatment_types)
-    @test newT isa Vector{Bool}
-    @test newT == [1]
 
-    newT = TargetedEstimation.convert_treatment_values((T₁=(case=1, control=0.),), treatment_types)
-    @test newT isa Vector{NamedTuple{(:case, :control), Tuple{Bool, Bool}}}
-    @test newT == [(case = true, control = false)]
+    Ψ = CM(;outcome = :Y, treatment_values=Dict(:T₁=>1, :T₂=>false))
+    newT = TargetedEstimation.convert_estimand_treatment_values(Ψ, treatment_types)
+    @test newT[:T₁] === true !== 1
+    @test newT[:T₂] === 0 !== false
 
-    newT = TargetedEstimation.convert_treatment_values((T₁=(case=1, control=0.), T₂=(case=true, control=0)), treatment_types)
-    @test newT isa Vector{NamedTuple{(:case, :control)}}
-    @test newT == [(case = true, control = false), (case = 1, control = 0)]
+    Ψ = ATE(;outcome = :Y, treatment_values=Dict(:T₁ => (case=1, control=0.)), )
+    newT = TargetedEstimation.convert_estimand_treatment_values(Ψ, treatment_types)
+    @test newT[:T₁] === (control=false, case=true) !== (control=0, case=1)
+
+    Ψ = IATE(;outcome = :Y, treatment_values=Dict(:T₁ => (case=1, control=0.), :T₂ => (case=true, control=0)), )
+    newT = TargetedEstimation.convert_estimand_treatment_values(Ψ, treatment_types)
+    @test newT[:T₁] === (control=false, case=true) !== (control=0, case=1)
+    @test newT[:T₂] === (control=0, case=1) !== (control=false, case=true)
 end
 
 @testset "Test treatments_from_estimands" begin
@@ -66,10 +69,10 @@ end
     estimands = TargetedEstimation.proofread_estimands(config, dataset)
     for estimand in estimands
         if haskey(estimand.treatment_values, :T1)
-            check_type(estimand.treatment_values.T1, Float64)
+            check_type(estimand.treatment_values[:T1], Float64)
         end
         if haskey(estimand.treatment_values, :T2)
-            check_type(estimand.treatment_values.T2, Bool)
+            check_type(estimand.treatment_values[:T2], Bool)
         end
     end
     # Clean estimands file
