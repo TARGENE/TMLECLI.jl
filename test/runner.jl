@@ -23,9 +23,9 @@ include(joinpath(TESTDIR, "testutils.jl"))
     @test estimators.TMLE isa TMLE.TMLEE
     @test estimators.OSE isa TMLE.OSE
     @test estimators.TMLE.weighted === true
-    @test estimators.TMLE.models.G_default === estimators.OSE.models.G_default
-    @test estimators.TMLE.models.G_default.continuous_encoder isa MLJModels.ContinuousEncoder
-    @test estimators.TMLE.models.G_default.probabilistic_stack isa MLJBase.ProbabilisticStack
+    @test estimators.TMLE.models[:G_default] === estimators.OSE.models[:G_default]
+    @test estimators.TMLE.models[:G_default].continuous_encoder isa MLJModels.ContinuousEncoder
+    @test estimators.TMLE.models[:G_default].probabilistic_stack isa MLJBase.ProbabilisticStack
     # From already constructed estimators
     estimators_new = TargetedEstimation.instantiate_estimators(estimators, nothing)
     @test estimators_new === estimators

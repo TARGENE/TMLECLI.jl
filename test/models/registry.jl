@@ -23,9 +23,9 @@ using MLJLinearModels
         resampling=StratifiedCV(nfolds=3)
         )
     for estimator in estimators
-        Qbinary = estimator.models.Q_binary_default.probabilistic_pipeline
-        Qcontinuous = estimator.models.Q_continuous_default.deterministic_pipeline
-        G = estimator.models.G_default
+        Qbinary = estimator.models[:Q_binary_default].probabilistic_pipeline
+        Qcontinuous = estimator.models[:Q_continuous_default].deterministic_pipeline
+        G = estimator.models[:G_default]
         
         @test Qbinary.glm_net_classifier isa GLMNetClassifier
         @test Qbinary.glm_net_classifier.resampling == expected_resampling
@@ -55,9 +55,9 @@ end
     @test estimators.CVOSE_TUNEDXGBOOST_TUNEDXGBOOST.resampling == expected_resampling
     ## Check models
     for estimator in estimators
-        @test estimator.models.Q_binary_default.probabilistic_tuned_model.model isa XGBoostClassifier
-        @test estimator.models.Q_continuous_default.deterministic_tuned_model.model isa XGBoostRegressor
-        @test estimator.models.G_default.probabilistic_tuned_model.model isa XGBoostClassifier
+        @test estimator.models[:Q_binary_default].probabilistic_tuned_model.model isa XGBoostClassifier
+        @test estimator.models[:Q_continuous_default].deterministic_tuned_model.model isa XGBoostRegressor
+        @test estimator.models[:G_default].probabilistic_tuned_model.model isa XGBoostClassifier
     end
 end
 
@@ -74,9 +74,9 @@ end
         resampling=StratifiedCV(nfolds=3)
         )
     for estimator in estimators
-        Qbinary = estimator.models.Q_binary_default.probabilistic_stack
-        Qcontinuous = estimator.models.Q_continuous_default.deterministic_stack
-        G = estimator.models.G_default.logistic_classifier
+        Qbinary = estimator.models[:Q_binary_default].probabilistic_stack
+        Qcontinuous = estimator.models[:Q_continuous_default].deterministic_stack
+        G = estimator.models[:G_default].logistic_classifier
 
         @test Qbinary.glmnet.restricted_interaction_transformer.primary_variables_patterns == Regex[r"^Coco$"]
         @test Qbinary.glmnet.glm_net_classifier.resampling == expected_resampling
