@@ -1,4 +1,4 @@
-name = "TargetedEstimation"
+name = "TMLECLI"
 uuid = "2573d147-4098-46ba-9db2-8608d210ccac"
 authors = ["Olivier Labayle"]
 version = "0.9.0"

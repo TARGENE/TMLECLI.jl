@@ -1,21 +1,21 @@
 module TestRunner
 
-using TargetedEstimation
+using TMLECLI
 using Test
 using TMLE
 
 @testset "Test NoCacheManager" begin
-    cache_manager = TargetedEstimation.NoCacheManager()
+    cache_manager = TMLECLI.NoCacheManager()
     cache_manager.cache["Toto"] = 1
     cache_manager.cache["Tata"] = 2
-    TargetedEstimation.release!(cache_manager, nothing)
+    TMLECLI.release!(cache_manager, nothing)
     @test cache_manager.cache == Dict()
     # Check this does not throw
-    TargetedEstimation.release!(cache_manager, nothing)
+    TMLECLI.release!(cache_manager, nothing)
 end
 
 @testset "Test MaxSizeCacheManager" begin
-    cache_manager = TargetedEstimation.MaxSizeCacheManager(3)
+    cache_manager = TMLECLI.MaxSizeCacheManager(3)
     Y_T₁T₂ = TMLE.ConditionalDistribution(:Y, (:T₁, :T₂, :W))
     cache_manager.cache[Y_T₁T₂] = 1
     T₁_W = TMLE.ConditionalDistribution(:T₁, (:W,))
@@ -29,7 +29,7 @@ end
     cache_manager.cache[η] = 1
     cache_manager.cache[:last_fluctuation] = 1
     length(cache_manager.cache) == 5
-    TargetedEstimation.release!(cache_manager, nothing)
+    TMLECLI.release!(cache_manager, nothing)
     # CMRelevantFactors and fluctuation dropped
     @test cache_manager.cache == Dict(
         TMLE.ConditionalDistribution(:Y, (:T₁, :T₂, :W)) => 1,
@@ -62,7 +62,7 @@ end
         )
     ]
     η_counts = TMLE.nuisance_function_counts(estimands)
-    cache_manager = TargetedEstimation.ReleaseUnusableCacheManager(η_counts)
+    cache_manager = TMLECLI.ReleaseUnusableCacheManager(η_counts)
     # Estimation of the first estimand will fill the cache with the following
     Y_T₁T₂ = TMLE.ConditionalDistribution(:Y, (:T₁, :T₂, :W))
     cache_manager.cache[Y_T₁T₂] = 1
@@ -78,7 +78,7 @@ end
     cache_manager.cache[:last_fluctuation] = 1
     @test length(cache_manager.cache) == 5
     # After estimation of the first estimand, the fluctuation and composite factor are released
-    TargetedEstimation.release!(cache_manager, estimands[1])
+    TMLECLI.release!(cache_manager, estimands[1])
     @test cache_manager.cache == Dict(
         TMLE.ConditionalDistribution(:Y, (:T₁, :T₂, :W)) => 1,
         TMLE.ConditionalDistribution(:T₂, (:W,))         => 1,
@@ -89,7 +89,7 @@ end
     cache_manager.cache[η] = 1
     cache_manager.cache[:last_fluctuation] = 1
     # Y_T₁T₂ and T₂_W are no longer needed
-    TargetedEstimation.release!(cache_manager, estimands[2])
+    TMLECLI.release!(cache_manager, estimands[2])
     @test cache_manager.cache == Dict(TMLE.ConditionalDistribution(:T₁, (:W,)) => 1)
 
     # Estimation of the third estimand will fill the cache with the following
@@ -102,10 +102,10 @@ end
     cache_manager.cache[η] = 1
     cache_manager.cache[:last_fluctuation] = 1
     # Y_T₁ and T₁_W are no longer needed
-    TargetedEstimation.release!(cache_manager, estimands[3])
+    TMLECLI.release!(cache_manager, estimands[3])
     @test cache_manager.cache == Dict()
     # Check this does not throw
-    TargetedEstimation.release!(cache_manager, estimands[1])
+    TMLECLI.release!(cache_manager, estimands[1])
 end
 
 end

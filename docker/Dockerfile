@@ -14,9 +14,9 @@ RUN bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
 
 # Import the project
 
-COPY . /TargetedEstimation.jl 
+COPY . /TMLECLI.jl 
 
-WORKDIR /TargetedEstimation.jl
+WORKDIR /TMLECLI.jl
 
 # Precompile the project
 RUN julia --project -e'using Pkg; Pkg.instantiate(); Pkg.resolve(); Pkg.precompile()'

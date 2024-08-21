@@ -56,9 +56,9 @@ jobs:
       - run: |
           julia --project=docs -e '
             using Documenter: DocMeta, doctest
-            using TargetedEstimation
-            DocMeta.setdocmeta!(TargetedEstimation, :DocTestSetup, :(using TargetedEstimation); recursive=true)
-            doctest(TargetedEstimation)'
+            using TMLECLI
+            DocMeta.setdocmeta!(TMLECLI, :DocTestSetup, :(using TMLECLI); recursive=true)
+            doctest(TMLECLI)'
       - run: julia --project=docs docs/make.jl
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

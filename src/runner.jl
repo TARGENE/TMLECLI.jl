@@ -125,7 +125,7 @@ function (runner::Runner)(partition)
             continue
         end
         # Make sure data types are appropriate for the estimand
-        TargetedEstimation.coerce_types!(runner.dataset, Ψ)
+        TMLECLI.coerce_types!(runner.dataset, Ψ)
         # Maybe update cache with new η_spec
         estimators_results = []
         for estimator in runner.estimators

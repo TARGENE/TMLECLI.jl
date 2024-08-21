@@ -1,7 +1,7 @@
-using TargetedEstimation
+using TMLECLI
 using Test
 
-TESTDIR = joinpath(pkgdir(TargetedEstimation), "test")
+TESTDIR = joinpath(pkgdir(TMLECLI), "test")
 
 @time begin
     @test include(joinpath(TESTDIR, "outputs.jl"))

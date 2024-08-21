@@ -1,7 +1,7 @@
 module TestRestrictedInteractionTransformer
 
 using Test
-using TargetedEstimation
+using TMLECLI
 using Random
 using MLJBase
 using Tables
@@ -44,7 +44,7 @@ using Tables
     ]
     @test expected_interactions == interactions
     Xt = MLJBase.transform(mach, X)
-    feature_names = TargetedEstimation.feature_names(interactions)
+    feature_names = TMLECLI.feature_names(interactions)
     @test Tables.columnnames(Xt) == tuple(Tables.columnnames(X)..., feature_names...)
     @test Xt[Symbol("rs1234_&_sex_&_PC_2")] == X[:rs1234].*X[:sex].*X[:PC_2]
 
@@ -72,7 +72,7 @@ using Tables
     ]
     @test expected_interactions == interactions
     Xt = MLJBase.transform(mach, X)
-    feature_names = TargetedEstimation.feature_names(interactions)
+    feature_names = TMLECLI.feature_names(interactions)
     @test Tables.columnnames(Xt) == tuple(Tables.columnnames(X)..., feature_names...)
 
     # Test with both primary_variables and primary_variables_patterns
@@ -110,7 +110,7 @@ using Tables
     ]
     @test expected_interactions == interactions
     Xt = MLJBase.transform(mach, X)
-    feature_names = TargetedEstimation.feature_names(interactions)
+    feature_names = TMLECLI.feature_names(interactions)
     @test Tables.columnnames(Xt) == tuple(Tables.columnnames(X)..., feature_names...)
 
     # Invalid column
@@ -120,7 +120,7 @@ using Tables
         primary_variables=[:A, :B],
     )
     mach = machine(model, X, scitype_check_level=0)
-    @test_throws TargetedEstimation.InvalidColumnError("A") fit!(mach, verbosity=0)
+    @test_throws TMLECLI.InvalidColumnError("A") fit!(mach, verbosity=0)
 end
 
 end

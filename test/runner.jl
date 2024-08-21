@@ -1,7 +1,7 @@
 module TestsTMLE
 
 using Test
-using TargetedEstimation
+using TMLECLI
 using TMLE
 using JLD2
 using CSV
@@ -11,7 +11,7 @@ using JSON
 using MLJBase
 using MLJModels
 
-PKGDIR = pkgdir(TargetedEstimation)
+PKGDIR = pkgdir(TMLECLI)
 TESTDIR = joinpath(PKGDIR, "test")
 CONFIGDIR = joinpath(TESTDIR, "config")
 
@@ -19,7 +19,7 @@ include(joinpath(TESTDIR, "testutils.jl"))
 
 @testset "Test instantiate_estimators from file" begin
     # From explicit file
-    estimators = TargetedEstimation.instantiate_estimators(joinpath(TESTDIR, "config", "tmle_ose_config.jl"), nothing)
+    estimators = TMLECLI.instantiate_estimators(joinpath(TESTDIR, "config", "tmle_ose_config.jl"), nothing)
     @test estimators.TMLE isa TMLE.TMLEE
     @test estimators.OSE isa TMLE.OSE
     @test estimators.TMLE.weighted === true
@@ -27,7 +27,7 @@ include(joinpath(TESTDIR, "testutils.jl"))
     @test estimators.TMLE.models[:G_default].continuous_encoder isa MLJModels.ContinuousEncoder
     @test estimators.TMLE.models[:G_default].probabilistic_stack isa MLJBase.ProbabilisticStack
     # From already constructed estimators
-    estimators_new = TargetedEstimation.instantiate_estimators(estimators, nothing)
+    estimators_new = TMLECLI.instantiate_estimators(estimators, nothing)
     @test estimators_new === estimators
 end
 
@@ -36,12 +36,12 @@ end
     dataset = build_dataset(;n=1000)
     
     config = statistical_estimands_only_config()
-    outputs = TargetedEstimation.Outputs(
+    outputs = TMLECLI.Outputs(
         json=joinpath(tmpdir, "output.json"),
         hdf5=joinpath(tmpdir, "output.hdf5"),
         jls=joinpath(tmpdir, "output.jls"),
     )
-    estimators = TargetedEstimation.instantiate_estimators(joinpath(CONFIGDIR, "tmle_ose_config.jl"), nothing)
+    estimators = TMLECLI.instantiate_estimators(joinpath(CONFIGDIR, "tmle_ose_config.jl"), nothing)
     runner = Runner(
         dataset;
         estimands_config=config, 
@@ -52,7 +52,7 @@ end
         pvalue_threshold=1e-5
     )
     # Initialize outputs
-    TargetedEstimation.initialize(outputs)
+    TMLECLI.initialize(outputs)
     # Run
     partition = 4:6
     results = runner(partition)
@@ -61,9 +61,9 @@ end
         @test result.OSE isa TMLE.OSEstimate
     end
     # Update outputs
-    TargetedEstimation.update_outputs(runner, results)
+    TMLECLI.update_outputs(runner, results)
     # Finalize outputs
-    TargetedEstimation.finalize(runner.outputs)
+    TMLECLI.finalize(runner.outputs)
 
     # Test Save to JSON
     loaded_json_results = TMLE.read_json(outputs.json, use_mmap=false)
@@ -108,7 +108,7 @@ end
     estimands_filename = joinpath(tmpdir, "configuration.json")
     configuration = statistical_estimands_only_config()
     TMLE.write_json(estimands_filename, configuration)
-    outputs = TargetedEstimation.Outputs(
+    outputs = TMLECLI.Outputs(
         json=joinpath(tmpdir, "output.json"),
         hdf5=joinpath(tmpdir, "output.hdf5"),
     )
@@ -179,7 +179,7 @@ end
     tmpdir = mktempdir()
     datafile = joinpath(tmpdir, "data.csv")
     write_dataset(datafile)
-    outputs = TargetedEstimation.Outputs(
+    outputs = TMLECLI.Outputs(
         json=joinpath(tmpdir, "output.json"),
         hdf5=joinpath(tmpdir, "output.hdf5")
     )
@@ -216,10 +216,10 @@ end
     jldopen(outputs.hdf5) do io 
         results_from_hdf5 = io["Batch_1"]
         for estimator in (:OSE, :TMLE)
-            @test results_from_hdf5[1][estimator] isa TargetedEstimation.FailedEstimate
+            @test results_from_hdf5[1][estimator] isa TMLECLI.FailedEstimate
             @test results_from_hdf5[2][estimator] isa TMLE.EICEstimate
             for i in 3:6
-                @test results_from_hdf5[i][estimator] isa TargetedEstimation.FailedEstimate
+                @test results_from_hdf5[i][estimator] isa TMLECLI.FailedEstimate
                 @test results_from_hdf5[i][estimator].estimand isa TMLE.Estimand
             end
         end

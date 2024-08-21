@@ -1,6 +1,6 @@
 module TestRegistry
 
-using TargetedEstimation
+using TMLECLI
 using Test
 using TMLE
 using MLJBase
@@ -9,7 +9,7 @@ using MLJLinearModels
 
 @testset "Test estimators_from_string: no models provided" begin
     # Default configuration results in GLMNets with interactions of order 2
-    estimators = TargetedEstimation.estimators_from_string(config_string="wtmle-ose", treatment_variables=Set([:T1, :T2]))
+    estimators = TMLECLI.estimators_from_string(config_string="wtmle-ose", treatment_variables=Set([:T1, :T2]))
     ## Check estimators
     @test estimators.WTMLE_GLMNET_GLMNET isa TMLEE
     @test estimators.WTMLE_GLMNET_GLMNET.weighted === true
@@ -41,7 +41,7 @@ end
 
 @testset "Test estimators_from_string: 1 model provided" begin
     # 1 model is provided and used for all nuisance functions
-    estimators = TargetedEstimation.estimators_from_string(config_string="cvtmle-cvose--tunedxgboost", treatment_variables=[])
+    estimators = TMLECLI.estimators_from_string(config_string="cvtmle-cvose--tunedxgboost", treatment_variables=[])
     expected_resampling = JointStratifiedCV(
         patterns = Regex[],
         resampling=StratifiedCV(nfolds=3)
@@ -63,7 +63,7 @@ end
 
 @testset "Test estimators_from_string: 2 models provided" begin
     # 2 model is provided for nuisance functions
-    estimators = TargetedEstimation.estimators_from_string(config_string="tmle--sl--glm", treatment_variables=["Coco"])
+    estimators = TMLECLI.estimators_from_string(config_string="tmle--sl--glm", treatment_variables=["Coco"])
     ## Check estimators
     @test estimators.TMLE_SL_GLM isa TMLEE
     @test estimators.TMLE_SL_GLM.weighted === false
