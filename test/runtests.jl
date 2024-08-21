@@ -1,7 +1,7 @@
-using TMLECLI
+using TmleCLI
 using Test
 
-TESTDIR = joinpath(pkgdir(TMLECLI), "test")
+TESTDIR = joinpath(pkgdir(TmleCLI), "test")
 
 @time begin
     @test include(joinpath(TESTDIR, "outputs.jl"))

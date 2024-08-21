@@ -1,13 +1,13 @@
 module TestSummary
 
-using TMLECLI
+using TmleCLI
 using Test
 using CSV
 using DataFrames
 using Serialization
 using JLD2
 
-TESTDIR = joinpath(pkgdir(TMLECLI), "test")
+TESTDIR = joinpath(pkgdir(TmleCLI), "test")
 
 CONFIGDIR = joinpath(TESTDIR, "config")
 
@@ -20,7 +20,7 @@ include(joinpath(TESTDIR, "testutils.jl"))
     
     estimatorfile = "wtmle--glmnet"
     # First Run
-    tmle_output_1 = TMLECLI.Outputs(hdf5=joinpath(tmpdir, "tmle_output_1.hdf5"))
+    tmle_output_1 = TmleCLI.Outputs(hdf5=joinpath(tmpdir, "tmle_output_1.hdf5"))
     config_1 = statistical_estimands_only_config()
     configfile_1 = joinpath(tmpdir, "configuration_1.json")
     TMLE.write_json(configfile_1, config_1)
@@ -32,7 +32,7 @@ include(joinpath(TESTDIR, "testutils.jl"))
     )
     
     # Second Run
-    tmle_output_2 = TMLECLI.Outputs(hdf5=joinpath(tmpdir, "tmle_output_2.hdf5"))
+    tmle_output_2 = TmleCLI.Outputs(hdf5=joinpath(tmpdir, "tmle_output_2.hdf5"))
     config_2 = causal_and_joint_estimands_config()
     configfile_2 = joinpath(tmpdir, "configuration_2.json")
     TMLE.write_json(configfile_2, config_2)
@@ -55,7 +55,7 @@ include(joinpath(TESTDIR, "testutils.jl"))
     ])
 
     # Test correctness
-    inputs = TMLECLI.read_results_from_files([joinpath(tmpdir, "tmle_output_1.hdf5"), joinpath(tmpdir, "tmle_output_2.hdf5")])
+    inputs = TmleCLI.read_results_from_files([joinpath(tmpdir, "tmle_output_1.hdf5"), joinpath(tmpdir, "tmle_output_2.hdf5")])
 
     json_outputs = TMLE.read_json(json_output, use_mmap=false)
     jls_outputs = deserialize(jls_output)

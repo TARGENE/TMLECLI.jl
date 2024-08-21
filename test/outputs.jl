@@ -1,22 +1,22 @@
 module TestOutputs
 
-using TMLECLI
+using TmleCLI
 using Test
 using JSON
 
-TESTDIR = joinpath(pkgdir(TMLECLI), "test")
+TESTDIR = joinpath(pkgdir(TmleCLI), "test")
 
 include(joinpath(TESTDIR, "testutils.jl"))
 
 @testset "Test initialize" begin
     tmpdir = mktempdir()
-    outputs = TMLECLI.Outputs(
+    outputs = TmleCLI.Outputs(
         json = joinpath(tmpdir, "output.json"),
         jls = joinpath(tmpdir, "output.jls"),
         hdf5 = joinpath(tmpdir, "output.hdf5"),
     )
 
-    TMLECLI.initialize(outputs)
+    TmleCLI.initialize(outputs)
 
     @test readlines(open(outputs.json)) == ["["]
     @test !isfile(outputs.jls)
@@ -27,7 +27,7 @@ include(joinpath(TESTDIR, "testutils.jl"))
     touch(outputs.hdf5)
     @test isfile(outputs.jls)
     @test isfile(outputs.hdf5)
-    TMLECLI.initialize(outputs)
+    TmleCLI.initialize(outputs)
     @test readlines(open(outputs.json)) == ["["]
     @test !isfile(outputs.jls)
     @test !isfile(outputs.hdf5)
@@ -43,10 +43,10 @@ end
     end
     tmpdir = mktempdir()
     filename = joinpath(tmpdir, "output_test.json")
-    TMLECLI.initialize_json(filename)
-    TMLECLI.update_json(filename, results[1:3])
-    TMLECLI.update_json(filename, results[4:end])
-    TMLECLI.finalize_json(filename)
+    TmleCLI.initialize_json(filename)
+    TmleCLI.update_json(filename, results[1:3])
+    TmleCLI.update_json(filename, results[4:end])
+    TmleCLI.finalize_json(filename)
     loaded_results = TMLE.read_json(filename, use_mmap=false)
     @test size(loaded_results) == size(results)
     for (result, loaded_result) in zip(results, loaded_results)

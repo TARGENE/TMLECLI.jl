@@ -124,7 +124,7 @@ Linear models typically do not involve any interaction terms. Here, to add extra
 
 ### Estimators Via A Julia File
 
-Building an estimator via a configuration string is quite flexible and should cover most use cases. However, in some cases you may want to have full control over the estimation procedure. This is possible by instead providing a Julia configuration file describing the estimators to be used. The file should define an `ESTIMATORS` NamedTuple describing the estimators to be used, and some examples can be found [here](https://github.com/TARGENE/TMLE-CLI.jl/tree/treatment_values/estimators-configs).
+Building an estimator via a configuration string is quite flexible and should cover most use cases. However, in some cases you may want to have full control over the estimation procedure. This is possible by instead providing a Julia configuration file describing the estimators to be used. The file should define an `ESTIMATORS` NamedTuple describing the estimators to be used, and some examples can be found [here](https://github.com/TARGENE/TmleCLI.jl/tree/treatment_values/estimators-configs).
 
 For further information, we recommend you have a look at both:
 
@@ -155,7 +155,7 @@ In what follows, `Y` is an outcome of interest, `W` a set of confounding variabl
 
 For all the following experiments:
 
-- The Julia script can be found at [experiments/runtime.jl](https://github.com/TARGENE/TMLE-CLI.jl/tree/main/experiments/runtime.jl).
+- The Julia script can be found at [experiments/runtime.jl](https://github.com/TARGENE/TmleCLI.jl/tree/main/experiments/runtime.jl).
 - The various estimators used below are further described in the[estimators-configs](https://github.com/TARGENE/TMLE.jl/tree/main/estimators-configs) folder.
 
 ### Multiple treatment contrasts

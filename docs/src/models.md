@@ -1,7 +1,7 @@
 # Models
 
 ```@meta
-CurrentModule = TMLECLI
+CurrentModule = TmleCLI
 ```
 
 Because [TMLE.jl](https://targene.github.io/TMLE.jl/stable/) is based on top of [MLJ](https://alan-turing-institute.github.io/MLJ.jl/dev/), we can support any model respecting the MLJ interface. At the moment, we readily support all models from the following packages:
@@ -12,13 +12,13 @@ Because [TMLE.jl](https://targene.github.io/TMLE.jl/stable/) is based on top of 
 - [GLMNet](https://github.com/JuliaStats/GLMNet.jl): A Julia wrapper of the [glmnet](https://glmnet.stanford.edu/articles/glmnet.html) package. See the [GLMNet](@ref) section.
 - [MLJModels](https://github.com/JuliaAI/MLJModels.jl): General utilities such as the `OneHotEncoder` or `InteractionTransformer`.
 
-Further support for more packages can be added on request, please fill an [issue](https://github.com/TARGENE/TMLE-CLI.jl/issues).
+Further support for more packages can be added on request, please fill an [issue](https://github.com/TARGENE/TmleCLI.jl/issues).
 
 Also, because the estimator file used by the TMLE CLI is a pure Julia file, it is possible to use it in order to install additional package that can be used to define additional models.
 
-Finally, we also provide some additional models described in [Additional models provided by TMLE-CLI.jl](@ref).
+Finally, we also provide some additional models described in [Additional models provided by TmleCLI.jl](@ref).
 
-## Additional models provided by TMLE-CLI.jl
+## Additional models provided by TmleCLI.jl
 
 ### GLMNet
 

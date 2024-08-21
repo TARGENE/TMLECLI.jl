@@ -1,4 +1,4 @@
-module TMLECLI
+module TmleCLI
 
 if occursin("Intel", Sys.cpu_info()[1].model)
     using MKL
@@ -20,7 +20,6 @@ using GLMNet
 using MLJModels
 using Mmap
 using Serialization
-using MultipleTesting
 using Combinatorics
 using Tables
 using Random

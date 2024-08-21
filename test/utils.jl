@@ -1,7 +1,7 @@
 module TestUtils
 
 using Test
-using TMLECLI
+using TmleCLI
 using TMLE
 using DataFrames
 using CSV
@@ -14,7 +14,7 @@ check_type(treatment_value, ::Type{T}) where T = @test treatment_value isa T
 check_type(treatment_values::NamedTuple, ::Type{T}) where T = 
     @test treatment_values.case isa T && treatment_values.control isa T 
 
-TESTDIR = joinpath(pkgdir(TMLECLI), "test")
+TESTDIR = joinpath(pkgdir(TmleCLI), "test")
 
 include(joinpath(TESTDIR, "testutils.jl"))
 
@@ -22,16 +22,16 @@ include(joinpath(TESTDIR, "testutils.jl"))
     treatment_types = Dict(:T₁=> Union{Missing, Bool}, :T₂=> Int)
 
     Ψ = CM(;outcome = :Y, treatment_values=Dict(:T₁=>1, :T₂=>false))
-    newT = TMLECLI.convert_estimand_treatment_values(Ψ, treatment_types)
+    newT = TmleCLI.convert_estimand_treatment_values(Ψ, treatment_types)
     @test newT[:T₁] === true !== 1
     @test newT[:T₂] === 0 !== false
 
     Ψ = ATE(;outcome = :Y, treatment_values=Dict(:T₁ => (case=1, control=0.)), )
-    newT = TMLECLI.convert_estimand_treatment_values(Ψ, treatment_types)
+    newT = TmleCLI.convert_estimand_treatment_values(Ψ, treatment_types)
     @test newT[:T₁] === (control=false, case=true) !== (control=0, case=1)
 
     Ψ = AIE(;outcome = :Y, treatment_values=Dict(:T₁ => (case=1, control=0.), :T₂ => (case=true, control=0)), )
-    newT = TMLECLI.convert_estimand_treatment_values(Ψ, treatment_types)
+    newT = TmleCLI.convert_estimand_treatment_values(Ψ, treatment_types)
     @test newT[:T₁] === (control=false, case=true) !== (control=0, case=1)
     @test newT[:T₂] === (control=0, case=1) !== (control=false, case=true)
 end
@@ -56,7 +56,7 @@ end
             treatment_values = (T1 = (case = true, control = false), T4 = (case = true, control = false),), 
         ))
     ]
-    @test TMLECLI.treatments_from_estimands(estimands) == Set([:T1, :T2, :T3, :T4])
+    @test TmleCLI.treatments_from_estimands(estimands) == Set([:T1, :T2, :T3, :T4])
 end
 
 @testset "Test instantiate_config" for extension in ("yaml", "json")
@@ -65,8 +65,8 @@ end
     eval(Meta.parse("TMLE.write_$extension"))(filename, statistical_estimands_only_config())
 
     dataset = DataFrame(T1 = [1., 0.], T2=[true, false])
-    config = TMLECLI.instantiate_config(filename)
-    estimands = TMLECLI.proofread_estimands(config, dataset)
+    config = TmleCLI.instantiate_config(filename)
+    estimands = TmleCLI.proofread_estimands(config, dataset)
     for estimand in estimands
         if haskey(estimand.treatment_values, :T1)
             check_type(estimand.treatment_values[:T1], Float64)
@@ -81,13 +81,13 @@ end
 
 @testset "Test factorialATE" begin
     dataset = DataFrame(C=[1, 2, 3, 4],)
-    @test_throws ArgumentError TMLECLI.instantiate_estimands("factorialATE", dataset)
+    @test_throws ArgumentError TmleCLI.instantiate_estimands("factorialATE", dataset)
     dataset.T = [0, 1, missing, 2]
-    @test_throws ArgumentError TMLECLI.instantiate_estimands("factorialATE", dataset)
+    @test_throws ArgumentError TmleCLI.instantiate_estimands("factorialATE", dataset)
     dataset.Y = [0, 1, 2, 2]
     dataset.W1 = [1, 1, 1, 1]
     dataset.W_2 = [1, 1, 1, 1]
-    composedATE = TMLECLI.instantiate_estimands("factorialATE", dataset)[1]
+    composedATE = TmleCLI.instantiate_estimands("factorialATE", dataset)[1]
     @test composedATE.args == (
         TMLE.StatisticalATE(:Y, (T = (case = 1, control = 0),), (T = (:W1, :W_2),), ()),
         TMLE.StatisticalATE(:Y, (T = (case = 2, control = 1),), (T = (:W1, :W_2),), ())
@@ -110,7 +110,7 @@ end
         treatment_values=(T₁=(case=1, control=0), T₂=(case="AC", control="CC")),
         treatment_confounders=(T₁=[:W₁, :W₂], T₂=[:W₁, :W₂]),
     )
-    TMLECLI.coerce_types!(dataset, Ψ)
+    TmleCLI.coerce_types!(dataset, Ψ)
     @test scitype(dataset.T₁) == AbstractVector{Union{Missing, OrderedFactor{2}}}
     @test scitype(dataset.T₂) == AbstractVector{Union{Missing, Multiclass{3}}}
     @test scitype(dataset.Ycont) == AbstractVector{Union{Missing, MLJBase.Continuous}}
@@ -124,7 +124,7 @@ end
         treatment_confounders=(T₂=[:W₂],),
         outcome_extra_covariates=[:C]
     )
-    TMLECLI.coerce_types!(dataset, Ψ)
+    TmleCLI.coerce_types!(dataset, Ψ)
     @test scitype(dataset.Ybin) == AbstractVector{Union{Missing, OrderedFactor{2}}}
     @test scitype(dataset.C) == AbstractVector{Count}
 
@@ -134,7 +134,7 @@ end
         treatment_values=(T₂=(case="AC", control="CC"), ),
         treatment_confounders=(T₂=[:W₂],),
     )
-    TMLECLI.coerce_types!(dataset, Ψ)
+    TmleCLI.coerce_types!(dataset, Ψ)
     @test scitype(dataset.Ycount) == AbstractVector{Union{Missing, MLJBase.Continuous}}
 end
 
@@ -150,7 +150,7 @@ end
         ),
         outcome_extra_covariates = [:C]
     )
-    variables = TMLECLI.variables(Ψ)
+    variables = TmleCLI.variables(Ψ)
     @test variables == Set([:Y, :C, :T₁, :T₂, :W₁, :W₂, :W₃])
     Ψ = ATE(
         outcome = :Y,
@@ -162,7 +162,7 @@ end
             T₂=[:W₁, :W₂]
         ),
     )
-    variables = TMLECLI.variables(Ψ)
+    variables = TmleCLI.variables(Ψ)
     @test variables == Set([:Y, :T₁, :T₂, :W₁, :W₂])
     data = DataFrame(
         SAMPLE_ID  = [1, 2, 3, 4, 5],
@@ -172,20 +172,20 @@ end
         T₁         = [1, 2, 3, 4, 5],
         T₂         = [1, 2, 3, 4, missing],
     )
-    sample_ids = TMLECLI.sample_ids_from_variables(data, variables)
+    sample_ids = TmleCLI.sample_ids_from_variables(data, variables)
     @test sample_ids == [2, 3]
     data.W₁ = [1, 2, missing, 4, 5]
-    sample_ids = TMLECLI.sample_ids_from_variables(data, variables)
+    sample_ids = TmleCLI.sample_ids_from_variables(data, variables)
     @test sample_ids == [2]
     # wrapped_ype
     col = categorical(["AC", "CC"])
-    @test TMLECLI.wrapped_type(eltype(col)) == String
+    @test TmleCLI.wrapped_type(eltype(col)) == String
     col = categorical(["AC", "CC", missing])
-    @test TMLECLI.wrapped_type(eltype(col)) == String
+    @test TmleCLI.wrapped_type(eltype(col)) == String
     col = [1, missing, 0.3]
-    @test TMLECLI.wrapped_type(eltype(col)) == Float64
+    @test TmleCLI.wrapped_type(eltype(col)) == Float64
     col = [1, 2, 3]
-    @test TMLECLI.wrapped_type(eltype(col)) == Int64
+    @test TmleCLI.wrapped_type(eltype(col)) == Int64
 
 end
 
@@ -194,7 +194,7 @@ end
         T₁ = [1, 1, 0, 0],
         T₂ = ["AA", "AC", "CC", "CC"],
     )
-    TMLECLI.make_categorical!(dataset, (:T₁, :T₂))
+    TmleCLI.make_categorical!(dataset, (:T₁, :T₂))
     @test dataset.T₁ isa CategoricalVector
     @test dataset.T₁.pool.ordered == false
     @test dataset.T₂ isa CategoricalVector
@@ -205,18 +205,18 @@ end
         T₂ = ["AA", "AC", "CC", "CC"],
         C₁ = [1, 2, 3, 4],
     )
-    TMLECLI.make_categorical!(dataset, (:T₁, :T₂), infer_ordered=true)
+    TmleCLI.make_categorical!(dataset, (:T₁, :T₂), infer_ordered=true)
     @test dataset.T₁ isa CategoricalVector
     @test dataset.T₁.pool.ordered == true
     @test dataset.T₂ isa CategoricalVector
     @test dataset.T₂.pool.ordered == false
 
-    TMLECLI.make_float!(dataset, [:C₁])
+    TmleCLI.make_float!(dataset, [:C₁])
     @test eltype(dataset.C₁) == Float64
 
     # If the type is already coerced then no-operation is applied 
-    TMLECLI.make_float(dataset.C₁) === dataset.C₁
-    TMLECLI.make_categorical(dataset.T₁, true) === dataset.T₁
+    TmleCLI.make_float(dataset.C₁) === dataset.C₁
+    TmleCLI.make_categorical(dataset.T₁, true) === dataset.T₁
 end
 
 end;

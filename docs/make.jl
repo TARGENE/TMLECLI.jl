@@ -1,18 +1,18 @@
 using Documenter
-using TMLECLI
+using TmleCLI
 
-DocMeta.setdocmeta!(TMLECLI, :DocTestSetup, :(using TMLECLI); recursive=true)
+DocMeta.setdocmeta!(TmleCLI, :DocTestSetup, :(using TmleCLI); recursive=true)
 
 makedocs(
     authors="Olivier Labayle",
-    repo="https://github.com/TARGENE/TMLE-CLI.jl/blob/{commit}{path}#{line}",
-    sitename = "TMLE-CLI.jl",
+    repo="https://github.com/TARGENE/TmleCLI.jl/blob/{commit}{path}#{line}",
+    sitename = "TmleCLI.jl",
     format = Documenter.HTML(;
         prettyurls=get(ENV, "CI", "false") == "true",
-        canonical="https://TARGENE.github.io/TMLE-CLI.jl",
+        canonical="https://TARGENE.github.io/TmleCLI.jl",
         assets=String["assets/logo.ico"],
     ),
-    modules = [TMLECLI],
+    modules = [TmleCLI],
     pages=[
         "Home" => "index.md",
         "Command Line Interface" => ["cli.md", "tmle_estimation.md", "sieve_variance.md", "make_summary.md"],
@@ -25,7 +25,7 @@ makedocs(
 
 @info "Deploying docs..."
 deploydocs(;
-    repo="github.com/TARGENE/TMLE-CLI.jl",
+    repo="github.com/TARGENE/TmleCLI.jl",
     devbranch="main",
     push_preview=true
 )

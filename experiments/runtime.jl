@@ -1,5 +1,5 @@
 using ArgParse
-using TMLECLI
+using TmleCLI
 
 const ESTIMATORS = [
     "glm",
@@ -60,7 +60,7 @@ function main(parsed_args)
             "chunksize" => 100,
             "verbosity" => parsed_args["verbosity"],
         )
-        nparams = length(TMLECLI.parameters_from_yaml(paramfile))
+        nparams = length(TmleCLI.parameters_from_yaml(paramfile))
 
         # Time it: this will include precompilation time
         t_start = time()
