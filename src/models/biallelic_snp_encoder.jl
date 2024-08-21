@@ -59,7 +59,7 @@ function MLJModelInterface.transform(model::BiAllelicSNPEncoder, fitresult, X)
             ref_allele = fitresult[colname]
             newcoltype = Missing <: eltype(column) ? Union{Missing, Int} : Int
             newcolumn = Vector{newcoltype}(undef, size(column, 1))
-            TargetedEstimation.count_nref!(newcolumn, column, ref_allele)
+            TMLECLI.count_nref!(newcolumn, column, ref_allele)
         else
             newcolumn = column
         end

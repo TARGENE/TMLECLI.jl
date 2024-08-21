@@ -1,7 +1,7 @@
 # Resampling Strategies
 
 ```@meta
-CurrentModule = TargetedEstimation
+CurrentModule = TMLECLI
 ```
 
 We also provide additional resampling strategies compliant with the `MLJ.ResamplingStrategy` interface.

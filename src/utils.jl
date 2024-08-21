@@ -2,16 +2,18 @@
 #####           Read TMLE Estimands Configuration                ####
 #####################################################################
 
-function convert_treatment_values(treatment_levels::NamedTuple{names, <:Tuple{Vararg{NamedTuple}}}, treatment_types) where names
-    return [(
-        case = convert(treatment_types[tn], treatment_levels[tn].case), 
-        control = convert(treatment_types[tn], treatment_levels[tn].control)
-    ) 
-        for tn in names]
+convert_estimand_treatment_values(Ψ, treatment_types) = Dict(
+    T => convert_treatment_values(val, treatment_types[T]) for (T, val) ∈ Ψ.treatment_values
+)
+
+function convert_treatment_values(treatment_levels::NamedTuple{(:control, :case)}, treatment_type)
+    return (
+        control = convert(treatment_type, treatment_levels.control),
+        case = convert(treatment_type, treatment_levels.case)
+    )
 end
 
-convert_treatment_values(treatment_levels::NamedTuple{names,}, treatment_types) where names = 
-    [convert(treatment_types[tn], treatment_levels[tn]) for tn in names]
+convert_treatment_values(treatment_level, treatment_type) = convert(treatment_type, treatment_level)
 
 MissingSCMError() = ArgumentError(string("A Structural Causal Model should be provided in the configuration file in order to identify causal estimands."))
 
@@ -30,14 +32,15 @@ function read_estimands_config(filename)
     end
 end
 
-function fix_treatment_values!(treatment_types::AbstractDict, Ψ::ComposedEstimand, dataset)
+function fix_treatment_values!(treatment_types::AbstractDict, Ψ::JointEstimand, dataset)
     new_args = Tuple(fix_treatment_values!(treatment_types, arg, dataset) for arg in Ψ.args)
-    return ComposedEstimand(Ψ.f, new_args)
+    return JointEstimand(new_args...)
 end
 
 wrapped_type(x) = x
 wrapped_type(x::Type{<:CategoricalValue{T,}}) where T = T
 wrapped_type(x::Type{Union{Missing, T}}) where T = wrapped_type(T)
+
 """
 Uses the values found in the dataset to create a new estimand with adjusted values.
 """
@@ -46,9 +49,7 @@ function fix_treatment_values!(treatment_types::AbstractDict, Ψ, dataset)
     for tn in treatment_names
         haskey(treatment_types, tn) ? nothing : treatment_types[tn] = wrapped_type(eltype(dataset[!, tn]))
     end
-    new_treatment = NamedTuple{treatment_names}(
-        convert_treatment_values(Ψ.treatment_values, treatment_types)
-    )
+    new_treatment = convert_estimand_treatment_values(Ψ, treatment_types)
     return typeof(Ψ)(
         outcome = Ψ.outcome,
         treatment_values = new_treatment,
@@ -89,7 +90,7 @@ function factorialATE(dataset)
     confounding_variables = Tuple(name for name in colnames if occursin(r"^W", name))
     length(confounding_variables) > 0 || throw(ArgumentError("Could not find any confounding variable (starting with 'W') in the dataset."))
     
-    return [factorialEstimand(ATE, dataset, (:T, ), :Y; confounders=confounding_variables)]
+    return [factorialEstimand(ATE, (:T,), :Y; dataset=dataset, confounders=confounding_variables)]
 end
 
 instantiate_config(file::AbstractString) = read_estimands_config(file)
@@ -179,9 +180,9 @@ end
 
 outcomes(Ψ::TMLE.Estimand) = Set([Ψ.outcome])
 
-outcomes(Ψ::TMLE.ComposedEstimand) = union((outcomes(arg) for arg in Ψ.args)...)
+outcomes(Ψ::TMLE.JointEstimand) = union((outcomes(arg) for arg in Ψ.args)...)
 
-variables(Ψ::TMLE.ComposedEstimand) = union((variables(arg) for arg in Ψ.args)...)
+variables(Ψ::TMLE.JointEstimand) = union((variables(arg) for arg in Ψ.args)...)
 
 variables(Ψ::TMLE.Estimand) = Set([
     Ψ.outcome,
@@ -190,5 +191,17 @@ variables(Ψ::TMLE.Estimand) = Set([
     Iterators.flatten(values(Ψ.treatment_confounders))...
     ])
 
-TMLE.to_dict(nt::NamedTuple{names, <:Tuple{Vararg{Union{TMLE.EICEstimate, FailedEstimate, TMLE.ComposedEstimate}}}}) where names = 
-    Dict(key => TMLE.to_dict(val) for (key, val) ∈ zip(keys(nt), nt))
+TMLE.to_dict(nt::NamedTuple{names}) where names = 
+    Dict(key => TMLE.to_dict(val) for (key, val) ∈ zip(names, nt))
+
+get_all_treatments(Ψ) = keys(Ψ.treatment_values)
+
+get_all_treatments(Ψ::JointEstimand) = union((get_all_treatments(Ψᵢ) for Ψᵢ ∈ Ψ.args)...)
+
+function treatments_from_estimands(estimands)
+    treatments = Set{Symbol}([])
+    for Ψ ∈ estimands
+        union!(treatments, get_all_treatments(Ψ))
+    end
+    return treatments
+end

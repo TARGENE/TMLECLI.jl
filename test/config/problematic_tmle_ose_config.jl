@@ -3,12 +3,11 @@ default_models = TMLE.default_models(
   # For the estimation of E[Y|W, T]: binary target
   Q_binary = LogisticClassifier(),
   # This will fail
-  G = LogisticClassifier()
+  G = LogisticClassifier(),
+  T2 = LinearRegressor()
 )
 
-models = merge(default_models, (T2 = LinearRegressor(),))
-
 ESTIMATORS = (
-  TMLE = TMLEE(models=models, weighted=true, ps_lowerbound=0.001),
-  OSE  = OSE(models=models)
+  TMLE = TMLEE(models=default_models, weighted=true, ps_lowerbound=0.001),
+  OSE  = OSE(models=default_models)
 )

@@ -1,14 +1,29 @@
-instantiate_estimators(file::AbstractString) = load_tmle_spec(;file=file)
-instantiate_estimators(estimators) = estimators
-
-function load_tmle_spec(;file="glmnet")
-    file = endswith(file, ".jl") ? file : joinpath(
-        pkgdir(TargetedEstimation),
-        "estimators-configs",
-        string(file, ".jl"))
+function load_julia_estimators(file)
     include(abspath(file))
     return ESTIMATORS
 end
+
+"""
+If estimators is an AbstractString, it is either:
+
+- A Julia file containing a `ESTIMATORS` NamedTuple of these
+estimators
+- A string corresponding to estimators that can be constructed from the registry.
+"""
+function instantiate_estimators(config::AbstractString, estimands)
+    if endswith(config, ".jl")
+        load_julia_estimators(config)
+    else
+        treatment_variables = treatments_from_estimands(estimands)
+        estimators_from_string(config_string=config, treatment_variables=treatment_variables)
+    end
+end
+
+"""
+If estimators is something else than an AbstractString, it is simply assumed to be a properly formed 
+NamedTuple of estimators.
+"""
+instantiate_estimators(estimators, estimands) = estimators
 
 mutable struct Runner
     estimators::NamedTuple
@@ -19,6 +34,8 @@ mutable struct Runner
     outputs::Outputs
     verbosity::Int
     failed_nuisance::Set
+    save_sample_ids::Bool
+    pvalue_threshold::Union{Nothing, Float64}
     function Runner(dataset; 
         estimands_config="factorialATE", 
         estimators_spec="glmnet",
@@ -27,14 +44,16 @@ mutable struct Runner
         chunksize=100,
         rng=123,
         cache_strategy="release-unusable",
-        sort_estimands=false
+        sort_estimands=false,
+        save_sample_ids=false,
+        pvalue_threshold=nothing
         )    
-        # Retrieve TMLE specifications
-        estimators = instantiate_estimators(estimators_spec)
         # Load dataset
         dataset = instantiate_dataset(dataset)
         # Read parameter files
         estimands = instantiate_estimands(estimands_config, dataset)
+        # Retrieve TMLE specifications
+        estimators = instantiate_estimators(estimators_spec, estimands)
         if sort_estimands
             estimands = groups_ordering(estimands; 
                 brute_force=true, 
@@ -47,17 +66,26 @@ mutable struct Runner
         
         failed_nuisance = Set([])
 
-        return new(estimators, estimands, dataset, cache_manager, chunksize, outputs, verbosity, failed_nuisance)
+        return new(
+            estimators, 
+            estimands, 
+            dataset, 
+            cache_manager, 
+            chunksize, 
+            outputs, 
+            verbosity, 
+            failed_nuisance, 
+            save_sample_ids, 
+            pvalue_threshold
+        )
     end
 end
 
-function save(runner::Runner, results, partition, finalize)
-    # Append JSON Output
-    update_file(runner.outputs.json, results; finalize=finalize)
-    # Append JLS Output
-    update_file(runner.outputs.jls, results, runner.dataset)
-    # Append HDF5 Output
-    update_file(runner.outputs.hdf5, results, runner.dataset)
+function update_outputs(runner::Runner, results)
+    results = runner.save_sample_ids ?
+        add_sample_ids_to_results(results, runner.dataset) :
+        results
+    update(runner.outputs::Outputs, results)
 end
 
 function try_estimation(runner, Ψ, estimator)
@@ -97,12 +125,15 @@ function (runner::Runner)(partition)
             continue
         end
         # Make sure data types are appropriate for the estimand
-        TargetedEstimation.coerce_types!(runner.dataset, Ψ)
+        TMLECLI.coerce_types!(runner.dataset, Ψ)
         # Maybe update cache with new η_spec
         estimators_results = []
         for estimator in runner.estimators
             result = try_estimation(runner, Ψ, estimator)
-            push!(estimators_results, result)
+            push!(
+                estimators_results, 
+                TMLE.emptyIC(result, runner.pvalue_threshold)
+            )
         end
         # Update results
         results[partition_index] = NamedTuple{keys(runner.estimators)}(estimators_results)
@@ -120,13 +151,14 @@ end
 function (runner::Runner)()
     # Initialize output files
     initialize(runner.outputs)
-    # Split worklist in partitions
+    # Run and update output files in batches
     nparams = size(runner.estimands, 1)
-    partitions = collect(Iterators.partition(1:nparams, runner.chunksize))
-    for partition in partitions
+    for partition in Iterators.partition(1:nparams, runner.chunksize)
         results = runner(partition)
-        save(runner, results, partition, partition===partitions[end])
+        update_outputs(runner, results)
     end
+    # Finalize output files
+    finalize(runner.outputs)
 end
 
 
@@ -170,7 +202,9 @@ function tmle(dataset::String;
     chunksize::Int=100,
     rng::Int=123,
     cache_strategy::String="release-unusable",
-    sort_estimands::Bool=false
+    sort_estimands::Bool=false,
+    save_sample_ids=false,
+    pvalue_threshold=nothing
     )
     runner = Runner(dataset;
         estimands_config=estimands, 
@@ -180,7 +214,9 @@ function tmle(dataset::String;
         chunksize=chunksize,
         rng=rng,
         cache_strategy=cache_strategy,
-        sort_estimands=sort_estimands
+        sort_estimands=sort_estimands,
+        save_sample_ids=save_sample_ids,
+        pvalue_threshold=pvalue_threshold
     )
     runner()
     verbosity >= 1 && @info "Done."

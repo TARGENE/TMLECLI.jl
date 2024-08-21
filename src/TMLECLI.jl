@@ -1,4 +1,4 @@
-module TargetedEstimation
+module TMLECLI
 
 if occursin("Intel", Sys.cpu_info()[1].model)
     using MKL
@@ -42,6 +42,7 @@ include("resampling.jl")
 include(joinpath("models", "glmnet.jl"))
 include(joinpath("models", "adaptive_interaction_transformer.jl"))
 include(joinpath("models", "biallelic_snp_encoder.jl"))
+include(joinpath("models", "registry.jl"))
 include("cli.jl")
 
 export Runner, tmle, sieve_variance_plateau, make_summary, main

@@ -1,18 +1,18 @@
 using Documenter
-using TargetedEstimation
+using TMLECLI
 
-DocMeta.setdocmeta!(TargetedEstimation, :DocTestSetup, :(using TargetedEstimation); recursive=true)
+DocMeta.setdocmeta!(TMLECLI, :DocTestSetup, :(using TMLECLI); recursive=true)
 
 makedocs(
     authors="Olivier Labayle",
-    repo="https://github.com/TARGENE/TargetedEstimation.jl/blob/{commit}{path}#{line}",
-    sitename = "TargetedEstimation.jl",
+    repo="https://github.com/TARGENE/TMLE-CLI.jl/blob/{commit}{path}#{line}",
+    sitename = "TMLE-CLI.jl",
     format = Documenter.HTML(;
         prettyurls=get(ENV, "CI", "false") == "true",
-        canonical="https://TARGENE.github.io/TargetedEstimation.jl",
+        canonical="https://TARGENE.github.io/TMLE-CLI.jl",
         assets=String["assets/logo.ico"],
     ),
-    modules = [TargetedEstimation],
+    modules = [TMLECLI],
     pages=[
         "Home" => "index.md",
         "Command Line Interface" => ["cli.md", "tmle_estimation.md", "sieve_variance.md", "make_summary.md"],
@@ -25,7 +25,7 @@ makedocs(
 
 @info "Deploying docs..."
 deploydocs(;
-    repo="github.com/TARGENE/TargetedEstimation.jl",
+    repo="github.com/TARGENE/TMLE-CLI.jl",
     devbranch="main",
     push_preview=true
 )

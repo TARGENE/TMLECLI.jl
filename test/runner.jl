@@ -1,7 +1,7 @@
 module TestsTMLE
 
 using Test
-using TargetedEstimation
+using TMLECLI
 using TMLE
 using JLD2
 using CSV
@@ -11,136 +11,112 @@ using JSON
 using MLJBase
 using MLJModels
 
-PKGDIR = pkgdir(TargetedEstimation)
+PKGDIR = pkgdir(TMLECLI)
 TESTDIR = joinpath(PKGDIR, "test")
 CONFIGDIR = joinpath(TESTDIR, "config")
 
 include(joinpath(TESTDIR, "testutils.jl"))
 
-@testset "Test instantiate_estimators" begin
-    # From template name
-    for file in readdir(joinpath(PKGDIR, "estimators-configs"))
-        configname = replace(file, ".jl" => "")
-        estimators = TargetedEstimation.instantiate_estimators(configname)
-        @test estimators.TMLE isa TMLEE
-    end
+@testset "Test instantiate_estimators from file" begin
     # From explicit file
-    estimators = TargetedEstimation.instantiate_estimators(joinpath(TESTDIR, "config", "tmle_ose_config.jl"))
+    estimators = TMLECLI.instantiate_estimators(joinpath(TESTDIR, "config", "tmle_ose_config.jl"), nothing)
     @test estimators.TMLE isa TMLE.TMLEE
     @test estimators.OSE isa TMLE.OSE
     @test estimators.TMLE.weighted === true
-    @test estimators.TMLE.models.G_default === estimators.OSE.models.G_default
-    @test estimators.TMLE.models.G_default.continuous_encoder isa MLJModels.ContinuousEncoder
-    @test estimators.TMLE.models.G_default.probabilistic_stack isa MLJBase.ProbabilisticStack
+    @test estimators.TMLE.models[:G_default] === estimators.OSE.models[:G_default]
+    @test estimators.TMLE.models[:G_default].continuous_encoder isa MLJModels.ContinuousEncoder
+    @test estimators.TMLE.models[:G_default].probabilistic_stack isa MLJBase.ProbabilisticStack
     # From already constructed estimators
-    estimators_new = TargetedEstimation.instantiate_estimators(estimators)
+    estimators_new = TMLECLI.instantiate_estimators(estimators, nothing)
     @test estimators_new === estimators
 end
 
 @testset "Integration Test" begin
+    tmpdir = mktempdir()
     dataset = build_dataset(;n=1000)
-    tmpdir = mktempdir(cleanup=true)
+    
     config = statistical_estimands_only_config()
-    outputs = TargetedEstimation.Outputs(
-        json=TargetedEstimation.JSONOutput(filename="output.json"),
-        hdf5=TargetedEstimation.HDF5Output(filename="output.hdf5", pval_threshold=1., sample_ids=true),
-        jls=TargetedEstimation.JLSOutput(filename="output.jls", pval_threshold=1e-5),
+    outputs = TMLECLI.Outputs(
+        json=joinpath(tmpdir, "output.json"),
+        hdf5=joinpath(tmpdir, "output.hdf5"),
+        jls=joinpath(tmpdir, "output.jls"),
     )
-    estimators = TargetedEstimation.instantiate_estimators(joinpath(CONFIGDIR, "tmle_ose_config.jl"))
+    estimators = TMLECLI.instantiate_estimators(joinpath(CONFIGDIR, "tmle_ose_config.jl"), nothing)
     runner = Runner(
         dataset;
         estimands_config=config, 
         estimators_spec=estimators,
         outputs=outputs, 
         cache_strategy="release-unusable",
+        save_sample_ids=true,
+        pvalue_threshold=1e-5
     )
+    # Initialize outputs
+    TMLECLI.initialize(outputs)
+    # Run
     partition = 4:6
     results = runner(partition)
     for result in results
         @test result.TMLE isa TMLE.TMLEstimate
         @test result.OSE isa TMLE.OSEstimate
     end
-
-    # Save outputs
-    TargetedEstimation.initialize(outputs)
-    TargetedEstimation.save(runner, results, partition, true)
+    # Update outputs
+    TMLECLI.update_outputs(runner, results)
+    # Finalize outputs
+    TMLECLI.finalize(runner.outputs)
 
     # Test Save to JSON
-    loaded_results = TMLE.read_json(outputs.json.filename, use_mmap=false)
-    for (result, loaded_result) in zip(results, loaded_results)
-        @test loaded_result[:TMLE] isa TMLE.TMLEstimate
-        @test result.TMLE.estimate == loaded_result[:TMLE].estimate
-        @test loaded_result[:TMLE].IC == []
-
-        @test loaded_result[:OSE] isa TMLE.OSEstimate
-        @test result.OSE.estimate == loaded_result[:OSE].estimate
-        @test loaded_result[:OSE].IC == []
-    end
-
-    # Test Save to JLS
-    loaded_results = []
-    open(outputs.jls.filename) do io
-        while !eof(io)
-            push!(loaded_results, deserialize(io))
-        end
-    end
-    for (index, (result, loaded_result)) in enumerate(zip(results, loaded_results))
-        @test loaded_result[:TMLE] isa TMLE.TMLEstimate
-        @test result.TMLE.estimate == loaded_result[:TMLE].estimate
-        @test loaded_result[:OSE] isa TMLE.OSEstimate
-        @test result.OSE.estimate == loaded_result[:OSE].estimate
-        @test !haskey(loaded_result, :SAMPLE_IDS)
-        if index ∈ (1, 2)
-            @test loaded_result[:TMLE].IC == []
-            @test loaded_result[:OSE].IC == []
-        else
-            @test length(loaded_result[:TMLE].IC) > 0
-            @test length(loaded_result[:OSE].IC) > 0
-        end
-    end
-
+    loaded_json_results = TMLE.read_json(outputs.json, use_mmap=false)
     # Test Save to HDF5
-    hdf5file = jldopen(outputs.hdf5.filename, "r")
-    loaded_results = hdf5file[string("Batch_1")]
-    for (param_index, result) in enumerate(loaded_results)
-        @test result.TMLE isa TMLE.TMLEstimate
-        @test results[param_index].TMLE.estimate == result.TMLE.estimate
-
-        @test result.OSE isa TMLE.OSEstimate
-        @test results[param_index].OSE.estimate == result.OSE.estimate
+    loaded_hdf5_results = jldopen(io -> io["Batch_1"], outputs.hdf5, "r")
+    # Test Save to JLS
+    loaded_jls_results = []
+    open(outputs.jls) do io
+        while !eof(io)
+            push!(loaded_jls_results, deserialize(io))
+        end
     end
 
-    @test loaded_results[1].SAMPLE_IDS == collect(2:1000)
-    @test size(loaded_results[1].TMLE.IC, 1) == 999
+    # Test loaded_results
+    for loaded_results ∈ (loaded_json_results, loaded_hdf5_results, loaded_jls_results)
+        # The pvalue-threshold is too stringent for estimands 1 and 2
+        loaded_result_1 = loaded_results[1]
+        @test loaded_result_1[:SAMPLE_IDS] == collect(2:1000)
+        @test size(loaded_result_1[:TMLE].IC, 1) == size(loaded_result_1[:OSE].IC, 1) == 0
 
-    @test loaded_results[2].SAMPLE_IDS == 1
-    @test size(loaded_results[2].TMLE.IC, 1) == 999
+        loaded_result_2 = loaded_results[2]
+        @test loaded_result_2[:SAMPLE_IDS] == 1
+        @test size(loaded_result_2[:TMLE].IC, 1) == size(loaded_result_2[:OSE].IC, 1) == 0
 
-    @test loaded_results[3].SAMPLE_IDS == collect(1:1000)
-    @test size(loaded_results[3].TMLE.IC, 1) == 1000
+        loaded_result_3 = loaded_results[3]
+        @test loaded_result_3[:SAMPLE_IDS] == collect(1:1000)
+        @test size(loaded_result_3[:TMLE].IC, 1) == size(loaded_result_3[:OSE].IC, 1) == 1000
 
-    close(hdf5file)
+        # Check loaded results match results
+        for (result, loaded_result) in zip(results, loaded_results)
+            @test loaded_result[:TMLE] isa TMLE.TMLEstimate
+            @test result.TMLE.estimate == loaded_result[:TMLE].estimate
 
-    # Clean
-    rm(outputs.jls.filename)
-    rm(outputs.json.filename)
-    rm(outputs.hdf5.filename)
+            @test loaded_result[:OSE] isa TMLE.OSEstimate
+            @test result.OSE.estimate == loaded_result[:OSE].estimate
+        end
+    end
 end
 
 @testset "Test tmle: varying dataset format and chunksize" begin
-    tmpdir = mktempdir(cleanup=true)
+    tmpdir = mktempdir()
     estimands_filename = joinpath(tmpdir, "configuration.json")
     configuration = statistical_estimands_only_config()
     TMLE.write_json(estimands_filename, configuration)
-    outputs = TargetedEstimation.Outputs(
-        json=TargetedEstimation.JSONOutput(filename="output.json"),
-        hdf5=TargetedEstimation.HDF5Output(filename="output.hdf5", pval_threshold=1.),
+    outputs = TMLECLI.Outputs(
+        json=joinpath(tmpdir, "output.json"),
+        hdf5=joinpath(tmpdir, "output.hdf5"),
     )
     estimatorfile = joinpath(CONFIGDIR, "tmle_ose_config.jl")
     # Run tests over CSV and Arrow data formats
     for format in ("csv", "arrow")
-        datafile = string("data.", format)
-        write_dataset(;n=1000, format=format)
+        datafile = joinpath(tmpdir, string("data.", format))
+        write_dataset(datafile; n=1000)
         for chunksize in (4, 10)
             tmle(datafile; 
                 estimands=estimands_filename, 
@@ -149,13 +125,13 @@ end
                 chunksize=chunksize,
             )
 
-            results_from_hdf5 = jldopen(outputs.hdf5.filename) do io
+            results_from_hdf5 = jldopen(outputs.hdf5) do io
                 map(keys(io)) do key
                     io[key]
                 end
             end
             results_from_hdf5 = vcat(results_from_hdf5...)
-            results_from_json = TMLE.read_json(outputs.json.filename, use_mmap=false)
+            results_from_json = TMLE.read_json(outputs.json, use_mmap=false)
 
             for i in 1:6
                 Ψ = configuration.estimands[i]
@@ -165,59 +141,52 @@ end
                 end
             end
 
-            # Clean
-            rm(outputs.hdf5.filename)
-            rm(outputs.json.filename)
         end
         GC.gc() # memory freed for deleting arrow file
-        rm(datafile)
     end
 end
 
 @testset "Test tmle: lower p-value threshold only JSON output" begin
-    write_dataset(;n=1000, format="csv")
-    tmpdir = mktempdir(cleanup=true)
+    tmpdir = mktempdir()
+    datafile = joinpath(tmpdir, "data.csv")
+    write_dataset(datafile)
     estimandsfile = joinpath(tmpdir, "configuration.json")
     configuration = statistical_estimands_only_config()
     TMLE.write_json(estimandsfile, configuration)
-    estimatorfile = joinpath(CONFIGDIR, "ose_config.jl")
-    datafile = "data.csv"
-
+    output = joinpath(tmpdir, "output.json")
     # Using the main entry point
     main([
         "tmle", 
         datafile, 
         "--estimands", estimandsfile, 
-        "--estimators", estimatorfile,
-        "--json-output", "output.json,1e-15"]
+        "--estimators=ose--glm",
+        "--pvalue-threshold=1e-15",
+        "--json-output", output]
     )
     
     # Essential results
-    results_from_json = TMLE.read_json("output.json", use_mmap=false)
+    results_from_json = TMLE.read_json(output, use_mmap=false)
     n_IC_empties = 0
     for result in results_from_json
-        if result[:OSE].IC != []
+        if result[:OSE_GLM_GLM].IC != []
             n_IC_empties += 1
         end
     end
     @test n_IC_empties > 0
-
-    rm(datafile)
-    rm("output.json")
 end
 
 @testset "Test tmle: Failing estimands" begin
-    write_dataset(;n=1000, format="csv")
-    outputs = TargetedEstimation.Outputs(
-        json=TargetedEstimation.JSONOutput(filename="output.json"),
-        hdf5=TargetedEstimation.HDF5Output(filename="output.hdf5")
+    tmpdir = mktempdir()
+    datafile = joinpath(tmpdir, "data.csv")
+    write_dataset(datafile)
+    outputs = TMLECLI.Outputs(
+        json=joinpath(tmpdir, "output.json"),
+        hdf5=joinpath(tmpdir, "output.hdf5")
     )
-    tmpdir = mktempdir(cleanup=true)
     estimandsfile = joinpath(tmpdir, "configuration.json")
     configuration = statistical_estimands_only_config()
     TMLE.write_json(estimandsfile, configuration)
     estimatorfile = joinpath(CONFIGDIR, "problematic_tmle_ose_config.jl")
-    datafile = "data.csv"
 
     runner = Runner(datafile; 
         estimands_config=estimandsfile, 
@@ -232,7 +201,7 @@ end
     ])
 
     # Check results from JSON
-    results_from_json = TMLE.read_json(outputs.json.filename, use_mmap=false)
+    results_from_json = TMLE.read_json(outputs.json, use_mmap=false)
     for estimator in (:OSE, :TMLE)
         @test results_from_json[1][estimator][:error] == "Could not fit the following propensity score model: P₀(T2 | W1, W2)"
         @test results_from_json[1][estimator][:estimand] isa TMLE.Estimand
@@ -244,33 +213,33 @@ end
     end
 
     # Check results from HDF5
-    jldopen(outputs.hdf5.filename) do io 
+    jldopen(outputs.hdf5) do io 
         results_from_hdf5 = io["Batch_1"]
         for estimator in (:OSE, :TMLE)
-            @test results_from_hdf5[1][estimator] isa TargetedEstimation.FailedEstimate
+            @test results_from_hdf5[1][estimator] isa TMLECLI.FailedEstimate
             @test results_from_hdf5[2][estimator] isa TMLE.EICEstimate
             for i in 3:6
-                @test results_from_hdf5[i][estimator] isa TargetedEstimation.FailedEstimate
+                @test results_from_hdf5[i][estimator] isa TMLECLI.FailedEstimate
                 @test results_from_hdf5[i][estimator].estimand isa TMLE.Estimand
             end
         end
     end
-    # Clean
-    rm(outputs.json.filename)
-    rm(outputs.hdf5.filename)
-    rm(datafile)
 end
 
-@testset "Test tmle: Causal and Composed Estimands" begin
-    write_dataset(;n=1000, format="csv")
-    tmpdir = mktempdir(cleanup=true)
+@testset "Test tmle: Causal and Joint Estimands" begin
+    tmpdir = mktempdir()
+    datafile = joinpath(tmpdir, "data.csv")
+    write_dataset(datafile)
+    
     estimandsfile = joinpath(tmpdir, "configuration.jls")
 
-    configuration = causal_and_composed_estimands_config()
+    configuration = causal_and_joint_estimands_config()
     serialize(estimandsfile, configuration)
     estimatorfile = joinpath(CONFIGDIR, "ose_config.jl")
-    datafile = "data.csv"
 
+    jls_output = joinpath(tmpdir, "output.jls")
+    hdf5_output = joinpath(tmpdir, "output.hdf5")
+    json_output = joinpath(tmpdir, "output.json")
     # Using the main entry point
     main([
         "tmle", 
@@ -278,14 +247,14 @@ end
         "--estimands", estimandsfile, 
         "--estimators", estimatorfile,
         "--chunksize", "2",
-        "--json-output", "output.json",
-        "--hdf5-output", "output.hdf5",
-        "--jls-output", "output.jls"
+        "--json-output", json_output,
+        "--hdf5-output", hdf5_output,
+        "--jls-output", jls_output
     ])
     
     # JLS Output
     results = []
-    open("output.jls") do io
+    open(jls_output) do io
         while !eof(io)
             push!(results, deserialize(io))
         end
@@ -295,31 +264,25 @@ end
     end
     # The components of the diff should match the estimands 1 and 2
     for index in 1:2
-        ATE_from_diff = results[3].OSE.estimates[index] 
+        ATE_from_joint = results[3].OSE.estimates[index] 
         ATE_standalone = results[index].OSE
-        @test ATE_from_diff.estimand == ATE_standalone.estimand
-        @test ATE_from_diff.estimate == ATE_standalone.estimate
-        @test ATE_from_diff.std == ATE_standalone.std
+        @test ATE_from_joint.estimand == ATE_standalone.estimand
+        @test ATE_from_joint.estimate == ATE_standalone.estimate
+        @test ATE_from_joint.std == ATE_standalone.std
     end
-    @test results[3].OSE isa TMLE.ComposedEstimate
+    @test results[3].OSE isa TMLE.JointEstimate
     
     # JSON Output
-    results_from_json = TMLE.read_json("output.json", use_mmap=false)
+    results_from_json = TMLE.read_json(json_output, use_mmap=false)
     @test length(results_from_json) == 3
 
     # HDF5
-    jldopen("output.hdf5") do io
+    jldopen(hdf5_output) do io
         @test length(io["Batch_1"]) == 2
-        composed_result = only(io["Batch_2"])
-        @test composed_result.OSE.cov == results[3].OSE.cov
+        jointresult = only(io["Batch_2"])
+        @test jointresult.OSE.cov == results[3].OSE.cov
     end
-
-    rm(datafile)
-    rm("output.jls")
-    rm("output.json")
-    rm("output.hdf5")
 end
-
 
 end;
 

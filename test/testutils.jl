@@ -10,7 +10,7 @@ using CategoricalArrays
 function statistical_estimands_only_config()
     configuration = Configuration(
         estimands=[
-            IATE(
+            AIE(
                 outcome = Symbol("CONTINUOUS, OUTCOME"), 
                 treatment_values = (
                     T1 = (case = true, control = false), 
@@ -24,7 +24,7 @@ function statistical_estimands_only_config()
                 treatment_confounders = (T1 = (:W1, :W2),), 
                 outcome_extra_covariates = ()
             ),
-            IATE(
+            AIE(
                 outcome = Symbol("CONTINUOUS, OUTCOME"), 
                 treatment_values = (
                     T1 = (case = true, control = false), 
@@ -33,7 +33,7 @@ function statistical_estimands_only_config()
                 treatment_confounders = (T1 = (:W1, :W2), T2 = (:W1, :W2)), 
                 outcome_extra_covariates = ()
             ),
-            IATE(
+            AIE(
                 outcome = Symbol("BINARY/OUTCOME"), 
                 treatment_values = (
                     T1 = (case = true, control = false), 
@@ -42,7 +42,7 @@ function statistical_estimands_only_config()
                 treatment_confounders = (T1 = (:W1, :W2), T2 = (:W1, :W2)), 
                 outcome_extra_covariates = (:C1,)
             ),
-            IATE(
+            AIE(
                 outcome = Symbol("BINARY/OUTCOME"), 
                 treatment_values = (
                     T1 = (case = true, control = false), 
@@ -63,7 +63,7 @@ function statistical_estimands_only_config()
     return configuration
 end
 
-function causal_and_composed_estimands_config()
+function causal_and_joint_estimands_config()
     ATE₁ = ATE(
         outcome = Symbol("CONTINUOUS, OUTCOME"), 
         treatment_values = (T1 = (case = true, control = false),), 
@@ -72,14 +72,14 @@ function causal_and_composed_estimands_config()
         outcome = Symbol("CONTINUOUS, OUTCOME"), 
         treatment_values = (T1 = (case = false, control = true),), 
     )
-    diff = ComposedEstimand(-, (ATE₁, ATE₂))
+    joint = JointEstimand(ATE₁, ATE₂)
     scm = StaticSCM(
         outcomes = ["CONTINUOUS, OUTCOME"],
         treatments = ["T1"],
         confounders = [:W1, :W2]
     )
     configuration = Configuration(
-        estimands = [ATE₁, ATE₂, diff],
+        estimands = [ATE₁, ATE₂, joint],
         scm       = scm
     )
     return configuration
@@ -87,11 +87,11 @@ end
 
 """
 CONTINUOUS_OUTCOME: 
-- IATE(0->1, 0->1) = E[W₂] = 0.5
+- AIE(0->1, 0->1) = E[W₂] = 0.5
 - ATE(0->1, 0->1)  = -4 E[C₁] + 1 + E[W₂] = -2 + 1 + 0.5 = -0.5
 
 BINARY_OUTCOME:
-- IATE(0->1, 0->1) =
+- AIE(0->1, 0->1) =
 - ATE(0->1, 0->1)  = 
 
 """
@@ -129,7 +129,7 @@ function build_dataset(;n=1000, format="csv")
     return dataset
 end
 
-function write_dataset(;n=1000, format="csv")
-    dataset = build_dataset(;n=1000)
-    format == "csv" ? CSV.write("data.csv", dataset) : Arrow.write("data.arrow", dataset)
+function write_dataset(filename; n=1000)
+    dataset = build_dataset(;n=n)
+    endswith(filename, "csv") ? CSV.write(filename, dataset) : Arrow.write(filename, dataset)
 end

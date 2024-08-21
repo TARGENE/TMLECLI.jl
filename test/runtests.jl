@@ -1,7 +1,7 @@
-using TargetedEstimation
+using TMLECLI
 using Test
 
-TESTDIR = joinpath(pkgdir(TargetedEstimation), "test")
+TESTDIR = joinpath(pkgdir(TMLECLI), "test")
 
 @time begin
     @test include(joinpath(TESTDIR, "outputs.jl"))
@@ -14,4 +14,5 @@ TESTDIR = joinpath(pkgdir(TargetedEstimation), "test")
     @test include(joinpath(TESTDIR, "models", "glmnet.jl"))
     @test include(joinpath(TESTDIR, "models", "adaptive_interaction_transformer.jl"))
     @test include(joinpath(TESTDIR, "models", "biallelic_snp_encoder.jl"))
+    @test include(joinpath(TESTDIR, "models", "registry.jl"))
 end
