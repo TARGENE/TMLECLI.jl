@@ -30,7 +30,7 @@ include(joinpath(TESTDIR, "testutils.jl"))
     newT = TargetedEstimation.convert_estimand_treatment_values(Ψ, treatment_types)
     @test newT[:T₁] === (control=false, case=true) !== (control=0, case=1)
 
-    Ψ = IATE(;outcome = :Y, treatment_values=Dict(:T₁ => (case=1, control=0.), :T₂ => (case=true, control=0)), )
+    Ψ = AIE(;outcome = :Y, treatment_values=Dict(:T₁ => (case=1, control=0.), :T₂ => (case=true, control=0)), )
     newT = TargetedEstimation.convert_estimand_treatment_values(Ψ, treatment_types)
     @test newT[:T₁] === (control=false, case=true) !== (control=0, case=1)
     @test newT[:T₂] === (control=0, case=1) !== (control=false, case=true)
@@ -51,7 +51,7 @@ end
             outcome = Symbol("CONTINUOUS, OUTCOME"), 
             treatment_values = (T3 = (case = true, control = false),), 
         ), 
-            IATE(
+            AIE(
             outcome = Symbol("CONTINUOUS, OUTCOME"), 
             treatment_values = (T1 = (case = true, control = false), T4 = (case = true, control = false),), 
         ))
@@ -105,7 +105,7 @@ end
         C = [1, 2, 3, 4, 5, 6, 6]
     )
     # Continuous Outcome
-    Ψ = IATE(
+    Ψ = AIE(
         outcome=:Ycont,
         treatment_values=(T₁=(case=1, control=0), T₂=(case="AC", control="CC")),
         treatment_confounders=(T₁=[:W₁, :W₂], T₂=[:W₁, :W₂]),
@@ -118,7 +118,7 @@ end
     @test scitype(dataset.W₂) == AbstractVector{Union{Missing, OrderedFactor{1}}}
     
     # Binary Outcome
-    Ψ = IATE(
+    Ψ = AIE(
         outcome=:Ybin,
         treatment_values=(T₂=(case="AC", control="CC"), ),
         treatment_confounders=(T₂=[:W₂],),
@@ -129,7 +129,7 @@ end
     @test scitype(dataset.C) == AbstractVector{Count}
 
     # Count Outcome
-    Ψ = IATE(
+    Ψ = AIE(
         outcome=:Ycount,
         treatment_values=(T₂=(case="AC", control="CC"), ),
         treatment_confounders=(T₂=[:W₂],),

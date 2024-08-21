@@ -10,7 +10,7 @@ using CategoricalArrays
 function statistical_estimands_only_config()
     configuration = Configuration(
         estimands=[
-            IATE(
+            AIE(
                 outcome = Symbol("CONTINUOUS, OUTCOME"), 
                 treatment_values = (
                     T1 = (case = true, control = false), 
@@ -24,7 +24,7 @@ function statistical_estimands_only_config()
                 treatment_confounders = (T1 = (:W1, :W2),), 
                 outcome_extra_covariates = ()
             ),
-            IATE(
+            AIE(
                 outcome = Symbol("CONTINUOUS, OUTCOME"), 
                 treatment_values = (
                     T1 = (case = true, control = false), 
@@ -33,7 +33,7 @@ function statistical_estimands_only_config()
                 treatment_confounders = (T1 = (:W1, :W2), T2 = (:W1, :W2)), 
                 outcome_extra_covariates = ()
             ),
-            IATE(
+            AIE(
                 outcome = Symbol("BINARY/OUTCOME"), 
                 treatment_values = (
                     T1 = (case = true, control = false), 
@@ -42,7 +42,7 @@ function statistical_estimands_only_config()
                 treatment_confounders = (T1 = (:W1, :W2), T2 = (:W1, :W2)), 
                 outcome_extra_covariates = (:C1,)
             ),
-            IATE(
+            AIE(
                 outcome = Symbol("BINARY/OUTCOME"), 
                 treatment_values = (
                     T1 = (case = true, control = false), 
@@ -87,11 +87,11 @@ end
 
 """
 CONTINUOUS_OUTCOME: 
-- IATE(0->1, 0->1) = E[W₂] = 0.5
+- AIE(0->1, 0->1) = E[W₂] = 0.5
 - ATE(0->1, 0->1)  = -4 E[C₁] + 1 + E[W₂] = -2 + 1 + 0.5 = -0.5
 
 BINARY_OUTCOME:
-- IATE(0->1, 0->1) =
+- AIE(0->1, 0->1) =
 - ATE(0->1, 0->1)  = 
 
 """
