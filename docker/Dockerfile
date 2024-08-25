@@ -14,9 +14,9 @@ RUN bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
 
 # Import the project
 
-COPY . /TmleCLI.jl 
+COPY . /TMLECLI.jl 
 
-WORKDIR /TmleCLI.jl
+WORKDIR /TMLECLI.jl
 
 # Precompile the project
 RUN julia --project -e'using Pkg; Pkg.instantiate(); Pkg.resolve(); Pkg.precompile()'

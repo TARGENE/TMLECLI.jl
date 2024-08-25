@@ -1,4 +1,4 @@
-module TmleCLI
+module TMLECLI
 
 if occursin("Intel", Sys.cpu_info()[1].model)
     using MKL

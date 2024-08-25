@@ -1,7 +1,7 @@
 module TestResampling
 
 using Test
-using TmleCLI
+using TMLECLI
 using CategoricalArrays
 using MLJBase
 using StableRNGs
@@ -11,8 +11,8 @@ using StableRNGs
 #####################################################################
 
 @testset "Test AdativeResampling's methods" begin
-    @test TmleCLI.base_resampling(AdaptiveCV()) == CV
-    @test TmleCLI.base_resampling(AdaptiveStratifiedCV()) == StratifiedCV
+    @test TMLECLI.base_resampling(AdaptiveCV()) == CV
+    @test TMLECLI.base_resampling(AdaptiveStratifiedCV()) == StratifiedCV
 end
 
 @testset "Test AdaptiveCV" begin
@@ -28,7 +28,7 @@ end
     # Categorical target
     cv = AdaptiveStratifiedCV()
     y = categorical(["a", "a", "a", "b", "b", "c", "c"])
-    @test TmleCLI.countuniques(y) == [3, 2, 2]
+    @test TMLECLI.countuniques(y) == [3, 2, 2]
     ## neff < 30 => nfolds = 5*neff = 7
     ttp = MLJBase.train_test_pairs(cv, 1:7, y)
     @test length(ttp) == 7
@@ -37,7 +37,7 @@ end
     ## neff = 2500 => 10
     n = 50_500
     y = categorical(vcat(repeat([true], 50_000), repeat([false], 500)))
-    @test TmleCLI.countuniques(y) == [50_000, 500]
+    @test TMLECLI.countuniques(y) == [50_000, 500]
     ttp = MLJBase.train_test_pairs(cv, 1:n, y)
     @test length(ttp)== 10
     @test ttp == MLJBase.train_test_pairs(StratifiedCV(nfolds=10), 1:n, y)
@@ -56,27 +56,27 @@ end
     )
     y = categorical([1, 0, 1, 1, 0, 1, 1])
 
-    stratification_col = TmleCLI.initialize_aggregate(y)
+    stratification_col = TMLECLI.initialize_aggregate(y)
     @test all(stratification_col .== "")
 
     # No pattern specified, all X finite variables are considered, i.e. X1 and X2
-    TmleCLI.aggregate_features!(stratification_col, nothing, X)
+    TMLECLI.aggregate_features!(stratification_col, nothing, X)
     @test stratification_col == ["_0_1", "_0_2", "_1_4", "_0_4", "_1_2", "_0_2", "_missing_missing"]
     # y is finite and is considered
-    TmleCLI.aggretate_finite_col!(stratification_col, y)
+    TMLECLI.aggretate_finite_col!(stratification_col, y)
     @test stratification_col == ["_0_1_1", "_0_2_0", "_1_4_1", "_0_4_1", "_1_2_0", "_0_2_1", "_missing_missing_1"]
 
     y = [1., 1.1, 2., 5., -4., -4., 3.2]
-    stratification_col = TmleCLI.initialize_aggregate(y)
+    stratification_col = TMLECLI.initialize_aggregate(y)
     # Only X1 will be matched
-    TmleCLI.aggregate_features!(stratification_col, [r"X1"], X)
+    TMLECLI.aggregate_features!(stratification_col, [r"X1"], X)
     @test stratification_col == ["_0", "_0", "_1", "_0", "_1", "_0", "_missing"]
     # y is continuous and is not considered
-    TmleCLI.aggretate_finite_col!(stratification_col, y)
+    TMLECLI.aggretate_finite_col!(stratification_col, y)
     @test stratification_col == ["_0", "_0", "_1", "_0", "_1", "_0", "_missing"]
     # Used by registry
-    @test TmleCLI.matches_patterns("T1", [r"^T1$", r"^T2$"])
-    @test !TmleCLI.matches_patterns("T3", [r"^T1$", r"^T2$"])
+    @test TMLECLI.matches_patterns("T1", [r"^T1$", r"^T2$"])
+    @test !TMLECLI.matches_patterns("T3", [r"^T1$", r"^T2$"])
 end
 
 @testset "Test JointStratifiedCV" begin

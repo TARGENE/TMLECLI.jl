@@ -1,7 +1,7 @@
 module TestBiAllelelicSNPEncoder
 
 using Test
-using TmleCLI
+using TMLECLI
 using CategoricalArrays
 using MLJBase
 
@@ -28,21 +28,21 @@ using MLJBase
         othercol = [1, 2, 3, 4]
     )
     mach = machine(BiAllelicSNPEncoder(patterns=[r"^rs"]), X)
-    @test_throws TmleCLI.NonBiAllelicGenotypeError(:rs1234, "CCC") fit!(mach, verbosity=0)
+    @test_throws TMLECLI.NonBiAllelicGenotypeError(:rs1234, "CCC") fit!(mach, verbosity=0)
 
     X = (
         rs1234 = categorical(["AC", "CC", "CCT", missing]),
         othercol = [1, 2, 3, 4]
     )
     mach = machine(BiAllelicSNPEncoder(patterns=[r"^rs"]), X)
-    @test_throws TmleCLI.NonBiallelicSNPError(:rs1234) fit!(mach, verbosity=0)
+    @test_throws TMLECLI.NonBiallelicSNPError(:rs1234) fit!(mach, verbosity=0)
 
     X = (
         rs1234 = ["AC", "CC", "CCT", missing],
         othercol = [1, 2, 3, 4]
     )
     mach = machine(BiAllelicSNPEncoder(patterns=[r"^rs"]), X)
-    @test_throws TmleCLI.NonCategoricalVectorError(:rs1234) fit!(mach, verbosity=0)
+    @test_throws TMLECLI.NonCategoricalVectorError(:rs1234) fit!(mach, verbosity=0)
 
 
 end
