@@ -28,7 +28,7 @@ function read_estimands_config(filename)
     elseif endswith(filename, ".jls")
         return deserialize(filename)
     else
-        throw(ArgumentError(string("Can't read from ", extension, " file")))
+        throw(ArgumentError(string("Can't read ", filename, ", only supported file types are: JSON, YAML and JLS.")))
     end
 end
 
