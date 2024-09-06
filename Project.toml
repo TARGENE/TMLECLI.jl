@@ -1,7 +1,7 @@
 name = "TMLECLI"
 uuid = "2573d147-4098-46ba-9db2-8608d210ccac"
 authors = ["Olivier Labayle"]
-version = "0.10.0"
+version = "0.10.1"
 
 [deps]
 ArgParse = "c7e460c6-2fb9-53a9-8c5b-16f535851c63"
