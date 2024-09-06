@@ -1,5 +1,10 @@
 function cli_settings()
-    s = ArgParseSettings(description="TMLE CLI.")
+    s = ArgParseSettings(
+        description="TMLECLI.",
+        add_version = true,
+        commands_are_required = false,
+        version=string(pkgversion(TMLECLI))
+    )
 
     @add_arg_table! s begin
         "tmle"
