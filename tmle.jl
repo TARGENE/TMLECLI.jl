@@ -1,1 +1,1 @@
-using TMLECLI; main()
+using TMLECLI; julia_main()

@@ -25,6 +25,6 @@ Bellow is a description of the functionalities offered by the CLI.
 ## CLI Description
 
 ```@contents
-Pages = ["tmle_estimation.md", "sieve_variance.md", "make_summary.md"]
+Pages = ["tmle_estimation.md", "make_summary.md"]
 Depth = 5
 ```
