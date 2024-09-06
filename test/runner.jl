@@ -155,14 +155,16 @@ end
     TMLE.write_json(estimandsfile, configuration)
     output = joinpath(tmpdir, "output.json")
     # Using the main entry point
-    main([
+    copy!(ARGS, [
         "tmle", 
         datafile, 
         "--estimands", estimandsfile, 
         "--estimators=ose--glm",
         "--pvalue-threshold=1e-15",
-        "--json-output", output]
+        "--json-output", output
+    ]
     )
+    TMLECLI.julia_main()
     
     # Essential results
     results_from_json = TMLE.read_json(output, use_mmap=false)
@@ -241,7 +243,7 @@ end
     hdf5_output = joinpath(tmpdir, "output.hdf5")
     json_output = joinpath(tmpdir, "output.json")
     # Using the main entry point
-    main([
+    copy!(ARGS, [
         "tmle", 
         datafile, 
         "--estimands", estimandsfile, 
@@ -251,6 +253,7 @@ end
         "--hdf5-output", hdf5_output,
         "--jls-output", jls_output
     ])
+    TMLECLI.julia_main()
     
     # JLS Output
     results = []

@@ -2,8 +2,10 @@ name: Publish Docker Image
 
 on:
   workflow_dispatch:
-  release:
-    types: [published]
+  workflow_run:
+    workflows: [TagBot]
+    types:
+      - completed
 
 jobs:
   push-to-registries:

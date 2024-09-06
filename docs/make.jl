@@ -15,7 +15,7 @@ makedocs(
     modules = [TMLECLI],
     pages=[
         "Home" => "index.md",
-        "Command Line Interface" => ["cli.md", "tmle_estimation.md", "sieve_variance.md", "make_summary.md"],
+        "Command Line Interface" => ["cli.md", "tmle_estimation.md", "make_summary.md"],
         "MLJ Extensions" => ["models.md", "resampling.md"],
     ],
     pagesonly=true,

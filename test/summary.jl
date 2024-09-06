@@ -46,13 +46,14 @@ include(joinpath(TESTDIR, "testutils.jl"))
     json_output = joinpath(tmpdir, "summary.json")
     jls_output = joinpath(tmpdir, "summary.jls")
     hdf5_output = joinpath(tmpdir, "summary.hdf5")
-    main([
+    copy!(ARGS, [
         "merge", 
         joinpath(tmpdir, "tmle_output"), 
         "--json-output", json_output, 
         "--jls-output", jls_output,
         "--hdf5-output", hdf5_output
     ])
+    TMLECLI.julia_main()
 
     # Test correctness
     inputs = TMLECLI.read_results_from_files([joinpath(tmpdir, "tmle_output_1.hdf5"), joinpath(tmpdir, "tmle_output_2.hdf5")])
