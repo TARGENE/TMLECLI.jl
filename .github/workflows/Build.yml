@@ -1,4 +1,4 @@
-name: Publish Docker Image
+name: Build
 
 on:
   workflow_dispatch:
@@ -16,7 +16,6 @@ jobs:
           - '1'
         os:
           - ubuntu-latest
-          - macOS-latest
         arch:
           - 'x64'
     steps:
