@@ -26,11 +26,12 @@ jobs:
       - uses: julia-actions/cache@v1
       - uses: julia-actions/julia-buildpkg@v1
       - name: Build
-        run: julia --project --startup-file=no deps/build_app.jl
+        run: unset JULIA_NUM_THREADS && julia --project -t 1 --startup-file=no deps/build_app.jl
       - uses: actions/upload-artifact@v4
         with:
           name: tmle-${{ matrix.os }}-${{ matrix.arch }}
           path: tmle
+
   build-and-push-docker-image:
     name: Build and push docker image to registries
     runs-on: ubuntu-latest
