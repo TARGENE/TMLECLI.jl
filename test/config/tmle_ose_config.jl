@@ -2,7 +2,7 @@ evotree = EvoTreeClassifier(nrounds=10)
 
 default_models = TMLE.default_models(
   Q_continuous = Stack(
-    metalearner        = LinearRegressor(fit_intercept=false),
+    metalearner        = MLJLinearModels.LinearRegressor(fit_intercept=false),
     resampling         = CV(nfolds=2),
     cache              = false,
     interaction_glmnet = Pipeline(
@@ -54,6 +54,6 @@ default_models = TMLE.default_models(
 )
 
 ESTIMATORS = (
-  TMLE = TMLEE(models=default_models, weighted=true, ps_lowerbound=0.001),
-  OSE  = OSE(models=default_models)
+  TMLE = Tmle(models=default_models, weighted=true, ps_lowerbound=0.001),
+  OSE  = Ose(models=default_models)
 )

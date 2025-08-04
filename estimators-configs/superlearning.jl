@@ -4,11 +4,11 @@ xgboost_classifier = XGBoostClassifier(tree_method="hist")
 default_models = TMLE.default_models(
   # For the estimation of E[Y|W, T]: continuous outcome
   Q_continuous = Stack(
-    metalearner        = LinearRegressor(fit_intercept=false),
+    metalearner        = MLJLinearModels.LinearRegressor(fit_intercept=false),
     resampling         = CV(nfolds=3),
     cache              = false,
     glmnet             = GLMNetRegressor(),
-    lr                 = LinearRegressor(),
+    lr                 = MLJLinearModels.LinearRegressor(),
     tuned_xgboost      = TunedModel(
         model = xgboost_regressor,
         resampling = CV(nfolds=3),
@@ -62,5 +62,5 @@ default_models = TMLE.default_models(
 )
 
 ESTIMATORS = (
-  TMLE = TMLEE(models=default_models, weighted=true, ps_lowerbound=1e-8),
+  TMLE = Tmle(models=default_models, weighted=true, ps_lowerbound=1e-8),
 )

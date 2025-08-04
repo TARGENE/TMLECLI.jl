@@ -20,8 +20,8 @@ include(joinpath(TESTDIR, "testutils.jl"))
 @testset "Test instantiate_estimators from file" begin
     # From explicit file
     estimators = TMLECLI.instantiate_estimators(joinpath(TESTDIR, "config", "tmle_ose_config.jl"), nothing)
-    @test estimators.TMLE isa TMLE.TMLEE
-    @test estimators.OSE isa TMLE.OSE
+    @test estimators.TMLE isa TMLE.Tmle
+    @test estimators.OSE isa TMLE.Ose
     @test estimators.TMLE.weighted === true
     @test estimators.TMLE.models[:G_default] === estimators.OSE.models[:G_default]
     @test estimators.TMLE.models[:G_default].continuous_encoder isa MLJModels.ContinuousEncoder

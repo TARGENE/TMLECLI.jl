@@ -6,16 +6,17 @@ using TMLE
 using MLJBase
 using MLJXGBoostInterface
 using MLJLinearModels
+using MLJGLMInterface
 
 @testset "Test estimators_from_string: no models provided" begin
     # Default configuration results in GLMNets with interactions of order 2
     estimators = TMLECLI.estimators_from_string(config_string="wtmle-ose", treatment_variables=Set([:T1, :T2]))
     ## Check estimators
-    @test estimators.WTMLE_GLMNET_GLMNET isa TMLEE
+    @test estimators.WTMLE_GLMNET_GLMNET isa Tmle
     @test estimators.WTMLE_GLMNET_GLMNET.weighted === true
     @test estimators.WTMLE_GLMNET_GLMNET.resampling === nothing
 
-    @test estimators.OSE_GLMNET_GLMNET isa OSE
+    @test estimators.OSE_GLMNET_GLMNET isa Ose
     @test estimators.OSE_GLMNET_GLMNET.resampling === nothing
     ## Check models
     expected_resampling = JointStratifiedCV(
@@ -47,11 +48,11 @@ end
         resampling=StratifiedCV(nfolds=3)
         )
     ## Check estimators
-    @test estimators.CVTMLE_TUNEDXGBOOST_TUNEDXGBOOST isa TMLEE
+    @test estimators.CVTMLE_TUNEDXGBOOST_TUNEDXGBOOST isa Tmle
     @test estimators.CVTMLE_TUNEDXGBOOST_TUNEDXGBOOST.weighted === false
     @test estimators.CVTMLE_TUNEDXGBOOST_TUNEDXGBOOST.resampling == expected_resampling
 
-    @test estimators.CVOSE_TUNEDXGBOOST_TUNEDXGBOOST isa OSE
+    @test estimators.CVOSE_TUNEDXGBOOST_TUNEDXGBOOST isa Ose
     @test estimators.CVOSE_TUNEDXGBOOST_TUNEDXGBOOST.resampling == expected_resampling
     ## Check models
     for estimator in estimators
@@ -65,7 +66,7 @@ end
     # 2 model is provided for nuisance functions
     estimators = TMLECLI.estimators_from_string(config_string="tmle--sl--glm", treatment_variables=["Coco"])
     ## Check estimators
-    @test estimators.TMLE_SL_GLM isa TMLEE
+    @test estimators.TMLE_SL_GLM isa Tmle
     @test estimators.TMLE_SL_GLM.weighted === false
     @test estimators.TMLE_SL_GLM.resampling === nothing
     ## Check models
@@ -76,12 +77,12 @@ end
     for estimator in estimators
         Qbinary = estimator.models[:Q_binary_default].probabilistic_stack
         Qcontinuous = estimator.models[:Q_continuous_default].deterministic_stack
-        G = estimator.models[:G_default].logistic_classifier
+        G = estimator.models[:G_default].linear_binary_classifier
 
         @test Qbinary.glmnet.restricted_interaction_transformer.primary_variables_patterns == Regex[r"^Coco$"]
         @test Qbinary.glmnet.glm_net_classifier.resampling == expected_resampling
         @test Qbinary.lr.restricted_interaction_transformer.primary_variables_patterns == Regex[r"^Coco$"]
-        @test Qbinary.lr.logistic_classifier isa LogisticClassifier
+        @test Qbinary.lr.linear_binary_classifier isa LinearBinaryClassifier
         xgboost_hyperparams = map(1:12) do i
             xgboost = getproperty(Qbinary, Symbol(:xgboost_classifier_, i))
             xgboost.eta, xgboost.max_depth
@@ -91,14 +92,14 @@ end
         @test Qcontinuous.glmnet.restricted_interaction_transformer.primary_variables_patterns == Regex[r"^Coco$"]
         @test Qcontinuous.glmnet.glm_net_regressor.resampling == expected_resampling
         @test Qcontinuous.lr.restricted_interaction_transformer.primary_variables_patterns == Regex[r"^Coco$"]
-        @test Qcontinuous.lr.linear_regressor isa LinearRegressor
+        @test Qcontinuous.lr.linear_regressor isa MLJLinearModels.LinearRegressor
         xgboost_hyperparams = map(1:12) do i
             xgboost = getproperty(Qcontinuous, Symbol(:xgboost_regressor_, i))
             xgboost.eta, xgboost.max_depth
         end
         @test allunique(xgboost_hyperparams)
 
-        @test G isa LogisticClassifier
+        @test G isa LinearBinaryClassifier
     end
 end
 

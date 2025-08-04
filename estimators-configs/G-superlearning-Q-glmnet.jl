@@ -27,5 +27,5 @@ default_models = TMLE.default_models(
 )
 
 ESTIMATORS = (
-  TMLE = TMLEE(models=default_models, weighted=true, ps_lowerbound=1e-8),
+  TMLE = Tmle(models=default_models, weighted=true, ps_lowerbound=1e-8),
 )

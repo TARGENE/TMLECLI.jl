@@ -70,8 +70,11 @@ function getfolds(resampling, X, y)
     return folds
 end
 
-function MLJBase.fit(model::GLMNetModel, verbosity::Int, X, y)
+function MLJBase.fit(model::GLMNetModel, verbosity::Int, X, y; weights=nothing)
     folds = getfolds(model.resampling, X, y)
+    if weights !== nothing
+        params[:weights] = weights
+    end
     res = glmnetcv(MLJBase.matrix(X), y; folds=folds, model.params...)
     # This is currently not caught by the GLMNet package
     if length(res.meanloss) == 0

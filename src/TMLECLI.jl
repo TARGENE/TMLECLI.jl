@@ -8,6 +8,7 @@ using CSV
 using Arrow
 using TMLE
 using EvoTrees
+using MLJGLMInterface
 using MLJXGBoostInterface
 using MLJLinearModels
 using JLD2
