@@ -1689,8 +1689,8 @@ version = "7.7.0+0"
 
 [[deps.TMLE]]
 deps = ["AutoHashEquals", "CategoricalArrays", "Combinatorics", "ComputationalResources", "DataFrames", "DifferentiationInterface", "Distributions", "GLM", "Graphs", "HypothesisTests", "LogExpFunctions", "MLJBase", "MLJGLMInterface", "MLJModels", "MetaGraphsNext", "Missings", "OrderedCollections", "Printf", "Random", "SplitApplyCombine", "StatisticalMeasures", "Statistics", "TableOperations", "Tables", "Zygote"]
-git-tree-sha1 = "bed92e9936520e25342505d0bdbced3c80ffc22f"
-repo-rev = "d763f7a86c18211a06220053626f0cd9db3e6d87"
+git-tree-sha1 = "251f4d81a3d527b86b00f08838a5b7c773410404"
+repo-rev = "cb3af5d32975ee8f29786c5ea402336c9194e5b7"
 repo-url = "https://github.com/TARGENE/TMLE.jl"
 uuid = "8afdd2fb-6e73-43df-8b62-b1650cd9c8cf"
 version = "0.19.0"
