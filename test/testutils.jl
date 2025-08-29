@@ -63,6 +63,37 @@ function statistical_estimands_only_config()
     return configuration
 end
 
+function binary_statistical_estimands_config()
+    configuration = Configuration(
+        estimands=[
+            ATE(
+                outcome = Symbol("BINARY/OUTCOME"), 
+                treatment_values = (T1 = (case = true, control = false),), 
+                treatment_confounders = (T1 = (:W1, :W2),), 
+                outcome_extra_covariates = (:C1,)
+            ),
+            AIE(
+                outcome = Symbol("BINARY/OUTCOME"), 
+                treatment_values = (
+                    T1 = (case = true, control = false), 
+                    T2 = (case = false, control = true)
+                ), 
+                treatment_confounders = (T1 = (:W1, :W2), T2 = (:W1, :W2)), 
+                outcome_extra_covariates = (:C1,)
+            ),
+            AIE(
+                outcome = Symbol("BINARY/OUTCOME"), 
+                treatment_values = (
+                    T1 = (case = true, control = false), 
+                    T2 = (case = true, control = false)), 
+                treatment_confounders = (T1 = (:W1, :W2), T2 = (:W1, :W2)), 
+                outcome_extra_covariates = (:C1,)
+            )
+        ]
+    )
+    return configuration
+end
+
 function causal_and_joint_estimands_config()
     ATE₁ = ATE(
         outcome = Symbol("CONTINUOUS, OUTCOME"), 
@@ -95,7 +126,7 @@ BINARY_OUTCOME:
 - ATE(0->1, 0->1)  = 
 
 """
-function build_dataset(;n=1000, format="csv")
+function build_dataset(;n=1000, format="csv", binary_only=false)
     rng = StableRNG(123)
     # Confounders
     W₁ = rand(rng, Uniform(), n)
@@ -108,7 +139,7 @@ function build_dataset(;n=1000, format="csv")
     # target | Confounders, Covariates, Treatments
     μ = 1 .+ 2W₁ .+ 3W₂ .- 4C₁.*T₁ .+ T₁ + T₂.*W₂.*T₁
     y₁ = μ .+ rand(rng, Normal(0, 0.01), n)
-    y₂ = rand(rng, Uniform(), n) .< logistic.(μ)
+    y₂ = rand(rng, Uniform(), n) .< logistic.(-μ)
     # Add some missingness
     y₂ = vcat(missing, y₂[2:end])
 
@@ -120,16 +151,17 @@ function build_dataset(;n=1000, format="csv")
         W2 = W₂,
         C1 = C₁,
     )
-    # Comma in name
-    dataset[!, "CONTINUOUS, OUTCOME"] = y₁
     # Slash in name
     dataset[!, "BINARY/OUTCOME"] = y₂
-    dataset[!, "COUNT_OUTCOME"] = rand(rng, [1, 2, 3, 4], n)
-
+    if !binary_only
+        # Comma in name
+        dataset[!, "CONTINUOUS, OUTCOME"] = y₁
+        dataset[!, "COUNT_OUTCOME"] = rand(rng, [1, 2, 3, 4], n)
+    end
     return dataset
 end
 
-function write_dataset(filename; n=1000)
-    dataset = build_dataset(;n=n)
+function write_dataset(filename; n=1000, binary_only=false)
+    dataset = build_dataset(;n=n, binary_only=binary_only)
     endswith(filename, "csv") ? CSV.write(filename, dataset) : Arrow.write(filename, dataset)
 end

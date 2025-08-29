@@ -287,6 +287,33 @@ end
     end
 end
 
+@testset "Test tmle: With prevalence" begin
+    tmpdir = mktempdir()
+    datafile = joinpath(tmpdir, "data.csv")
+    write_dataset(datafile, binary_only=true)
+    estimandsfile = joinpath(tmpdir, "configuration.json")
+    configuration = binary_statistical_estimands_config()
+    TMLE.write_json(estimandsfile, configuration)
+    output = joinpath(tmpdir, "output.json")
+    # Using the main entry point
+    copy!(ARGS, [
+        "tmle", 
+        datafile, 
+        "--estimands", estimandsfile, 
+        "--estimators=tmle--tunedxgboost",
+        "--prevalence=0.2",
+        "--json-output", output
+    ]
+    )
+    TMLECLI.julia_main()
+    
+    # Essential results
+    results_from_json = TMLE.read_json(output, use_mmap=false)
+    for result in results_from_json
+        @show result
+    end
+end
+
 end;
 
 true
