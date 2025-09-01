@@ -287,31 +287,199 @@ end
     end
 end
 
-@testset "Test tmle: With prevalence" begin
+@testset "Test tmle: tunedxgboost weighted vs unweighted" begin
     tmpdir = mktempdir()
     datafile = joinpath(tmpdir, "data.csv")
     write_dataset(datafile, binary_only=true)
     estimandsfile = joinpath(tmpdir, "configuration.json")
     configuration = binary_statistical_estimands_config()
     TMLE.write_json(estimandsfile, configuration)
-    output = joinpath(tmpdir, "output.json")
-    # Using the main entry point
+
+    # Weighted run (prevalence specified)
+    jls_weighted = joinpath(tmpdir, "output_weighted.jls")
+    hdf5_weighted = joinpath(tmpdir, "output_weighted.hdf5")
+    json_weighted = joinpath(tmpdir, "output_weighted.json")
     copy!(ARGS, [
-        "tmle", 
-        datafile, 
-        "--estimands", estimandsfile, 
+        "tmle",
+        datafile,
+        "--estimands", estimandsfile,
         "--estimators=tmle--tunedxgboost",
         "--prevalence=0.2",
-        "--json-output", output
-    ]
-    )
+        "--json-output", json_weighted,
+        "--hdf5-output", hdf5_weighted,
+        "--jls-output", jls_weighted
+    ])
     TMLECLI.julia_main()
-    
-    # Essential results
-    results_from_json = TMLE.read_json(output, use_mmap=false)
-    for result in results_from_json
-        @show result
+
+    results_weighted = []
+    open(jls_weighted) do io
+        while !eof(io)
+            push!(results_weighted, deserialize(io))
+        end
     end
+    for res in results_weighted
+        @test isa(res[1], TMLE.TMLEstimate{Float64})
+    end
+
+    # Unweighted run (no prevalence)
+    jls_unweighted = joinpath(tmpdir, "output_unweighted.jls")
+    hdf5_unweighted = joinpath(tmpdir, "output_unweighted.hdf5")
+    json_unweighted = joinpath(tmpdir, "output_unweighted.json")
+    copy!(ARGS, [
+        "tmle",
+        datafile,
+        "--estimands", estimandsfile,
+        "--estimators=tmle--tunedxgboost",
+        "--json-output", json_unweighted,
+        "--hdf5-output", hdf5_unweighted,
+        "--jls-output", jls_unweighted
+    ])
+    TMLECLI.julia_main()
+
+    results_unweighted = []
+    open(jls_unweighted) do io
+        while !eof(io)
+            push!(results_unweighted, deserialize(io))
+        end
+    end
+    for res in results_unweighted
+        @test isa(res[1], TMLE.TMLEstimate{Float64})
+    end
+
+    # Ensure both runs produced the same number of outputs and that at least one estimate differs
+    @test length(results_weighted) == length(results_unweighted)
+    differ = any(!isapprox(rw[1].estimate, ru[1].estimate; atol=1e-12, rtol=1e-8) for (rw, ru) in zip(results_weighted, results_unweighted))
+    @test differ
+end
+
+@testset "Test tmle: glmnet weighted vs unweighted" begin
+    tmpdir = mktempdir()
+    datafile = joinpath(tmpdir, "data.csv")
+    write_dataset(datafile, binary_only=true)
+    estimandsfile = joinpath(tmpdir, "configuration.json")
+    configuration = binary_statistical_estimands_config()
+    TMLE.write_json(estimandsfile, configuration)
+
+    # Weighted run (prevalence specified)
+    jls_weighted = joinpath(tmpdir, "output_weighted.jls")
+    hdf5_weighted = joinpath(tmpdir, "output_weighted.hdf5")
+    json_weighted = joinpath(tmpdir, "output_weighted.json")
+    copy!(ARGS, [
+        "tmle",
+        datafile,
+        "--estimands", estimandsfile,
+        "--estimators=tmle--glmnet",
+        "--prevalence=0.2",
+        "--json-output", json_weighted,
+        "--hdf5-output", hdf5_weighted,
+        "--jls-output", jls_weighted
+    ])
+    TMLECLI.julia_main()
+
+    results_weighted = []
+    open(jls_weighted) do io
+        while !eof(io)
+            push!(results_weighted, deserialize(io))
+        end
+    end
+    for res in results_weighted
+        @test isa(res[1], TMLE.TMLEstimate{Float64})
+    end
+
+    # Unweighted run (no prevalence)
+    jls_unweighted = joinpath(tmpdir, "output_unweighted.jls")
+    hdf5_unweighted = joinpath(tmpdir, "output_unweighted.hdf5")
+    json_unweighted = joinpath(tmpdir, "output_unweighted.json")
+    copy!(ARGS, [
+        "tmle",
+        datafile,
+        "--estimands", estimandsfile,
+        "--estimators=tmle--glmnet",
+        "--json-output", json_unweighted,
+        "--hdf5-output", hdf5_unweighted,
+        "--jls-output", jls_unweighted
+    ])
+    TMLECLI.julia_main()
+
+    results_unweighted = []
+    open(jls_unweighted) do io
+        while !eof(io)
+            push!(results_unweighted, deserialize(io))
+        end
+    end
+    for res in results_unweighted
+        @test isa(res[1], TMLE.TMLEstimate{Float64})
+    end
+
+    # Ensure both runs produced the same number of outputs and that at least one estimate differs
+    @test length(results_weighted) == length(results_unweighted)
+    differ = any(!isapprox(rw[1].estimate, ru[1].estimate; atol=1e-12, rtol=1e-8) for (rw, ru) in zip(results_weighted, results_unweighted))
+    @test differ
+end
+
+@testset "Test tmle: glm weighted vs unweighted" begin
+    tmpdir = mktempdir()
+    datafile = joinpath(tmpdir, "data.csv")
+    write_dataset(datafile, binary_only=true)
+    estimandsfile = joinpath(tmpdir, "configuration.json")
+    configuration = binary_statistical_estimands_config()
+    TMLE.write_json(estimandsfile, configuration)
+
+    # Weighted run (prevalence specified)
+    jls_weighted = joinpath(tmpdir, "output_weighted.jls")
+    hdf5_weighted = joinpath(tmpdir, "output_weighted.hdf5")
+    json_weighted = joinpath(tmpdir, "output_weighted.json")
+    copy!(ARGS, [
+        "tmle",
+        datafile,
+        "--estimands", estimandsfile,
+        "--estimators=tmle--glm",
+        "--prevalence=0.2",
+        "--json-output", json_weighted,
+        "--hdf5-output", hdf5_weighted,
+        "--jls-output", jls_weighted
+    ])
+    TMLECLI.julia_main()
+
+    results_weighted = []
+    open(jls_weighted) do io
+        while !eof(io)
+            push!(results_weighted, deserialize(io))
+        end
+    end
+    for res in results_weighted
+        @test isa(res[1], TMLE.TMLEstimate{Float64})
+    end
+
+    # Unweighted run (no prevalence)
+    jls_unweighted = joinpath(tmpdir, "output_unweighted.jls")
+    hdf5_unweighted = joinpath(tmpdir, "output_unweighted.hdf5")
+    json_unweighted = joinpath(tmpdir, "output_unweighted.json")
+    copy!(ARGS, [
+        "tmle",
+        datafile,
+        "--estimands", estimandsfile,
+        "--estimators=tmle--glm",
+        "--json-output", json_unweighted,
+        "--hdf5-output", hdf5_unweighted,
+        "--jls-output", jls_unweighted
+    ])
+    TMLECLI.julia_main()
+
+    results_unweighted = []
+    open(jls_unweighted) do io
+        while !eof(io)
+            push!(results_unweighted, deserialize(io))
+        end
+    end
+    for res in results_unweighted
+        @test isa(res[1], TMLE.TMLEstimate{Float64})
+    end
+
+    # Ensure both runs produced the same number of outputs and that at least one estimate differs
+    @test length(results_weighted) == length(results_unweighted)
+    differ = any(!isapprox(rw[1].estimate, ru[1].estimate; atol=1e-12, rtol=1e-8) for (rw, ru) in zip(results_weighted, results_unweighted))
+    @test differ
 end
 
 end;

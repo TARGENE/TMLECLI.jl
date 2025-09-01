@@ -71,23 +71,6 @@ function binary_statistical_estimands_config()
                 treatment_values = (T1 = (case = true, control = false),), 
                 treatment_confounders = (T1 = (:W1, :W2),), 
                 outcome_extra_covariates = (:C1,)
-            ),
-            AIE(
-                outcome = Symbol("BINARY/OUTCOME"), 
-                treatment_values = (
-                    T1 = (case = true, control = false), 
-                    T2 = (case = false, control = true)
-                ), 
-                treatment_confounders = (T1 = (:W1, :W2), T2 = (:W1, :W2)), 
-                outcome_extra_covariates = (:C1,)
-            ),
-            AIE(
-                outcome = Symbol("BINARY/OUTCOME"), 
-                treatment_values = (
-                    T1 = (case = true, control = false), 
-                    T2 = (case = true, control = false)), 
-                treatment_confounders = (T1 = (:W1, :W2), T2 = (:W1, :W2)), 
-                outcome_extra_covariates = (:C1,)
             )
         ]
     )

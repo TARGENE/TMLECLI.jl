@@ -72,10 +72,11 @@ end
 
 function MLJBase.fit(model::GLMNetModel, verbosity::Int, X, y; weights=nothing)
     folds = getfolds(model.resampling, X, y)
+    params = copy(model.params)
     if weights !== nothing
         params[:weights] = weights
     end
-    res = glmnetcv(MLJBase.matrix(X), y; folds=folds, model.params...)
+    res = glmnetcv(MLJBase.matrix(X), y; folds=folds, params...)
     # This is currently not caught by the GLMNet package
     if length(res.meanloss) == 0
         throw(error("glmnetcv's mean loss is empty. Probably meaning convergence failed at the first lambda for some fold."))
@@ -97,6 +98,9 @@ function MLJBase.predict(::GLMNetClassifier, fitresult, X)
     end
     return preds
 end
+
+# Allow the classifier to accept observation weights for case-control fitting
+MLJBase.supports_weights(model::GLMNetClassifier) = true
 
 MLJBase.input_scitype(::Type{<:GLMNetModel}) = Table{<:AbstractVector{<:Continuous}}
 MLJBase.target_scitype(::Type{<:GLMNetRegressor}) = AbstractVector{<:Continuous}
