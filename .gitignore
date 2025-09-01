@@ -19,5 +19,7 @@ docs/build/
 docs/site/
 docs/Manifest.toml
 
+test/Manifest.toml
+Manifest.toml
+
 build/
-test/sandbox.jl
