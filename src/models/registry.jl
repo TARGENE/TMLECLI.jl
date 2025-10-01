@@ -25,10 +25,10 @@ function GLM_CLASSIFIER(treatment_variables, interactions)
     return if interactions
         Pipeline(
             INTERACTION_TRANSFORMER(treatment_variables), 
-            MLJGLMInterface.LinearBinaryClassifier()
+            LogisticClassifier(lambda=0.)
         )
     else
-        MLJGLMInterface.LinearBinaryClassifier()
+        LogisticClassifier(lambda=0.)
     end
 end
 
@@ -106,7 +106,7 @@ SL_REGRESSOR(treatment_variables, interactions) = Stack(;
 )
 
 SL_CLASSIFIER(treatment_variables, interactions) = Stack(;
-    metalearner        = MLJGLMInterface.LinearBinaryClassifier(fit_intercept=false),
+    metalearner        = LogisticClassifier(lambda=0.,fit_intercept=false),
     resampling         = RESAMPLING(treatment_variables),
     cache              = false,
     glmnet             = GLMNET_CLASSIFIER(treatment_variables, interactions),
