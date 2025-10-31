@@ -25,7 +25,7 @@ mach = machine(model, X, y)
 fit!(mach, verbosity=0)
 ```
 """
-GLMNetRegressor(;resampling=CV(), params...) = GLMNetRegressor(resampling, Dict(params))
+GLMNetRegressor(;resampling=CV(), params...) = GLMNetRegressor(resampling, Dict{Symbol,Any}(params))
 
 mutable struct GLMNetClassifier <: Probabilistic
     resampling::ResamplingStrategy
@@ -54,7 +54,7 @@ mach = machine(model, X, y)
 fit!(mach, verbosity=0)
 ```
 """
-GLMNetClassifier(;resampling=StratifiedCV(), params...) = GLMNetClassifier(resampling, Dict(params))
+GLMNetClassifier(;resampling=StratifiedCV(), params...) = GLMNetClassifier(resampling, Dict{Symbol,Any}(params))
 
 GLMNetModel = Union{GLMNetRegressor, GLMNetClassifier}
 
@@ -68,6 +68,10 @@ function getfolds(resampling, X, y)
         folds[val_indices] .= split_index
     end
     return folds
+end
+
+function MLJBase.fit(model::GLMNetClassifier, verbosity::Int, X, y, weights)
+    return MLJBase.fit(model, verbosity, X, y; weights=weights)
 end
 
 function MLJBase.fit(model::GLMNetModel, verbosity::Int, X, y; weights=nothing)

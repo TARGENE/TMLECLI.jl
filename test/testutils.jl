@@ -109,7 +109,7 @@ BINARY_OUTCOME:
 - ATE(0->1, 0->1)  = 
 
 """
-function build_dataset(;n=1000, format="csv", binary_only=false)
+function build_dataset(;n=1000, format="csv")
     rng = StableRNG(123)
     # Confounders
     W₁ = rand(rng, Uniform(), n)
@@ -134,17 +134,15 @@ function build_dataset(;n=1000, format="csv", binary_only=false)
         W2 = W₂,
         C1 = C₁,
     )
+    # Comma in name
+    dataset[!, "CONTINUOUS, OUTCOME"] = y₁
     # Slash in name
     dataset[!, "BINARY/OUTCOME"] = y₂
-    if !binary_only
-        # Comma in name
-        dataset[!, "CONTINUOUS, OUTCOME"] = y₁
-        dataset[!, "COUNT_OUTCOME"] = rand(rng, [1, 2, 3, 4], n)
-    end
+    dataset[!, "COUNT_OUTCOME"] = rand(rng, [1, 2, 3, 4], n)
     return dataset
 end
 
-function write_dataset(filename; n=1000, binary_only=false)
-    dataset = build_dataset(;n=n, binary_only=binary_only)
+function write_dataset(filename; n=1000)
+    dataset = build_dataset(;n=n)
     endswith(filename, "csv") ? CSV.write(filename, dataset) : Arrow.write(filename, dataset)
 end

@@ -104,10 +104,7 @@ function try_estimation(runner, Ψ, estimator)
     catch e
         # Some nuisance function fits may fail. We do not interrupt on them but log instead.
         if e isa TMLE.FitFailedError
-            # This also allows to skip fast the next estimands requiring the same nuisance functions.
-            # if !(e.model isa TMLE.Fluctuation)
             push!(runner.failed_nuisance, e.estimand)
-            # end
             return FailedEstimate(Ψ, e.msg)
         # On other errors, rethrow
         else 
@@ -195,7 +192,7 @@ TMLE CLI.
 - `--chunksize`: Results are written in batches of size chunksize.
 - `-r, --rng`: Random seed (Only used for estimands ordering at the moment).
 - `-c, --cache-strategy`: Caching Strategy for the nuisance functions, any of ("release-unusable", "no-cache", "max-size").
-
+- `--prevalence`: If the true prevalence of the outcome is known in the population, it can be specified here to correct for sampling bias.
 # Flags
 
 - `-s, --sort_estimands`: Sort estimands to minimize cache usage (A brute force approach will be used, resulting in exponentially long sorting time).
