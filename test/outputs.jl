@@ -18,10 +18,7 @@ include(joinpath(TESTDIR, "testutils.jl"))
 
     TMLECLI.initialize(outputs)
 
-    content = open(outputs.json, "r") do io
-        readlines(io)
-    end
-    @test content == ["["]
+    @test readlines(open(outputs.json)) == ["["]
     @test !isfile(outputs.jls)
     @test !isfile(outputs.hdf5)
 
@@ -31,10 +28,7 @@ include(joinpath(TESTDIR, "testutils.jl"))
     @test isfile(outputs.jls)
     @test isfile(outputs.hdf5)
     TMLECLI.initialize(outputs)
-    content = open(outputs.json, "r") do io
-        readlines(io)
-    end
-    @test content == ["["]
+    @test readlines(open(outputs.json)) == ["["]
     @test !isfile(outputs.jls)
     @test !isfile(outputs.hdf5)
 end

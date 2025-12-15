@@ -70,11 +70,7 @@ function getfolds(resampling, X, y)
     return folds
 end
 
-function MLJBase.fit(model::GLMNetClassifier, verbosity::Int, X, y, weights)
-    return MLJBase.fit(model, verbosity, X, y; weights=weights)
-end
-
-function MLJBase.fit(model::GLMNetModel, verbosity::Int, X, y; weights=nothing)
+function MLJBase.fit(model::GLMNetModel, verbosity::Int, X, y, weights=nothing)
     folds = getfolds(model.resampling, X, y)
     params = copy(model.params)
     if weights !== nothing

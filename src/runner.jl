@@ -13,7 +13,7 @@ estimators
 function instantiate_estimators(config::AbstractString, estimands; prevalence=nothing)
     if endswith(config, ".jl")
         if !isnothing(prevalence)
-            @warn "Prevalence is not used when loading estimators from a file. You must specify it in the estimators themselves."
+            @error "Prevalence is not used when loading estimators from a file. You must specify it in the estimators themselves."
         end
         load_julia_estimators(config)
     else
