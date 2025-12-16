@@ -25,7 +25,7 @@ mach = machine(model, X, y)
 fit!(mach, verbosity=0)
 ```
 """
-GLMNetRegressor(;resampling=CV(), params...) = GLMNetRegressor(resampling, Dict(params))
+GLMNetRegressor(;resampling=CV(), params...) = GLMNetRegressor(resampling, Dict{Symbol,Any}(params))
 
 mutable struct GLMNetClassifier <: Probabilistic
     resampling::ResamplingStrategy
@@ -54,7 +54,7 @@ mach = machine(model, X, y)
 fit!(mach, verbosity=0)
 ```
 """
-GLMNetClassifier(;resampling=StratifiedCV(), params...) = GLMNetClassifier(resampling, Dict(params))
+GLMNetClassifier(;resampling=StratifiedCV(), params...) = GLMNetClassifier(resampling, Dict{Symbol,Any}(params))
 
 GLMNetModel = Union{GLMNetRegressor, GLMNetClassifier}
 
@@ -70,9 +70,13 @@ function getfolds(resampling, X, y)
     return folds
 end
 
-function MLJBase.fit(model::GLMNetModel, verbosity::Int, X, y)
+function MLJBase.fit(model::GLMNetModel, verbosity::Int, X, y, weights=nothing)
     folds = getfolds(model.resampling, X, y)
-    res = glmnetcv(MLJBase.matrix(X), y; folds=folds, model.params...)
+    params = copy(model.params)
+    if weights !== nothing
+        params[:weights] = weights
+    end
+    res = glmnetcv(MLJBase.matrix(X), y; folds=folds, params...)
     # This is currently not caught by the GLMNet package
     if length(res.meanloss) == 0
         throw(error("glmnetcv's mean loss is empty. Probably meaning convergence failed at the first lambda for some fold."))
@@ -94,6 +98,9 @@ function MLJBase.predict(::GLMNetClassifier, fitresult, X)
     end
     return preds
 end
+
+# Allow the classifier to accept observation weights for case-control fitting
+MLJBase.supports_weights(model::GLMNetClassifier) = true
 
 MLJBase.input_scitype(::Type{<:GLMNetModel}) = Table{<:AbstractVector{<:Continuous}}
 MLJBase.target_scitype(::Type{<:GLMNetRegressor}) = AbstractVector{<:Continuous}

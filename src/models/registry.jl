@@ -14,10 +14,10 @@ function GLM_REGRESSOR(treatment_variables, interactions)
     return if interactions
         Pipeline(
             INTERACTION_TRANSFORMER(treatment_variables), 
-            LinearRegressor()
+            MLJLinearModels.LinearRegressor()
         )
     else
-        LinearRegressor()
+        MLJLinearModels.LinearRegressor()
     end
 end
 
@@ -97,7 +97,7 @@ const XGBOOST_REGRESSOR_GRID = (;(Symbol("xgboost_regressor_", id) => XGBoostReg
     for (id, (max_depth, η)) ∈ enumerate(Iterators.product([2, 4, 6, 8], [0.001, 0.01, 0.3])))...)
 
 SL_REGRESSOR(treatment_variables, interactions) = Stack(;
-    metalearner        = LinearRegressor(fit_intercept=false),
+    metalearner        = MLJLinearModels.LinearRegressor(fit_intercept=false),
     resampling         = RESAMPLING(treatment_variables),
     cache              = false,
     glmnet             = GLMNET_REGRESSOR(treatment_variables, interactions),
@@ -106,7 +106,7 @@ SL_REGRESSOR(treatment_variables, interactions) = Stack(;
 )
 
 SL_CLASSIFIER(treatment_variables, interactions) = Stack(;
-    metalearner        = LogisticClassifier(lambda=0., fit_intercept=false),
+    metalearner        = LogisticClassifier(lambda=0.,fit_intercept=false),
     resampling         = RESAMPLING(treatment_variables),
     cache              = false,
     glmnet             = GLMNET_CLASSIFIER(treatment_variables, interactions),
@@ -116,19 +116,19 @@ SL_CLASSIFIER(treatment_variables, interactions) = Stack(;
 
 # Parser
 
-function estimator_from_string(estimator_string, models, resampling)
+function estimator_from_string(estimator_string, models, resampling; prevalence=nothing)
     return if estimator_string == "TMLE"
-        TMLEE(models=models, weighted=false)
+        Tmle(models=models, weighted=false, prevalence=prevalence)
     elseif estimator_string == "WTMLE"
-        TMLEE(models=models, weighted=true)
+        Tmle(models=models, weighted=true, prevalence=prevalence)
     elseif estimator_string == "OSE"
-        OSE(models=models)
+        Ose(models=models)
     elseif estimator_string == "CVTMLE"
-        TMLEE(models=models, weighted=false, resampling=resampling)
+        Tmle(models=models, weighted=false, resampling=resampling, prevalence=prevalence)
     elseif estimator_string == "CVWTMLE"
-        TMLEE(models=models, weighted=true, resampling=resampling)
+        Tmle(models=models, weighted=true, resampling=resampling, prevalence=prevalence)
     elseif estimator_string == "CVOSE"
-        OSE(models=models, resampling=resampling)
+        Ose(models=models, resampling=resampling)
     else
         throw(ArgumentError(string("Unknown estimator: ", estimator_string)))
     end
@@ -136,7 +136,7 @@ end
 
 model_from_string(model_string, treatment_variables; interactions=true) = eval(Symbol(model_string))(treatment_variables, interactions)
 
-function estimators_from_string(;config_string="wtmle-ose", treatment_variables=Set(Symbol[]))
+function estimators_from_string(;config_string="wtmle-ose", treatment_variables=Set(Symbol[]), prevalence=nothing)
     config_string = uppercase(config_string)
     # Create models
     components = split(config_string, "--")
@@ -161,7 +161,7 @@ function estimators_from_string(;config_string="wtmle-ose", treatment_variables=
     # Create Estimators
     resampling = RESAMPLING(treatment_variables)
     estimators_strings = split(components[1], "-")
-    estimators = [estimator_from_string(estimator_string, models, resampling) for estimator_string in estimators_strings]
+    estimators = [estimator_from_string(estimator_string, models, resampling, prevalence=prevalence) for estimator_string in estimators_strings]
     estimator_names = Tuple(Symbol(estimator_string, :_, q_string, :_, g_string) for estimator_string in estimators_strings)
     return NamedTuple{estimator_names}(estimators)
 end

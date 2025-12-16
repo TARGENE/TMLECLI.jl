@@ -10,12 +10,15 @@ If estimators is an AbstractString, it is either:
 estimators
 - A string corresponding to estimators that can be constructed from the registry.
 """
-function instantiate_estimators(config::AbstractString, estimands)
+function instantiate_estimators(config::AbstractString, estimands; prevalence=nothing)
     if endswith(config, ".jl")
+        if !isnothing(prevalence)
+            @error "Prevalence is not used when loading estimators from a file. You must specify it in the estimators themselves."
+        end
         load_julia_estimators(config)
     else
         treatment_variables = treatments_from_estimands(estimands)
-        estimators_from_string(config_string=config, treatment_variables=treatment_variables)
+        estimators_from_string(config_string=config, treatment_variables=treatment_variables, prevalence=prevalence)
     end
 end
 
@@ -23,7 +26,7 @@ end
 If estimators is something else than an AbstractString, it is simply assumed to be a properly formed 
 NamedTuple of estimators.
 """
-instantiate_estimators(estimators, estimands) = estimators
+instantiate_estimators(estimators, estimands; prevalence=nothing) = estimators
 
 mutable struct Runner
     estimators::NamedTuple
@@ -36,6 +39,7 @@ mutable struct Runner
     failed_nuisance::Set
     save_sample_ids::Bool
     pvalue_threshold::Union{Nothing, Float64}
+    prevalence::Union{Nothing, Float64}
     function Runner(dataset; 
         estimands_config="factorialATE", 
         estimators_spec="glmnet",
@@ -46,14 +50,15 @@ mutable struct Runner
         cache_strategy="release-unusable",
         sort_estimands=false,
         save_sample_ids=false,
-        pvalue_threshold=nothing
+        pvalue_threshold=nothing,
+        prevalence=nothing
         )    
         # Load dataset
         dataset = instantiate_dataset(dataset)
         # Read parameter files
         estimands = instantiate_estimands(estimands_config, dataset)
         # Retrieve TMLE specifications
-        estimators = instantiate_estimators(estimators_spec, estimands)
+        estimators = instantiate_estimators(estimators_spec, estimands, prevalence=prevalence)
         if sort_estimands
             estimands = groups_ordering(estimands; 
                 brute_force=true, 
@@ -76,7 +81,8 @@ mutable struct Runner
             verbosity, 
             failed_nuisance, 
             save_sample_ids, 
-            pvalue_threshold
+            pvalue_threshold,
+            prevalence
         )
     end
 end
@@ -98,10 +104,7 @@ function try_estimation(runner, Ψ, estimator)
     catch e
         # Some nuisance function fits may fail. We do not interrupt on them but log instead.
         if e isa TMLE.FitFailedError
-            # This also allows to skip fast the next estimands requiring the same nuisance functions.
-            if !(e.model isa TMLE.Fluctuation)
-                push!(runner.failed_nuisance, e.estimand)
-            end
+            push!(runner.failed_nuisance, e.estimand)
             return FailedEstimate(Ψ, e.msg)
         # On other errors, rethrow
         else 
@@ -189,7 +192,7 @@ TMLE CLI.
 - `--chunksize`: Results are written in batches of size chunksize.
 - `-r, --rng`: Random seed (Only used for estimands ordering at the moment).
 - `-c, --cache-strategy`: Caching Strategy for the nuisance functions, any of ("release-unusable", "no-cache", "max-size").
-
+- `--prevalence`: If the true prevalence of the outcome is known in the population, it can be specified here to correct for sampling bias.
 # Flags
 
 - `-s, --sort_estimands`: Sort estimands to minimize cache usage (A brute force approach will be used, resulting in exponentially long sorting time).
@@ -204,7 +207,8 @@ function tmle(dataset::String;
     cache_strategy::String="release-unusable",
     sort_estimands::Bool=false,
     save_sample_ids=false,
-    pvalue_threshold=nothing
+    pvalue_threshold=nothing,
+    prevalence=nothing
     )
     runner = Runner(dataset;
         estimands_config=estimands, 
@@ -216,7 +220,8 @@ function tmle(dataset::String;
         cache_strategy=cache_strategy,
         sort_estimands=sort_estimands,
         save_sample_ids=save_sample_ids,
-        pvalue_threshold=pvalue_threshold
+        pvalue_threshold=pvalue_threshold,
+        prevalence=prevalence
     )
     runner()
     verbosity >= 1 && @info "Done."

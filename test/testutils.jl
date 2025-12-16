@@ -63,6 +63,20 @@ function statistical_estimands_only_config()
     return configuration
 end
 
+function binary_statistical_estimands_config()
+    configuration = Configuration(
+        estimands=[
+            ATE(
+                outcome = Symbol("BINARY/OUTCOME"), 
+                treatment_values = (T1 = (case = true, control = false),), 
+                treatment_confounders = (T1 = (:W1, :W2),), 
+                outcome_extra_covariates = (:C1,)
+            )
+        ]
+    )
+    return configuration
+end
+
 function causal_and_joint_estimands_config()
     ATE₁ = ATE(
         outcome = Symbol("CONTINUOUS, OUTCOME"), 
@@ -108,7 +122,7 @@ function build_dataset(;n=1000, format="csv")
     # target | Confounders, Covariates, Treatments
     μ = 1 .+ 2W₁ .+ 3W₂ .- 4C₁.*T₁ .+ T₁ + T₂.*W₂.*T₁
     y₁ = μ .+ rand(rng, Normal(0, 0.01), n)
-    y₂ = rand(rng, Uniform(), n) .< logistic.(μ)
+    y₂ = rand(rng, Uniform(), n) .< logistic.(-μ)
     # Add some missingness
     y₂ = vcat(missing, y₂[2:end])
 
@@ -125,7 +139,6 @@ function build_dataset(;n=1000, format="csv")
     # Slash in name
     dataset[!, "BINARY/OUTCOME"] = y₂
     dataset[!, "COUNT_OUTCOME"] = rand(rng, [1, 2, 3, 4], n)
-
     return dataset
 end
 

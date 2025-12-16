@@ -1,7 +1,7 @@
 name = "TMLECLI"
 uuid = "2573d147-4098-46ba-9db2-8608d210ccac"
 authors = ["Olivier Labayle"]
-version = "0.10.3"
+version = "0.10.4"
 
 [deps]
 ArgParse = "c7e460c6-2fb9-53a9-8c5b-16f535851c63"
@@ -47,7 +47,7 @@ MLJModelInterface = "1.8.0"
 MLJModels = "0.16, 0.17"
 MLJXGBoostInterface = "0.3.4"
 PackageCompiler = "2.1.16"
-TMLE = "0.18"
+TMLE = "0.20.3"
 Tables = "1.10.1"
 YAML = "0.4.9"
-julia = "1.10, 1"
+julia = "1.10, 1.11"

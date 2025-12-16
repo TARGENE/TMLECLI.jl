@@ -75,7 +75,10 @@ function cli_settings()
         "--pvalue-threshold"
             arg_type = Float64
             help = "Save influence curves for estimates with pvalue < pvalue-threshold."
-
+            
+        "--prevalence"
+            arg_type = Float64
+            help = "Optional prevalence parameter for biased sampling designs (a probability between 0 and 1)."        
     end
 
     @add_arg_table! s["merge"] begin
@@ -120,7 +123,8 @@ function julia_main()::Cint
                 cache_strategy=cmd_settings["cache-strategy"],
                 sort_estimands=cmd_settings["sort-estimands"],
                 save_sample_ids=cmd_settings["save-sample-ids"],
-                pvalue_threshold=cmd_settings["pvalue-threshold"]
+                pvalue_threshold=cmd_settings["pvalue-threshold"],
+                prevalence=cmd_settings["prevalence"]
             )
         else
             make_summary(cmd_settings["prefix"];

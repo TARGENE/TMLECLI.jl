@@ -20,8 +20,8 @@ include(joinpath(TESTDIR, "testutils.jl"))
 @testset "Test instantiate_estimators from file" begin
     # From explicit file
     estimators = TMLECLI.instantiate_estimators(joinpath(TESTDIR, "config", "tmle_ose_config.jl"), nothing)
-    @test estimators.TMLE isa TMLE.TMLEE
-    @test estimators.OSE isa TMLE.OSE
+    @test estimators.TMLE isa TMLE.Tmle
+    @test estimators.OSE isa TMLE.Ose
     @test estimators.TMLE.weighted === true
     @test estimators.TMLE.models[:G_default] === estimators.OSE.models[:G_default]
     @test estimators.TMLE.models[:G_default].continuous_encoder isa MLJModels.ContinuousEncoder
@@ -285,6 +285,71 @@ end
         jointresult = only(io["Batch_2"])
         @test jointresult.OSE.cov == results[3].OSE.cov
     end
+end
+
+@testset "Test tmle: tunedxgboost case-control weighted vs canonical" begin
+    tmpdir = mktempdir()
+    datafile = joinpath(tmpdir, "data.csv")
+    write_dataset(datafile)
+    estimandsfile = joinpath(tmpdir, "configuration.json")
+    configuration = binary_statistical_estimands_config()
+    TMLE.write_json(estimandsfile, configuration)
+
+    # Weighted run (prevalence specified)
+    jls_ccw = joinpath(tmpdir, "output_ccw.jls")
+    hdf5_ccw = joinpath(tmpdir, "output_ccw.hdf5")
+    json_ccw = joinpath(tmpdir, "output_ccw.json")
+    copy!(ARGS, [
+        "tmle",
+        datafile,
+        "--estimands", estimandsfile,
+        "--estimators=tmle--tunedxgboost",
+        "--prevalence=0.2",
+        "--json-output", json_ccw,
+        "--hdf5-output", hdf5_ccw,
+        "--jls-output", jls_ccw
+    ])
+    TMLECLI.julia_main()
+
+    results_ccw = []
+    open(jls_ccw) do io
+        while !eof(io)
+            push!(results_ccw, deserialize(io))
+        end
+    end
+    for res in results_ccw
+        @test isa(res[1], TMLE.TMLEstimate{Float64})
+    end
+
+    # Unweighted run (no prevalence)
+    jls_canon = joinpath(tmpdir, "output_canon.jls")
+    hdf5_canon = joinpath(tmpdir, "output_canon.hdf5")
+    json_canon = joinpath(tmpdir, "output_canon.json")
+    copy!(ARGS, [
+        "tmle",
+        datafile,
+        "--estimands", estimandsfile,
+        "--estimators=tmle--tunedxgboost",
+        "--json-output", json_canon,
+        "--hdf5-output", hdf5_canon,
+        "--jls-output", jls_canon
+    ])
+    TMLECLI.julia_main()
+
+    results_canon = []
+    open(jls_canon) do io
+        while !eof(io)
+            push!(results_canon, deserialize(io))
+        end
+    end
+    for res in results_canon
+        @test isa(res[1], TMLE.TMLEstimate{Float64})
+    end
+
+    # Ensure both runs produced the same number of outputs and that at least one estimate differs
+    @test length(results_ccw) == length(results_canon)
+    differ = any(!isapprox(rw[1].estimate, ru[1].estimate; atol=1e-12, rtol=1e-8) for (rw, ru) in zip(results_ccw, results_canon))
+    @test differ
 end
 
 end;
