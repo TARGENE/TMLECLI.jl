@@ -4,6 +4,62 @@ function load_julia_estimators(file)
 end
 
 """
+    parse_prevalence_range(prevalence_range::AbstractString)
+
+Parse a prevalence range string "lower,upper" to a tuple (lower, upper).
+"""
+function parse_prevalence_range(prevalence_range::AbstractString)
+    parts = split(prevalence_range, ",")
+    if length(parts) != 2
+        throw(ArgumentError("prevalence-range must be in the format 'lower,upper' (e.g., '0.006,0.013')"))
+    end
+    lower = parse(Float64, strip(parts[1]))
+    upper = parse(Float64, strip(parts[2]))
+    if lower >= upper
+        throw(ArgumentError("Lower bound of prevalence range must be less than upper bound"))
+    end
+    if lower <= 0 || upper >= 1
+        throw(ArgumentError("Prevalence bounds must be between 0 and 1 (exclusive)"))
+    end
+    return (lower, upper)
+end
+
+parse_prevalence_range(::Nothing) = nothing
+
+"""
+    get_prevalence_grid(prevalence, prevalence_range, n_points)
+
+Construct a grid of prevalence values for sensitivity analysis.
+
+- If `prevalence_range` is nothing, return a single-element vector with `prevalence` (or nothing)
+- If `prevalence_range` is provided:
+  - Throw ArgumentError if `prevalence` is provided but outside the range
+  - Use `n_points` evenly spaced values within the range including the bounds
+  - Return sorted unique values
+"""
+function get_prevalence_grid(prevalence, prevalence_range::Nothing, n_points)
+    return [prevalence]
+end
+
+function get_prevalence_grid(prevalence, prevalence_range::Tuple{Float64, Float64}, n_points)
+    lower, upper = prevalence_range
+    
+    if !isnothing(prevalence) && (prevalence < lower || prevalence > upper)
+        throw(ArgumentError("Prevalence $prevalence is outside the specified range [$lower, $upper]"))
+    end
+    
+    # Create evenly spaced grid
+    grid = collect(range(lower, upper, length=n_points))
+    
+    # Add prevalence if provided and not already in grid
+    if !isnothing(prevalence)
+        push!(grid, prevalence)
+    end
+    
+    return sort(unique(grid))
+end
+
+"""
 If estimators is an AbstractString, it is either:
 
 - A Julia file containing a `ESTIMATORS` NamedTuple of these
@@ -124,7 +180,8 @@ function (runner::Runner)(partition)
     for (partition_index, param_index) in enumerate(partition)
         Ψ = runner.estimands[param_index]
         if skip_fast(runner, Ψ)
-            results[partition_index] = NamedTuple{keys(runner.estimators)}([FailedEstimate(Ψ, "Skipped due to shared failed nuisance fit.") for _ in 1:length(runner.estimators)])
+            skipped_result = NamedTuple{keys(runner.estimators)}([FailedEstimate(Ψ, "Skipped due to shared failed nuisance fit.") for _ in 1:length(runner.estimators)])
+            results[partition_index] = isnothing(runner.prevalence) ? skipped_result : merge(skipped_result, (PREVALENCE = runner.prevalence,))
             continue
         end
         # Make sure data types are appropriate for the estimand
@@ -138,8 +195,9 @@ function (runner::Runner)(partition)
                 TMLE.emptyIC(result, runner.pvalue_threshold)
             )
         end
-        # Update results
-        results[partition_index] = NamedTuple{keys(runner.estimators)}(estimators_results)
+        # Update results (add PREVALENCE field only for CCW-TMLE, i.e., when prevalence is specified)
+        estimator_results_nt = NamedTuple{keys(runner.estimators)}(estimators_results)
+        results[partition_index] = isnothing(runner.prevalence) ? estimator_results_nt : merge(estimator_results_nt, (PREVALENCE = runner.prevalence,))
         # Release cache
         release!(runner.cache_manager, Ψ)
         # Try clean C memory
@@ -151,9 +209,9 @@ function (runner::Runner)(partition)
     return results
 end
 
-function (runner::Runner)()
+function (runner::Runner)(;skip_init_finalize::Bool=false)
     # Initialize output files
-    initialize(runner.outputs)
+    skip_init_finalize || initialize(runner.outputs)
     # Run and update output files in batches
     nparams = size(runner.estimands, 1)
     for partition in Iterators.partition(1:nparams, runner.chunksize)
@@ -161,7 +219,7 @@ function (runner::Runner)()
         update_outputs(runner, results)
     end
     # Finalize output files
-    finalize(runner.outputs)
+    skip_init_finalize || finalize(runner.outputs)
 end
 
 
@@ -193,6 +251,9 @@ TMLE CLI.
 - `-r, --rng`: Random seed (Only used for estimands ordering at the moment).
 - `-c, --cache-strategy`: Caching Strategy for the nuisance functions, any of ("release-unusable", "no-cache", "max-size").
 - `--prevalence`: If the true prevalence of the outcome is known in the population, it can be specified here to correct for sampling bias.
+- `--prevalence-range`: Range of prevalence values for sensitivity analysis (e.g., "0.006,0.013").
+- `--n-prevalence-points`: Number of prevalence points within the range (default: 5).
+
 # Flags
 
 - `-s, --sort_estimands`: Sort estimands to minimize cache usage (A brute force approach will be used, resulting in exponentially long sorting time).
@@ -208,22 +269,42 @@ function tmle(dataset::String;
     sort_estimands::Bool=false,
     save_sample_ids=false,
     pvalue_threshold=nothing,
-    prevalence=nothing
+    prevalence=nothing,
+    prevalence_range=nothing,
+    n_prevalence_points::Int=5
     )
-    runner = Runner(dataset;
-        estimands_config=estimands, 
-        estimators_spec=estimators, 
-        verbosity=verbosity, 
-        outputs=outputs, 
-        chunksize=chunksize,
-        rng=rng,
-        cache_strategy=cache_strategy,
-        sort_estimands=sort_estimands,
-        save_sample_ids=save_sample_ids,
-        pvalue_threshold=pvalue_threshold,
-        prevalence=prevalence
-    )
-    runner()
+    # Parse prevalence range if provided
+    parsed_range = parse_prevalence_range(prevalence_range)
+    
+    # Get prevalence grid for sensitivity analysis
+    prevalence_grid = get_prevalence_grid(prevalence, parsed_range, n_prevalence_points)
+    
+    verbosity >= 1 && !isnothing(parsed_range) && @info "Running sensitivity analysis over $(length(prevalence_grid)) prevalence values: $prevalence_grid"
+    
+    initialize(outputs)
+    # If no prevalence is provided standard tmle is ran 
+    # If prevalence is specifed without range it will also run once with ccw-tmle
+    for (i, prev) in enumerate(prevalence_grid)
+        verbosity >= 1 && !isnothing(parsed_range) && @info "Estimating with prevalence = $prev ($(i)/$(length(prevalence_grid)))"
+        
+        runner = Runner(dataset;
+            estimands_config=estimands, 
+            estimators_spec=estimators, 
+            verbosity=verbosity, 
+            outputs=outputs, 
+            chunksize=chunksize,
+            rng=rng,
+            cache_strategy=cache_strategy,
+            sort_estimands=sort_estimands,
+            save_sample_ids=save_sample_ids,
+            pvalue_threshold=pvalue_threshold,
+            prevalence=prev
+        )
+        runner(;skip_init_finalize=true)
+    end
+    
+    finalize(outputs)
+    
     verbosity >= 1 && @info "Done."
     return
 end
