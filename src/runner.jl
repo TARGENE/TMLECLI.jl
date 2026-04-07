@@ -10,15 +10,19 @@ If estimators is an AbstractString, it is either:
 estimators
 - A string corresponding to estimators that can be constructed from the registry.
 """
-function instantiate_estimators(config::AbstractString, estimands; prevalence=nothing)
+function instantiate_estimators(config::AbstractString, estimands; prevalence=nothing, prevalence_file=nothing)
     if endswith(config, ".jl")
-        if !isnothing(prevalence)
+        if !isnothing(prevalence) && !isnothing(prevalence_file) 
             @error "Prevalence is not used when loading estimators from a file. You must specify it in the estimators themselves."
+        else if 
+            prev = CSV.read(prevalence_file, DataFrame; delim='\t', header=false)
+            if nrow(prev)==0:
+                @error "Prevalence file is empty. Please populate the prevalences file with the trait/prevalence."
         end
         load_julia_estimators(config)
     else
         treatment_variables = treatments_from_estimands(estimands)
-        estimators_from_string(config_string=config, treatment_variables=treatment_variables, prevalence=prevalence)
+        estimators_from_string(config_string=config, treatment_variables=treatment_variables, prevalence=prevalence, prevalence_file=prevalence_file)
     end
 end
 
@@ -26,7 +30,7 @@ end
 If estimators is something else than an AbstractString, it is simply assumed to be a properly formed 
 NamedTuple of estimators.
 """
-instantiate_estimators(estimators, estimands; prevalence=nothing) = estimators
+instantiate_estimators(estimators, estimands; prevalence=prevalence, prevalence_file=nothing) = estimators
 
 mutable struct Runner
     estimators::NamedTuple
@@ -39,7 +43,8 @@ mutable struct Runner
     failed_nuisance::Set
     save_sample_ids::Bool
     pvalue_threshold::Union{Nothing, Float64}
-    prevalence::Union{Nothing, Float64}
+    prevalence::Union{Nothgin, Float64}
+    prevalence_file::Union{Nothing, String}
     function Runner(dataset; 
         estimands_config="factorialATE", 
         estimators_spec="glmnet",
@@ -51,14 +56,15 @@ mutable struct Runner
         sort_estimands=false,
         save_sample_ids=false,
         pvalue_threshold=nothing,
-        prevalence=nothing
+        prevalence=nothing, 
+        prevalence_file=nothing
         )    
         # Load dataset
         dataset = instantiate_dataset(dataset)
         # Read parameter files
         estimands = instantiate_estimands(estimands_config, dataset)
         # Retrieve TMLE specifications
-        estimators = instantiate_estimators(estimators_spec, estimands, prevalence=prevalence)
+        estimators = instantiate_estimators(estimators_spec, estimands, prevalence=prevalence, prevalence_file=prevalence_file)
         if sort_estimands
             estimands = groups_ordering(estimands; 
                 brute_force=true, 
@@ -82,7 +88,8 @@ mutable struct Runner
             failed_nuisance, 
             save_sample_ids, 
             pvalue_threshold,
-            prevalence
+            prevalence,
+            prevalence_file
         )
     end
 end
@@ -192,7 +199,7 @@ TMLE CLI.
 - `--chunksize`: Results are written in batches of size chunksize.
 - `-r, --rng`: Random seed (Only used for estimands ordering at the moment).
 - `-c, --cache-strategy`: Caching Strategy for the nuisance functions, any of ("release-unusable", "no-cache", "max-size").
-- `--prevalence`: If the true prevalence of the outcome is known in the population, it can be specified here to correct for sampling bias.
+- `--prevalence_file`: If the true prevalence of the outcome is known in the population, it can be specified here to correct for sampling bias. This is in the form of a TSV file where the first column includes the trait(s) and the second includes the true prevalence. 
 # Flags
 
 - `-s, --sort_estimands`: Sort estimands to minimize cache usage (A brute force approach will be used, resulting in exponentially long sorting time).
@@ -208,7 +215,8 @@ function tmle(dataset::String;
     sort_estimands::Bool=false,
     save_sample_ids=false,
     pvalue_threshold=nothing,
-    prevalence=nothing
+    prevalence=nothing, 
+    prevalence_file=nothing
     )
     runner = Runner(dataset;
         estimands_config=estimands, 
@@ -221,7 +229,8 @@ function tmle(dataset::String;
         sort_estimands=sort_estimands,
         save_sample_ids=save_sample_ids,
         pvalue_threshold=pvalue_threshold,
-        prevalence=prevalence
+        prevalence=prevalence, 
+        prevalence_file=prevalence_file
     )
     runner()
     verbosity >= 1 && @info "Done."
