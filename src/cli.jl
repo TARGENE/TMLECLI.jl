@@ -32,6 +32,10 @@ function cli_settings()
             help = "A julia file containing the estimators to use."
             default = "wtmle-ose"
 
+        "--prevalence_file"
+            arg_type = String
+            help = "Optional TSV file containing prevalences for all traits."
+
         "--verbosity"
             arg_type = Int
             default = 0
@@ -124,7 +128,8 @@ function julia_main()::Cint
                 sort_estimands=cmd_settings["sort-estimands"],
                 save_sample_ids=cmd_settings["save-sample-ids"],
                 pvalue_threshold=cmd_settings["pvalue-threshold"],
-                prevalence=cmd_settings["prevalence"]
+                prevalence=cmd_settings["prevalence"],
+                prevalence_file=cmd_settings["prevalence_file"]
             )
         else
             make_summary(cmd_settings["prefix"];
