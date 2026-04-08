@@ -116,17 +116,17 @@ SL_CLASSIFIER(treatment_variables, interactions) = Stack(;
 
 # Parser
 
-function estimator_from_string(estimator_string, models, resampling; prevalence=prevalence, prevalence_file=nothing)
+function estimator_from_string(estimator_string, models, resampling; prevalence=prevalence)
     return if estimator_string == "TMLE"
-        Tmle(models=models, weighted=false, prevalence=prevalence, prevalence_file=prevalence_file)
+        Tmle(models=models, weighted=false, prevalence=prevalence)
     elseif estimator_string == "WTMLE"
-        Tmle(models=models, weighted=true, prevalence=prevalence, prevalence_file=prevalence_file)
+        Tmle(models=models, weighted=true, prevalence=prevalence)
     elseif estimator_string == "OSE"
         Ose(models=models)
     elseif estimator_string == "CVTMLE"
-        Tmle(models=models, weighted=false, resampling=resampling, prevalence=prevalence, prevalence_file=prevalence_file)
+        Tmle(models=models, weighted=false, resampling=resampling, prevalence=prevalence)
     elseif estimator_string == "CVWTMLE"
-        Tmle(models=models, weighted=true, resampling=resampling, prevalence=prevalence,  prevalence_file=prevalence_file)
+        Tmle(models=models, weighted=true, resampling=resampling, prevalence=prevalence)
     elseif estimator_string == "CVOSE"
         Ose(models=models, resampling=resampling)
     else
@@ -136,7 +136,7 @@ end
 
 model_from_string(model_string, treatment_variables; interactions=true) = eval(Symbol(model_string))(treatment_variables, interactions)
 
-function estimators_from_string(;config_string="wtmle-ose", treatment_variables=Set(Symbol[]), prevalence=prevalence, prevalence_file=nothing)
+function estimators_from_string(;config_string="wtmle-ose", treatment_variables=Set(Symbol[]), prevalence=prevalence)
     config_string = uppercase(config_string)
     # Create models
     components = split(config_string, "--")
@@ -161,7 +161,7 @@ function estimators_from_string(;config_string="wtmle-ose", treatment_variables=
     # Create Estimators
     resampling = RESAMPLING(treatment_variables)
     estimators_strings = split(components[1], "-")
-    estimators = [estimator_from_string(estimator_string, models, resampling, prevalence=prevalence, prevalence_file=prevalence_file) for estimator_string in estimators_strings]
+    estimators = [estimator_from_string(estimator_string, models, resampling, prevalence=prevalence) for estimator_string in estimators_strings]
     estimator_names = Tuple(Symbol(estimator_string, :_, q_string, :_, g_string) for estimator_string in estimators_strings)
     return NamedTuple{estimator_names}(estimators)
 end
