@@ -26,7 +26,7 @@ end
 If estimators is something else than an AbstractString, it is simply assumed to be a properly formed 
 NamedTuple of estimators.
 """
-instantiate_estimators(estimators, estimands; prevalence=prevalence) = estimators
+instantiate_estimators(estimators, estimands; prevalence=nothing) = estimators
 
 mutable struct Runner
     estimators::NamedTuple
