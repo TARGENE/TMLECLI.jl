@@ -352,6 +352,75 @@ end
     @test differ
 end
 
+@testset "Test prevalence file versus prevalence value" begin 
+    tmpdir = mktempdir()
+    datafile = joinpath(tmpdir, "data.csv")
+    write_dataset(datafile)
+    estimandsfile = joinpath(tmpdir, "configuration.json")
+    configuration = binary_statistical_estimands_config()
+    TMLE.write_json(estimandsfile, configuration)
+
+    # Weighted run (prevalence specified)
+    jls_ccw = joinpath(tmpdir, "output_ccw.jls")
+    hdf5_ccw = joinpath(tmpdir, "output_ccw.hdf5")
+    json_ccw = joinpath(tmpdir, "output_ccw.json")
+    copy!(ARGS, [
+        "tmle",
+        datafile,
+        "--estimands", estimandsfile,
+        "--estimators=tmle--tunedxgboost",
+        "--prevalence=0.2",
+        "--json-output", json_ccw,
+        "--hdf5-output", hdf5_ccw,
+        "--jls-output", jls_ccw
+    ])
+    TMLECLI.julia_main()
+
+    results_ccw = []
+    open(jls_ccw) do io
+        while !eof(io)
+            push!(results_ccw, deserialize(io))
+        end
+    end
+    for res in results_ccw
+        @test isa(res[1], TMLE.TMLEstimate{Float64})
+    end
+
+    # Now run the same with prevalences.tsv file
+    prevalence_file = joinpath(TESTDIR, "prevalences.tsv")
+    
+    jls_ccw_file = joinpath(tmpdir, "output_ccw_file.jls")
+    hdf5_ccw_file = joinpath(tmpdir, "output_ccw_file.hdf5")
+    json_ccw_file = joinpath(tmpdir, "output_ccw_file.json")
+    copy!(ARGS, [
+        "tmle",
+        datafile,
+        "--estimands", estimandsfile,
+        "--estimators=tmle--tunedxgboost",
+        "--prevalence-file", prevalence_file,
+        "--json-output", json_ccw_file,
+        "--hdf5-output", hdf5_ccw_file,
+        "--jls-output", jls_ccw_file
+    ])
+    TMLECLI.julia_main()
+
+    results_ccw_file = []
+    open(jls_ccw_file) do io
+        while !eof(io)
+            push!(results_ccw_file, deserialize(io))
+        end
+    end
+    for res in results_ccw_file
+        @test isa(res[1], TMLE.TMLEstimate{Float64})
+    end
+
+    ## Check that both impementations arrive at approx the same estimate
+    est_value = results_ccw[1].TMLE_TUNEDXGBOOST_TUNEDXGBOOST.estimate
+    est_file = results_ccw_file[1].TMLE_TUNEDXGBOOST_TUNEDXGBOOST.estimate
+
+    @test isapprox(est_value, est_file; atol=1e-3)
+end
+
 end;
 
 true
