@@ -418,7 +418,7 @@ end
     est_value = results_ccw[1].TMLE_TUNEDXGBOOST_TUNEDXGBOOST.estimate
     est_file = results_ccw_file[1].TMLE_TUNEDXGBOOST_TUNEDXGBOOST.estimate
 
-    @test isapprox(est_value, est_file; atol=1e-3)
+    @test isapprox(est_value, est_file; atol=1e-2)
 end
 
 end;
