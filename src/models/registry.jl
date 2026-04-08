@@ -116,7 +116,7 @@ SL_CLASSIFIER(treatment_variables, interactions) = Stack(;
 
 # Parser
 
-function estimator_from_string(estimator_string, models, resampling; prevalence=prevalence)
+function estimator_from_string(estimator_string, models, resampling; prevalence=nothing)
     return if estimator_string == "TMLE"
         Tmle(models=models, weighted=false, prevalence=prevalence)
     elseif estimator_string == "WTMLE"
@@ -136,7 +136,7 @@ end
 
 model_from_string(model_string, treatment_variables; interactions=true) = eval(Symbol(model_string))(treatment_variables, interactions)
 
-function estimators_from_string(;config_string="wtmle-ose", treatment_variables=Set(Symbol[]), prevalence=prevalence)
+function estimators_from_string(;config_string="wtmle-ose", treatment_variables=Set(Symbol[]), prevalence=nothing)
     config_string = uppercase(config_string)
     # Create models
     components = split(config_string, "--")
