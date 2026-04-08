@@ -25,3 +25,6 @@ YAML = "ddb6d928-2868-570f-bddf-ab3f9cf99eb6"
 Distributions = "0.25"
 LogExpFunctions = "0.3"
 StableRNGs = "1.0"
+
+[sources]
+TMLE = { url = "https://github.com/TARGENE/TMLE.jl", rev = "prevalence-file" }

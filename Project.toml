@@ -51,3 +51,6 @@ TMLE = "0.20.3"
 Tables = "1.10.1"
 YAML = "0.4.9"
 julia = "1.10, 1.11"
+
+[sources]
+TMLE = { url = "https://github.com/TARGENE/TMLE.jl", rev = "prevalence-file" }
