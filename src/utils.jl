@@ -2,6 +2,29 @@
 #####           Read TMLE Estimands Configuration                ####
 #####################################################################
 
+function load_prevalence_map(prevalence_file::AbstractString)
+    df = CSV.read(prevalence_file, DataFrame;
+                  delim='\t',
+                  header=false)
+
+    isempty(df) && return nothing
+    # Check there are the correct number of columns
+    if ncol(df) != 2
+        @error("Prevalence file must have exactly 2 columns (trait, prevalence), but found $(ncol(df))")
+    end
+    # Check column types (String for traits/numeric for prevalence)
+    col1_type = eltype(df[!, 1])
+    col2_type = eltype(df[!, 2])
+    if !(col1_type <: AbstractString)
+        @error("First column must contain trait names (strings), but got $(col1_type)")
+    end
+    if !(col2_type <: Number)
+        @error("Second column must be numeric (prevalence), but got $(col2_type)")
+    end
+
+    return Dict(Symbol(df[i,1]) => Float64(df[i,2]) for i in 1:nrow(df))
+end
+
 convert_estimand_treatment_values(Ψ, treatment_types) = Dict(
     T => convert_treatment_values(val, treatment_types[T]) for (T, val) ∈ Ψ.treatment_values
 )
