@@ -32,10 +32,6 @@ function cli_settings()
             help = "A julia file containing the estimators to use."
             default = "wtmle-ose"
 
-        "--prevalence_file"
-            arg_type = String
-            help = "Optional TSV file containing prevalences for all traits."
-
         "--verbosity"
             arg_type = Int
             default = 0
@@ -82,7 +78,11 @@ function cli_settings()
             
         "--prevalence"
             arg_type = Float64
-            help = "Optional prevalence parameter for biased sampling designs (a probability between 0 and 1)."        
+            help = "Optional prevalence parameter for biased sampling designs (a probability between 0 and 1)."    
+            
+        "--prevalence-file"
+            arg_type = String
+            help = "Optional TSV file containing prevalences for all traits."
     end
 
     @add_arg_table! s["merge"] begin
@@ -117,6 +117,13 @@ function julia_main()::Cint
             jls=cmd_settings["jls-output"]
         )
         if cmd == "tmle"
+            if cmd_settings["prevalence-file"] !== nothing && cmd_settings["prevalence"] !== nothing
+                error("Specify only one of --prevalence and --prevalence-file")
+            end
+
+            prevalence = cmd_settings["prevalence-file"] !== nothing ? 
+                load_prevalence_map(cmd_settings["prevalence-file"]) : 
+                cmd_settings["prevalence"]
             tmle(cmd_settings["dataset"];
                 estimands=cmd_settings["estimands"], 
                 estimators=cmd_settings["estimators"],
@@ -128,8 +135,7 @@ function julia_main()::Cint
                 sort_estimands=cmd_settings["sort-estimands"],
                 save_sample_ids=cmd_settings["save-sample-ids"],
                 pvalue_threshold=cmd_settings["pvalue-threshold"],
-                prevalence=cmd_settings["prevalence"],
-                prevalence_file=cmd_settings["prevalence_file"]
+                prevalence=prevalence
             )
         else
             make_summary(cmd_settings["prefix"];
