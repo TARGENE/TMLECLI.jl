@@ -76,12 +76,12 @@ end
     for estimator in estimators
         Qbinary = estimator.models[:Q_binary_default].probabilistic_stack
         Qcontinuous = estimator.models[:Q_continuous_default].deterministic_stack
-        G = estimator.models[:G_default].linear_binary_classifier
+        G = estimator.models[:G_default].logistic_classifier
 
         @test Qbinary.glmnet.restricted_interaction_transformer.primary_variables_patterns == Regex[r"^Coco$"]
         @test Qbinary.glmnet.glm_net_classifier.resampling == expected_resampling
         @test Qbinary.lr.restricted_interaction_transformer.primary_variables_patterns == Regex[r"^Coco$"]
-        @test Qbinary.lr.linear_binary_classifier isa TMLE.LinearBinaryClassifier
+        @test Qbinary.lr.logistic_classifier isa MLJLinearModels.LogisticClassifier
         xgboost_hyperparams = map(1:12) do i
             xgboost = getproperty(Qbinary, Symbol(:xgboost_classifier_, i))
             xgboost.eta, xgboost.max_depth
@@ -98,7 +98,7 @@ end
         end
         @test allunique(xgboost_hyperparams)
 
-        @test G isa TMLE.LinearBinaryClassifier
+        @test G.logistic_classifier isa MLJLinearModels.LogisticClassifier
     end
 end
 

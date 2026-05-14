@@ -25,10 +25,10 @@ function GLM_CLASSIFIER(treatment_variables, interactions)
     return if interactions
         Pipeline(
             INTERACTION_TRANSFORMER(treatment_variables), 
-            TMLE.LinearBinaryClassifier()
+            LogisticClassifier(lambda=0.)
         )
     else
-        TMLE.LinearBinaryClassifier()
+        LogisticClassifier(lambda=0.)
     end
 end
 
