@@ -98,7 +98,7 @@ end
         end
         @test allunique(xgboost_hyperparams)
 
-        @test G isa LogisticClassifier
+        @test G isa MLJLinearModels.LogisticClassifier
     end
 end
 

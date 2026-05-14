@@ -352,6 +352,154 @@ end
     @test differ
 end
 
+@testset "Test get_prevalence_grid" begin
+    # Test with no range - returns single prevalence
+    @test TMLECLI.get_prevalence_grid(0.01, nothing, 5) == [0.01]
+    @test TMLECLI.get_prevalence_grid(nothing, nothing, 5) == [nothing]
+    
+    # Test with range and no point prevalence
+    grid = TMLECLI.get_prevalence_grid(nothing, (0.006, 0.013), 5)
+    @test length(grid) == 5
+    @test grid[1] ≈ 0.006
+    @test grid[end] ≈ 0.013
+    
+    # Test with range and point prevalence within range
+    grid = TMLECLI.get_prevalence_grid(0.01, (0.006, 0.013), 5)
+    @test 0.01 ∈ grid  # primary prevalence included
+    @test grid[1] ≈ 0.006  # lower bound included
+    @test grid[end] ≈ 0.013  # upper bound included
+    
+    # Test prevalence outside range throws error
+    @test_throws ArgumentError TMLECLI.get_prevalence_grid(0.005, (0.006, 0.013), 5)
+    @test_throws ArgumentError TMLECLI.get_prevalence_grid(0.02, (0.006, 0.013), 5)
+end
+
+@testset "Test parse_prevalence_range" begin
+    # Valid range
+    @test TMLECLI.parse_prevalence_range("0.006,0.013") == (0.006, 0.013)
+    @test TMLECLI.parse_prevalence_range(" 0.006 , 0.013 ") == (0.006, 0.013)  # with whitespace
+    
+    # Invalid formats
+    @test_throws ArgumentError TMLECLI.parse_prevalence_range("0.006")  # missing upper
+    @test_throws ArgumentError TMLECLI.parse_prevalence_range("0.013,0.006")  # lower >= upper
+    @test_throws ArgumentError TMLECLI.parse_prevalence_range("0,0.013")  # lower <= 0
+    @test_throws ArgumentError TMLECLI.parse_prevalence_range("0.006,1")  # upper >= 1
+    
+    # Nothing returns nothing
+    @test TMLECLI.parse_prevalence_range(nothing) === nothing
+end
+
+@testset "Test tmle: prevalence sensitivity analysis" begin
+    tmpdir = mktempdir()
+    datafile = joinpath(tmpdir, "data.csv")
+    write_dataset(datafile)
+    estimandsfile = joinpath(tmpdir, "configuration.json")
+    configuration = binary_statistical_estimands_config()
+    TMLE.write_json(estimandsfile, configuration)
+
+    # Run with prevalence range for sensitivity analysis
+    jls_output = joinpath(tmpdir, "output_sensitivity.jls")
+    hdf5_output = joinpath(tmpdir, "output_sensitivity.hdf5")
+    json_output = joinpath(tmpdir, "output_sensitivity.json")
+    
+    copy!(ARGS, [
+        "tmle",
+        datafile,
+        "--estimands", estimandsfile,
+        "--estimators=tmle--glm",
+        "--prevalence=0.10",
+        "--prevalence-range=0.05,0.15",
+        "--n-prevalence-points=3",
+        "--json-output", json_output,
+        "--hdf5-output", hdf5_output,
+        "--jls-output", jls_output
+    ])
+    TMLECLI.julia_main()
+
+    results = []
+    open(jls_output) do io
+        while !eof(io)
+            push!(results, deserialize(io))
+        end
+    end
+    
+    # Should have results for multiple prevalence values
+    # With n_prevalence_points=3 and prevalence=0.10 within range [0.05, 0.15]
+    @test length(results) == 3
+    
+    # Each result should have PREVALENCE field
+    @test all(haskey(r, :PREVALENCE) for r in results)
+    
+    # Check that all prevalence values in the grid are present
+    prevalences = [r[:PREVALENCE] for r in results]
+    @test 0.10 ∈ prevalences  # prevalence
+    @test 0.05 ∈ prevalences  # lower bound
+    @test 0.15 ∈ prevalences  # upper bound
+    
+    # All estimates should be TMLEstimates or FailedEstimates
+    for res in results
+        @test isa(res[:TMLE_GLM_GLM], TMLE.TMLEstimate) || isa(res[:TMLE_GLM_GLM], TMLECLI.FailedEstimate)
+    end
+    
+    # Successful estimates at different prevalences should be distinguishable (not identical)
+    successful_results = filter(r -> isa(r[:TMLE_GLM_GLM], TMLE.TMLEstimate), results)
+    if length(successful_results) > 1
+        estimates = [r[:TMLE_GLM_GLM].estimate for r in successful_results]
+        @test length(unique(estimates)) > 1  # At least some estimates should differ
+    end
+    
+    # Verify HDF5 output also contains PREVALENCE
+    hdf5_results = jldopen(hdf5_output) do io
+        vcat([io[key] for key in keys(io)]...)
+    end
+    @test all(haskey(r, :PREVALENCE) for r in hdf5_results)
+    @test length(hdf5_results) == 3
+    
+    # Verify JSON output also contains PREVALENCE
+    json_results = TMLE.read_json(json_output, use_mmap=false)
+    @test all(haskey(r, :PREVALENCE) for r in json_results)
+    @test length(json_results) == 3
+end
+
+@testset "Test tmle: prevalence sensitivity without prevalence option" begin
+    tmpdir = mktempdir()
+    datafile = joinpath(tmpdir, "data.csv")
+    write_dataset(datafile)
+    estimandsfile = joinpath(tmpdir, "configuration.json")
+    configuration = binary_statistical_estimands_config()
+    TMLE.write_json(estimandsfile, configuration)
+
+    # Run with prevalence range only (no --prevalence)
+    jls_output = joinpath(tmpdir, "output_range_only.jls")
+    
+    copy!(ARGS, [
+        "tmle",
+        datafile,
+        "--estimands", estimandsfile,
+        "--estimators=tmle--glm",
+        "--prevalence-range=0.05,0.15",
+        "--n-prevalence-points=3",
+        "--jls-output", jls_output
+    ])
+    TMLECLI.julia_main()
+
+    # Load results
+    results = []
+    open(jls_output) do io
+        while !eof(io)
+            push!(results, deserialize(io))
+        end
+    end
+    
+    # Should have exactly 3 results (n_prevalence_points=3, 1 estimand)
+    @test length(results) == 3
+    
+    # Check prevalence values
+    prevalences = [r[:PREVALENCE] for r in results]
+    @test 0.05 ∈ prevalences
+    @test 0.15 ∈ prevalences
+end
+
 end;
 
 true

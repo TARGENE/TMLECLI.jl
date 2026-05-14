@@ -79,6 +79,15 @@ function cli_settings()
         "--prevalence"
             arg_type = Float64
             help = "Optional prevalence parameter for biased sampling designs (a probability between 0 and 1)."        
+
+        "--prevalence-range"
+            arg_type = String
+            help = "Optional prevalence range for sensitivity analysis (e.g., '0.006,0.013'). If provided, estimates are computed at multiple prevalence values."
+
+        "--n-prevalence-points"
+            arg_type = Int
+            default = 5
+            help = "Number of prevalence points within the range for sensitivity analysis (default: 5). Only used if --prevalence-range is provided."
     end
 
     @add_arg_table! s["merge"] begin
@@ -124,7 +133,9 @@ function julia_main()::Cint
                 sort_estimands=cmd_settings["sort-estimands"],
                 save_sample_ids=cmd_settings["save-sample-ids"],
                 pvalue_threshold=cmd_settings["pvalue-threshold"],
-                prevalence=cmd_settings["prevalence"]
+                prevalence=cmd_settings["prevalence"],
+                prevalence_range=cmd_settings["prevalence-range"],
+                n_prevalence_points=cmd_settings["n-prevalence-points"]
             )
         else
             make_summary(cmd_settings["prefix"];
