@@ -17,9 +17,14 @@ CONFIGDIR = joinpath(TESTDIR, "config")
 
 include(joinpath(TESTDIR, "testutils.jl"))
 
+@testset "Test instantiate_prevalence" begin
+    @test TMLECLI.instantiate_prevalence_map(nothing) isa Nothing
+    @test TMLECLI.instantiate_prevalence_map(joinpath(TESTDIR, "assets", "prevalence_map.tsv")) == Dict("BINARY/OUTCOME" => 0.2)
+end
+
 @testset "Test instantiate_estimators from file" begin
     # From explicit file
-    estimators = TMLECLI.instantiate_estimators(joinpath(TESTDIR, "config", "tmle_ose_config.jl"), nothing)
+    estimators = TMLECLI.instantiate_estimators(joinpath(TESTDIR, "config", "tmle_ose_config.jl"), nothing; prevalence_mode="ccw", prevalence_map=nothing)
     @test estimators.TMLE isa TMLE.Tmle
     @test estimators.OSE isa TMLE.Ose
     @test estimators.TMLE.weighted === true
@@ -304,7 +309,8 @@ end
         datafile,
         "--estimands", estimandsfile,
         "--estimators=tmle--tunedxgboost",
-        "--prevalence=0.2",
+        "--prevalence-file=$(joinpath(TESTDIR, "assets", "prevalence_map.tsv"))",
+        "--prevalence-mode=sampling",
         "--json-output", json_ccw,
         "--hdf5-output", hdf5_ccw,
         "--jls-output", jls_ccw

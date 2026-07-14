@@ -10,15 +10,16 @@ If estimators is an AbstractString, it is either:
 estimators
 - A string corresponding to estimators that can be constructed from the registry.
 """
-function instantiate_estimators(config::AbstractString, estimands; prevalence=nothing)
+function instantiate_estimators(config::AbstractString, estimands; prevalence_mode="sampling", prevalence_map=nothing)
     if endswith(config, ".jl")
-        if !isnothing(prevalence)
+        if !isnothing(prevalence_map)
             @error "Prevalence is not used when loading estimators from a file. You must specify it in the estimators themselves."
         end
         load_julia_estimators(config)
     else
         treatment_variables = treatments_from_estimands(estimands)
-        estimators_from_string(config_string=config, treatment_variables=treatment_variables, prevalence=prevalence)
+        estimator_prevalence_arg = prevalence_mode == "ccw" && prevalence_map !== nothing ? prevalence_map : nothing
+        estimators_from_string(config_string=config, treatment_variables=treatment_variables, prevalence=estimator_prevalence_arg)
     end
 end
 
@@ -26,7 +27,14 @@ end
 If estimators is something else than an AbstractString, it is simply assumed to be a properly formed 
 NamedTuple of estimators.
 """
-instantiate_estimators(estimators, estimands; prevalence=nothing) = estimators
+instantiate_estimators(estimators, estimands; prevalence_mode="sampling", prevalence_map=nothing) = estimators
+
+instantiate_prevalence_map(::Nothing) = nothing
+
+function instantiate_prevalence_map(prevalence_file)
+    prevalence_table = CSV.read(prevalence_file, DataFrame; header=[:OUTCOME, :PREVALENCE], delim="\t")
+    return Dict(zip(prevalence_table.OUTCOME, prevalence_table.PREVALENCE))
+end
 
 mutable struct Runner
     estimators::NamedTuple
@@ -39,7 +47,8 @@ mutable struct Runner
     failed_nuisance::Set
     save_sample_ids::Bool
     pvalue_threshold::Union{Nothing, Float64}
-    prevalence::Union{Nothing, Float64}
+    prevalence_map::Union{Nothing, Dict{String, Float64}}
+    prevalence_mode::String
     function Runner(dataset; 
         estimands_config="factorialATE", 
         estimators_spec="glmnet",
@@ -51,14 +60,17 @@ mutable struct Runner
         sort_estimands=false,
         save_sample_ids=false,
         pvalue_threshold=nothing,
-        prevalence=nothing
+        prevalence_file=nothing,
+        prevalence_mode="sampling"
         )    
         # Load dataset
         dataset = instantiate_dataset(dataset)
         # Read parameter files
         estimands = instantiate_estimands(estimands_config, dataset)
+        # Load prevalence map
+        prevalence_map = instantiate_prevalence_map(prevalence_file)
         # Retrieve TMLE specifications
-        estimators = instantiate_estimators(estimators_spec, estimands, prevalence=prevalence)
+        estimators = instantiate_estimators(estimators_spec, estimands, prevalence_mode=prevalence_mode, prevalence_map=prevalence_map)
         if sort_estimands
             estimands = groups_ordering(estimands; 
                 brute_force=true, 
@@ -67,7 +79,7 @@ mutable struct Runner
                 verbosity=verbosity
             )
         end
-        cache_manager = make_cache_manager(estimands, cache_strategy)
+        cache_manager = make_cache_manager(estimands, cache_strategy; prevalence_mode=prevalence_mode)
         
         failed_nuisance = Set([])
 
@@ -82,7 +94,8 @@ mutable struct Runner
             failed_nuisance, 
             save_sample_ids, 
             pvalue_threshold,
-            prevalence
+            prevalence_map,
+            prevalence_mode
         )
     end
 end
@@ -95,8 +108,15 @@ function update_outputs(runner::Runner, results)
 end
 
 function try_estimation(runner, Ψ, estimator)
+    # Get the possibly downsampled dataset
+    dataset = if runner.prevalence_map !== nothing && runner.prevalence_mode == "sampling"
+        downsample_dataset(runner.dataset, runner.prevalence_map, Ψ)
+    else
+        runner.dataset
+    end
+    
     try
-        result, _ = estimator(Ψ, runner.dataset,
+        result, _ = estimator(Ψ, dataset,
             cache=runner.cache_manager.cache,
             verbosity=runner.verbosity, 
         )
@@ -208,7 +228,8 @@ function tmle(dataset::String;
     sort_estimands::Bool=false,
     save_sample_ids=false,
     pvalue_threshold=nothing,
-    prevalence=nothing
+    prevalence_file=nothing,
+    prevalence_mode="sampling"
     )
     runner = Runner(dataset;
         estimands_config=estimands, 
@@ -221,7 +242,8 @@ function tmle(dataset::String;
         sort_estimands=sort_estimands,
         save_sample_ids=save_sample_ids,
         pvalue_threshold=pvalue_threshold,
-        prevalence=prevalence
+        prevalence_file=prevalence_file,
+        prevalence_mode=prevalence_mode
     )
     runner()
     verbosity >= 1 && @info "Done."

@@ -58,7 +58,12 @@ function release!(cache_manager::NoCacheManager, Ψ)
     empty!(cache_manager.cache)
 end
 
-function make_cache_manager(estimands, string)
+function make_cache_manager(estimands, string; prevalence_mode="sampling")
+    # If datasets are downsampled, we do not cache anything to avoid any adverse side effect due to dataset changes
+    if prevalence_mode == "sampling"
+        return NoCacheManager()
+    end
+
     if string == "release-unusable"
         return ReleaseUnusableCacheManager(TMLE.nuisance_function_counts(estimands))
     elseif string == "no-cache"

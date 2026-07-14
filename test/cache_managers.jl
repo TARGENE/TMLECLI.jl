@@ -12,6 +12,8 @@ using TMLE
     @test cache_manager.cache == Dict()
     # Check this does not throw
     TMLECLI.release!(cache_manager, nothing)
+    # test override cache manager when prevalence_mode = "sampling"
+    @test TMLECLI.make_cache_manager(nothing, nothing; prevalence_mode="sampling") isa TMLECLI.NoCacheManager
 end
 
 @testset "Test MaxSizeCacheManager" begin

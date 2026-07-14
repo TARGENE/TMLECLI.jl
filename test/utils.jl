@@ -219,6 +219,34 @@ end
     TMLECLI.make_categorical(dataset.T₁, true) === dataset.T₁
 end
 
+@testset "Test downsample_dataset" begin
+    Ψ = AIE(
+            outcome = Symbol("BINARY/OUTCOME"), 
+            treatment_values = (
+                T1 = (case = true, control = false), 
+                T2 = (case = false, control = true)
+            ), 
+            treatment_confounders = (T1 = (:W1, :W2), T2 = (:W1, :W2)), 
+            outcome_extra_covariates = (:C1,)
+    )
+    dataset_source = dropmissing(build_dataset())
+    initial_prevalence = combine(groupby(dataset_source, "BINARY/OUTCOME"), proprow)
+    # If the outcome is not in the prevalence_map then return the dataset
+    prevalence_map = Dict()
+    dataset_sampled = TMLECLI.downsample_dataset(dataset_source, prevalence_map, Ψ)
+    @test dataset_sampled === dataset_source # noop
+    # If the prevalence is too low, ot should be increased by removing controls
+    prevalence_map = Dict("BINARY/OUTCOME" => 0.20)
+    dataset_sampled = TMLECLI.downsample_dataset(dataset_source, prevalence_map, Ψ)
+    new_prevalence = combine(groupby(dataset_sampled, "BINARY/OUTCOME"), proprow)
+    @test abs(only(subset(new_prevalence, "BINARY/OUTCOME" => x -> x .== 1).proprow) - 0.2) < 0.001
+    # If the prevalence is too high, ot should be lowered by removing cases
+    prevalence_map = Dict("BINARY/OUTCOME" => 0.02)
+    dataset_sampled = TMLECLI.downsample_dataset(dataset_source, prevalence_map, Ψ)
+    new_prevalence = combine(groupby(dataset_sampled, "BINARY/OUTCOME"), proprow)
+    @test abs(only(subset(new_prevalence, "BINARY/OUTCOME" => x -> x .== 1).proprow) - 0.02) < 0.001
+end
+
 end;
 
 true
