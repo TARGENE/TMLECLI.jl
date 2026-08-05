@@ -108,27 +108,32 @@ function update_outputs(runner::Runner, results)
 end
 
 function try_estimation(runner, Ψ, estimator)
-    # Get the possibly downsampled dataset
     dataset = if runner.prevalence_map !== nothing && runner.prevalence_mode == "sampling"
         downsample_dataset(runner.dataset, runner.prevalence_map, Ψ)
     else
         runner.dataset
     end
-    
+
+    # Trait has zero prevalence in the dataset
+    if dataset === nothing
+        @warn "Skipping trait because Trait has a prevalence of zero and therefore cannot be prevalence-matched." outcome=string(only(TMLECLI.outcomes(Ψ)))
+        return FailedEstimate(Ψ, msg)
+    end
+
     try
-        result, _ = estimator(Ψ, dataset,
+        result, _ = estimator(
+            Ψ,
+            dataset;
             cache=runner.cache_manager.cache,
-            verbosity=runner.verbosity, 
+            verbosity=runner.verbosity,
         )
         return result
     catch e
-        # Some nuisance function fits may fail. We do not interrupt on them but log instead.
         if e isa TMLE.FitFailedError
             push!(runner.failed_nuisance, e.estimand)
             return FailedEstimate(Ψ, e.msg)
-        # On other errors, rethrow
-        else 
-            rethrow(e) 
+        else
+            rethrow(e)
         end
     end
 end
