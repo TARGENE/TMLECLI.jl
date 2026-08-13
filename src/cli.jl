@@ -85,6 +85,10 @@ function cli_settings()
             default = "sampling"
             help = "Defines how prevalence correction will be performed if prevalence-file is provided. One of: (sampling, ccw)"
 
+	"--output-downsampled-datasets"
+            help = "Write prevalence-matched downsampled datasets to TSV files."
+            action = :store_true
+
     end
 
     @add_arg_table! s["merge"] begin
@@ -125,13 +129,14 @@ function julia_main()::Cint
                 verbosity=cmd_settings["verbosity"], 
                 outputs=outputs,
                 chunksize=cmd_settings["chunksize"],
-                rng=cmd_settings["rng"],
+                rng_seed=cmd_settings["rng"],
                 cache_strategy=cmd_settings["cache-strategy"],
                 sort_estimands=cmd_settings["sort-estimands"],
                 save_sample_ids=cmd_settings["save-sample-ids"],
                 pvalue_threshold=cmd_settings["pvalue-threshold"],
                 prevalence_file=cmd_settings["prevalence-file"],
                 prevalence_mode=cmd_settings["prevalence-mode"],
+                output_downsampled_datasets=cmd_settings["output-downsampled-datasets"]
 
             )
         else
