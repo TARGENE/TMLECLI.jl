@@ -107,9 +107,9 @@ function update_outputs(runner::Runner, results)
     update(runner.outputs::Outputs, results)
 end
 
-function try_estimation(runner, Ψ, estimator)
+function try_estimation(runner, Ψ, estimator; rng=rng)
     dataset = if runner.prevalence_map !== nothing && runner.prevalence_mode == "sampling"
-        downsample_dataset(runner.dataset, runner.prevalence_map, Ψ)
+	downsample_dataset(runner.dataset, runner.prevalence_map, Ψ; rng=rng)
     else
         runner.dataset
     end
@@ -157,7 +157,7 @@ function (runner::Runner)(partition)
         # Maybe update cache with new η_spec
         estimators_results = []
         for estimator in runner.estimators
-            result = try_estimation(runner, Ψ, estimator)
+	    result = try_estimation(runner, Ψ, estimator; rng=MersenneTwister(runner.rng))
             push!(
                 estimators_results, 
                 TMLE.emptyIC(result, runner.pvalue_threshold)
