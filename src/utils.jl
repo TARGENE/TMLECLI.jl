@@ -206,33 +206,97 @@ function treatments_from_estimands(estimands)
     return treatments
 end
 
-function downsample_dataset(dataset_source, prevalence_map, Ψ; rng=Random.default_rng())
+function downsample_and_write_dataset(runner::Runner, Ψ)
+    if runner.prevalence_map === nothing ||
+       runner.prevalence_mode != "sampling"
+        return runner.dataset
+    end
+
+    dataset = downsample_dataset(
+        runner.dataset,
+        runner.prevalence_map,
+        Ψ;
+        rng_seed=runner.rng_seed
+    )
+
+    # Trait has zero prevalence in the dataset
+    if dataset === nothing
+        @warn "Skipping trait because Trait has a prevalence of zero and therefore cannot be prevalence-matched." outcome=string(only(TMLECLI.outcomes(Ψ)))
+        return nothing
+    end
+
+    if runner.output_downsampled_datasets
+        outcome = string(only(TMLECLI.outcomes(Ψ)))
+        output_dir = dirname(runner.outputs.hdf5)
+
+        filename = joinpath(
+            output_dir,
+            "downsampled_$(outcome).tsv"
+        )
+
+        CSV.write(filename, dataset; delim='\t')
+    end
+
+    return dataset
+end
+
+function downsample_dataset(dataset_source, prevalence_map, Ψ; rng_seed=rng_seed)
     outcome = only(TMLECLI.outcomes(Ψ))
+    outcome_string = string(outcome)
 
-    if string(outcome) in keys(prevalence_map)
-        target_prevalence = prevalence_map[string(outcome)]
-        vars = TMLECLI.variables(Ψ)
-        relevant_dataset = dropmissing(dataset_source[!, collect(vars)])
-        outcome_stats = combine(groupby(relevant_dataset, outcome), nrow, proprow)
-        case_stats = subset(outcome_stats, outcome => x -> x .== 1)
+    if outcome_string in keys(prevalence_map)
+	# Set RNG prior to downsampling
+        rng = MersenneTwister(rng_seed)
+        target_prevalence = prevalence_map[outcome_string]
+	# Determine cases/controls using the outcome only (don't drop missing first so that we can reproduce the same dataset across different Ψ)
+        outcome_values = dataset_source[!, outcome]
+	valid_indices = findall(!ismissing, outcome_values)
 
-        # No cases in the dataset
-        if nrow(case_stats) == 0
-            return nothing
-        end
+        case_indices = valid_indices[outcome_values .== 1]
+        control_indices = valid_indices[outcome_values .== 0]
 
-        if only(case_stats).proprow < target_prevalence
-            n_required_controls = round(only(case_stats.nrow) * (1-target_prevalence)/target_prevalence)
-            control_indices = findall(relevant_dataset[!, outcome] .== 0)
-            indices_to_remove = shuffle(rng, control_indices)[1:Int(length(control_indices)-n_required_controls)]
-        else
-            control_stats = subset(outcome_stats, outcome => x -> x .== 0)
-            n_required_cases = round(only(control_stats.nrow) * target_prevalence/(1-target_prevalence))
-            cases_indices = findall(relevant_dataset[!, outcome] .== 1)
-            indices_to_remove = shuffle(rng, cases_indices)[1:Int(length(cases_indices)-n_required_cases)]
-        end
+	if isempty(case_indices)
+	    return nothing
+	end
 
-        return relevant_dataset[Not(indices_to_remove), :]
+	current_prevalence = length(case_indices) / (length(case_indices) + length(control_indices))
+
+	if current_prevalence < target_prevalence
+	    n_required_controls = round(
+                length(case_indices) *
+                (1 - target_prevalence) /
+                target_prevalence
+            )
+
+            n_to_remove =
+                length(control_indices) - Int(n_required_controls)
+
+            indices_to_remove =
+                n_to_remove > 0 ?
+                shuffle(rng, control_indices)[1:n_to_remove] :
+                Int[]
+	else
+	    n_required_cases = round(
+                length(control_indices) *
+                target_prevalence /
+                (1 - target_prevalence)
+            )
+
+            n_to_remove =
+                length(case_indices) - Int(n_required_cases)
+
+            indices_to_remove =
+                n_to_remove > 0 ?
+                shuffle(rng, case_indices)[1:n_to_remove] :
+                Int[]
+	end
+
+	sampled_dataset = dataset_source[Not(indices_to_remove), :]
+	vars = TMLECLI.variables(Ψ)
+
+        return dropmissing(
+             sampled_dataset[!, collect(vars)]
+        )
     else
         return dataset_source
     end
