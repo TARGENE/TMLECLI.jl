@@ -114,12 +114,6 @@ function update_outputs(runner::Runner, results)
 end
 
 function try_estimation(runner, Ψ, estimator, dataset)
-    dataset = if runner.prevalence_map !== nothing && runner.prevalence_mode == "sampling"
-	downsample_dataset(runner.dataset, runner.prevalence_map, Ψ; rng_seed=runner.rng_seed)
-    else
-        runner.dataset
-    end
-
     # Trait has zero prevalence in the dataset
     if dataset === nothing
         return FailedEstimate(
@@ -166,8 +160,7 @@ function (runner::Runner)(partition)
 	# downsampled dataset once for this Ψ
 	dataset = downsample_and_write_dataset(
             runner,
-            Ψ,
-            param_index
+            Ψ
         )
 	if dataset === nothing
             results[partition_index] =
