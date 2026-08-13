@@ -49,6 +49,7 @@ mutable struct Runner
     pvalue_threshold::Union{Nothing, Float64}
     prevalence_map::Union{Nothing, Dict{String, Float64}}
     prevalence_mode::String
+
     function Runner(dataset; 
         estimands_config="factorialATE", 
         estimators_spec="glmnet",
@@ -63,6 +64,8 @@ mutable struct Runner
         prevalence_file=nothing,
         prevalence_mode="sampling"
         )    
+	# initialize rng
+	rng = MersenneTwister(rng)
         # Load dataset
         dataset = instantiate_dataset(dataset)
         # Read parameter files
@@ -75,7 +78,7 @@ mutable struct Runner
             estimands = groups_ordering(estimands; 
                 brute_force=true, 
                 do_shuffle=true, 
-                rng=MersenneTwister(rng), 
+                rng=rng, 
                 verbosity=verbosity
             )
         end
@@ -89,7 +92,8 @@ mutable struct Runner
             dataset, 
             cache_manager, 
             chunksize, 
-            outputs, 
+            rng,
+	    outputs, 
             verbosity, 
             failed_nuisance, 
             save_sample_ids, 
@@ -157,7 +161,7 @@ function (runner::Runner)(partition)
         # Maybe update cache with new η_spec
         estimators_results = []
         for estimator in runner.estimators
-	    result = try_estimation(runner, Ψ, estimator; rng=MersenneTwister(runner.rng))
+	    result = try_estimation(runner, Ψ, estimator; rng=runner.rng)
             push!(
                 estimators_results, 
                 TMLE.emptyIC(result, runner.pvalue_threshold)
