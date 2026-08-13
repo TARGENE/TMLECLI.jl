@@ -64,10 +64,9 @@ mutable struct Runner
         save_sample_ids=false,
         pvalue_threshold=nothing,
         prevalence_file=nothing,
-        prevalence_mode="sampling"
+        prevalence_mode="sampling",
+	output_downsampled_datasets=true
         )    
-	# initialize rng
-	rng = MersenneTwister(rng)
         # Load dataset
         dataset = instantiate_dataset(dataset)
         # Read parameter files
@@ -114,7 +113,7 @@ function update_outputs(runner::Runner, results)
     update(runner.outputs::Outputs, results)
 end
 
-function try_estimation(runner, Ψ, estimator)
+function try_estimation(runner, Ψ, estimator, dataset)
     dataset = if runner.prevalence_map !== nothing && runner.prevalence_mode == "sampling"
 	downsample_dataset(runner.dataset, runner.prevalence_map, Ψ; rng_seed=runner.rng_seed)
     else
@@ -123,8 +122,10 @@ function try_estimation(runner, Ψ, estimator)
 
     # Trait has zero prevalence in the dataset
     if dataset === nothing
-        @warn "Skipping trait because Trait has a prevalence of zero and therefore cannot be prevalence-matched." outcome=string(only(TMLECLI.outcomes(Ψ)))
-        return FailedEstimate(Ψ, msg)
+        return FailedEstimate(
+            Ψ,
+            "Trait has a prevalence of zero and therefore cannot be prevalence-matched."
+        )
     end
 
     try
@@ -260,7 +261,7 @@ function tmle(dataset::String;
     pvalue_threshold=nothing,
     prevalence_file=nothing,
     prevalence_mode="sampling",
-    output_downsampled_datasets::Bool=false
+    output_downsampled_datasets::Bool=true
     )
     runner = Runner(dataset;
         estimands_config=estimands, 
