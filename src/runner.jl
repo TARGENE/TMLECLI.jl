@@ -42,6 +42,7 @@ mutable struct Runner
     dataset::DataFrame
     cache_manager::CacheManager
     chunksize::Int
+    rng::AbstractRNG
     outputs::Outputs
     verbosity::Int
     failed_nuisance::Set
