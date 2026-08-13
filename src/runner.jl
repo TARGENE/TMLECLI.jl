@@ -42,7 +42,7 @@ mutable struct Runner
     dataset::DataFrame
     cache_manager::CacheManager
     chunksize::Int
-    rng::AbstractRNG
+    rng_seed::Int
     outputs::Outputs
     verbosity::Int
     failed_nuisance::Set
@@ -50,6 +50,7 @@ mutable struct Runner
     pvalue_threshold::Union{Nothing, Float64}
     prevalence_map::Union{Nothing, Dict{String, Float64}}
     prevalence_mode::String
+    output_downsampled_datasets::Bool
 
     function Runner(dataset; 
         estimands_config="factorialATE", 
@@ -57,7 +58,7 @@ mutable struct Runner
         verbosity=0, 
         outputs=Outputs(), 
         chunksize=100,
-        rng=123,
+        rng_seed=123,
         cache_strategy="release-unusable",
         sort_estimands=false,
         save_sample_ids=false,
@@ -79,7 +80,7 @@ mutable struct Runner
             estimands = groups_ordering(estimands; 
                 brute_force=true, 
                 do_shuffle=true, 
-                rng=rng, 
+		rng=MersenneTwister(rng_seed), 
                 verbosity=verbosity
             )
         end
@@ -93,14 +94,15 @@ mutable struct Runner
             dataset, 
             cache_manager, 
             chunksize, 
-            rng,
+            rng_seed,
 	    outputs, 
             verbosity, 
             failed_nuisance, 
             save_sample_ids, 
             pvalue_threshold,
             prevalence_map,
-            prevalence_mode
+            prevalence_mode,
+	    output_downsampled_datasets
         )
     end
 end
@@ -112,9 +114,9 @@ function update_outputs(runner::Runner, results)
     update(runner.outputs::Outputs, results)
 end
 
-function try_estimation(runner, Ψ, estimator; rng=rng)
+function try_estimation(runner, Ψ, estimator)
     dataset = if runner.prevalence_map !== nothing && runner.prevalence_mode == "sampling"
-	downsample_dataset(runner.dataset, runner.prevalence_map, Ψ; rng=rng)
+	downsample_dataset(runner.dataset, runner.prevalence_map, Ψ; rng_seed=runner.rng_seed)
     else
         runner.dataset
     end
@@ -159,10 +161,28 @@ function (runner::Runner)(partition)
         end
         # Make sure data types are appropriate for the estimand
         TMLECLI.coerce_types!(runner.dataset, Ψ)
+
+	# downsampled dataset once for this Ψ
+	dataset = downsample_and_write_dataset(
+            runner,
+            Ψ,
+            param_index
+        )
+	if dataset === nothing
+            results[partition_index] =
+                NamedTuple{keys(runner.estimators)}(
+                    [FailedEstimate(
+                        Ψ,
+                        "Trait has a prevalence of zero and therefore cannot be prevalence-matched."
+                    ) for _ in runner.estimators]
+                )
+            continue
+        end
+	
         # Maybe update cache with new η_spec
         estimators_results = []
         for estimator in runner.estimators
-	    result = try_estimation(runner, Ψ, estimator; rng=runner.rng)
+	    result = try_estimation(runner, Ψ, estimator, dataset)
             push!(
                 estimators_results, 
                 TMLE.emptyIC(result, runner.pvalue_threshold)
@@ -202,7 +222,7 @@ end
         verbosity=0, 
         outputs=Outputs(),
         chunksize=100,
-        rng=123,
+        rng_seed=123,
         cache_strategy="release-unusable",
         sort_estimands=false
     )
@@ -220,11 +240,11 @@ TMLE CLI.
 - `-v, --verbosity`: Verbosity level.
 - `-o, --outputs`: Ouputs to be generated.
 - `--chunksize`: Results are written in batches of size chunksize.
-- `-r, --rng`: Random seed (Only used for estimands ordering at the moment).
+- `-r, --rng_seed`: Random seed (Used for estimands ordering and prevalence-matched downsampling).
 - `-c, --cache-strategy`: Caching Strategy for the nuisance functions, any of ("release-unusable", "no-cache", "max-size").
 - `--prevalence`: If the true prevalence of the outcome is known in the population, it can be specified here to correct for sampling bias.
 # Flags
-
+- `--output_downsampled_datasets`: if using prevalence-matched downsampleing, specify whether you want to output the downsampled datasets as well.
 - `-s, --sort_estimands`: Sort estimands to minimize cache usage (A brute force approach will be used, resulting in exponentially long sorting time).
 """
 function tmle(dataset::String;
@@ -233,13 +253,14 @@ function tmle(dataset::String;
     verbosity::Int=0, 
     outputs::Outputs=Outputs(),
     chunksize::Int=100,
-    rng::Int=123,
+    rng_seed::Int=123,
     cache_strategy::String="release-unusable",
     sort_estimands::Bool=false,
     save_sample_ids=false,
     pvalue_threshold=nothing,
     prevalence_file=nothing,
-    prevalence_mode="sampling"
+    prevalence_mode="sampling",
+    output_downsampled_datasets::Bool=false
     )
     runner = Runner(dataset;
         estimands_config=estimands, 
@@ -247,13 +268,14 @@ function tmle(dataset::String;
         verbosity=verbosity, 
         outputs=outputs, 
         chunksize=chunksize,
-        rng=rng,
+        rng_seed=rng_seed,
         cache_strategy=cache_strategy,
         sort_estimands=sort_estimands,
         save_sample_ids=save_sample_ids,
         pvalue_threshold=pvalue_threshold,
         prevalence_file=prevalence_file,
-        prevalence_mode=prevalence_mode
+        prevalence_mode=prevalence_mode,
+	output_downsampled_datasets=output_downsampled_datasets
     )
     runner()
     verbosity >= 1 && @info "Done."
