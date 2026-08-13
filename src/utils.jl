@@ -206,7 +206,7 @@ function treatments_from_estimands(estimands)
     return treatments
 end
 
-function downsample_dataset(dataset_source, prevalence_map, Ψ)
+function downsample_dataset(dataset_source, prevalence_map, Ψ; rng=Random.default_rng())
     outcome = only(TMLECLI.outcomes(Ψ))
 
     if string(outcome) in keys(prevalence_map)
@@ -224,12 +224,12 @@ function downsample_dataset(dataset_source, prevalence_map, Ψ)
         if only(case_stats).proprow < target_prevalence
             n_required_controls = round(only(case_stats.nrow) * (1-target_prevalence)/target_prevalence)
             control_indices = findall(relevant_dataset[!, outcome] .== 0)
-            indices_to_remove = shuffle(control_indices)[1:Int(length(control_indices)-n_required_controls)]
+            indices_to_remove = shuffle(rng, control_indices)[1:Int(length(control_indices)-n_required_controls)]
         else
             control_stats = subset(outcome_stats, outcome => x -> x .== 0)
             n_required_cases = round(only(control_stats.nrow) * target_prevalence/(1-target_prevalence))
             cases_indices = findall(relevant_dataset[!, outcome] .== 1)
-            indices_to_remove = shuffle(cases_indices)[1:Int(length(cases_indices)-n_required_cases)]
+            indices_to_remove = shuffle(rng, cases_indices)[1:Int(length(cases_indices)-n_required_cases)]
         end
 
         return relevant_dataset[Not(indices_to_remove), :]
