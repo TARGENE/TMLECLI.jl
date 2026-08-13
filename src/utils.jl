@@ -226,10 +226,20 @@ function downsample_and_write_dataset(runner::Runner, Ψ)
 
     if runner.output_downsampled_datasets
         outcome = string(only(TMLECLI.outcomes(Ψ)))
+
+        # HDF5 output directory
         output_dir = dirname(runner.outputs.hdf5)
 
+        # Go up one level and create downsampled_datasets/
+        downsampled_dir = joinpath(
+            dirname(output_dir),
+            "downsampled_datasets"
+        )
+
+        mkpath(downsampled_dir)
+
         filename = joinpath(
-            output_dir,
+            downsampled_dir,
             "downsampled_$(outcome).tsv"
         )
 
@@ -240,7 +250,7 @@ function downsample_and_write_dataset(runner::Runner, Ψ)
 end
 
 
-function downsample_dataset(dataset_source, prevalence_map, Ψ; rng_seed)
+function downsample_dataset(dataset_source, prevalence_map, Ψ; rng_seed=123)
     outcome = only(TMLECLI.outcomes(Ψ))
     outcome_string = string(outcome)
 
