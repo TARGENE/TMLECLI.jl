@@ -230,16 +230,9 @@ function downsample_and_write_dataset(runner::Runner, Ψ)
         # HDF5 output directory
         output_dir = dirname(runner.outputs.hdf5)
 
-        # Go up one level and create downsampled_datasets/
-        downsampled_dir = joinpath(
-            dirname(output_dir),
-            "downsampled_datasets"
-        )
-
-        mkpath(downsampled_dir)
-
+        # write to same directory as HDF5 out
         filename = joinpath(
-            downsampled_dir,
+            output_dir,
             "downsampled_$(outcome).tsv"
         )
 
